@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# 실행 데이터 (DB, 체크포인트, 작업 공간, API 키 포함)
+backend/data/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Env
+.env
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# 테스트 임시 폴더와 로컬 DB
+backend/.test-tmp*/
+*.db
+*.db-shm
+*.db-wal
