@@ -1,0 +1,6 @@
+{
+  "agents": {
+    "master": { "provider": "codex" },
+    "worker": { "provider": "codex" }
+  }
+}

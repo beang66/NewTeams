@@ -1,0 +1,39 @@
+:root {
+  --bg: #010102;
+  --surface-1: #0f1011;
+  --surface-2: #141516;
+  --surface-3: #18191a;
+  --line: #23252a;
+  --line-strong: #34343a;
+  --ink: #f7f8f8;
+  --ink-muted: #d0d6e0;
+  --ink-subtle: #8a8f98;
+  --ink-faint: #62666d;
+  --accent: #5e6ad2;
+  --accent-hover: #828fff;
+  --ok: #27a644;
+  --bad: #eb5757;
+  --warn: #f2c94c;
+
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-16: 16px;
+  --fs-20: 20px;
+
+  --font-body: 'Pretendard Variable', 'Pretendard', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --dur: 200ms;
+}

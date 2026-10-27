@@ -1,0 +1,42 @@
+import { describe, it, expect } from 'vitest'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { DEFAULT_CONFIG, loadConfig } from '../src/config.js'
+
+describe('config', () => {
+  it('스펙 기본값', () => {
+    expect(DEFAULT_CONFIG.maxParallel).toBe(3)
+    expect(DEFAULT_CONFIG.rejectLimit).toBe(5)
+    expect(DEFAULT_CONFIG.repeatFindingLimit).toBe(2)
+    expect(DEFAULT_CONFIG.timeoutsMs).toMatchObject({ dev: 1_200_000, qa: 600_000, reviewer: 300_000, planner: 600_000, wiki: 180_000, master: 600_000, logQuery: 120_000 })
+    expect(DEFAULT_CONFIG.openaiCapUsd).toBe(8)
+    expect(DEFAULT_CONFIG.mergeConflictRetry).toBe(2)
+  })
+  it('경로 없으면 기본값', () => {
+    expect(loadConfig()).toEqual(DEFAULT_CONFIG)
+  })
+  it('파일 값을 덮어쓰고 timeoutsMs는 깊게 병합', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cfg-'))
+    const p = join(dir, 'c.json')
+    writeFileSync(p, JSON.stringify({ maxParallel: 5, timeoutsMs: { dev: 1 }, openaiPricePerMTok: { in: 1 } }))
+    const c = loadConfig(p)
+    expect(c.maxParallel).toBe(5)
+    expect(c.timeoutsMs.dev).toBe(1)
+    expect(c.timeoutsMs.qa).toBe(600_000)
+    expect(c.openaiPricePerMTok).toEqual({ in: 1, out: 2.0 })
+  })
+  it('마스터와 작업 AI 설정을 독립적으로 병합한다', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cfg-'))
+    const file = join(dir, 'agents.json')
+    writeFileSync(file, JSON.stringify({ agents: { master: { provider: 'codex', model: 'custom-master' }, worker: { provider: 'claude', escalatedModel: 'custom-upgrade' } } }))
+    const config = loadConfig(file)
+    expect(config.agents.master).toEqual({ provider: 'codex', model: 'custom-master' })
+    expect(config.agents.worker).toEqual({ provider: 'claude', escalatedModel: 'custom-upgrade' })
+    writeFileSync(file, JSON.stringify({ agents: { worker: { provider: 'unknown' } } }))
+    expect(() => loadConfig(file)).toThrow(/agents|provider/)
+  })
+  it('없는 파일은 경로를 담아 던진다', () => {
+    expect(() => loadConfig('/nope/missing.json')).toThrow(/missing\.json/)
+  })
+})
