@@ -4,6 +4,8 @@ import type { Plan } from '@orch/protocol/plan'
 
 export interface AgentConfig { roles: Record<string, { provider: 'claude' | 'codex'; model: string }> }
 
+export interface TelegramStatus { state: 'off' | 'connecting' | 'connected' | 'error'; botUsername?: string; lastError?: string }
+
 export class ApiError extends Error {
   status: number
   constructor(status: number, message: string) {
@@ -40,6 +42,9 @@ export const api = {
   async plan(): Promise<Plan | null> {
     const res = await request('/api/plan', undefined, [404])
     return res.status === 404 ? null : ((await res.json()) as Plan)
+  },
+  async telegram(): Promise<TelegramStatus> {
+    try { return await getJson<TelegramStatus>('/api/telegram') } catch { return { state: 'off' } }
   },
   agents: () => getJson<AgentConfig>('/api/agents'),
   events: (after?: string) => getJson<Envelope[]>(after ? `/api/events?after=${encodeURIComponent(after)}` : '/api/events'),
