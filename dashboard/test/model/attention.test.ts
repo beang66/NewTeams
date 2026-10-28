@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { attentionItems } from '../../src/model/attention'
-import { F, guidance, human, reject, stateWith } from './helpers'
+import { F, guidance, human, reject, resumed, stateWith } from './helpers'
 
 const withHuman = (...ids: string[]) => stateWith({ t1: 'blocked' }, { humanRequired: ids })
 
@@ -16,6 +16,14 @@ describe('attention', () => {
   })
   it('auth HUMAN_REQUIRED는 login 카드', () => {
     expect(attentionItems(withHuman('msg-3'), [human('msg-3', undefined, 'auth')], { hasSpecDraft: false })[0]!.kind).toBe('login')
+  })
+  it('로그인·상한 요청은 이후 RESUMED로 닫히고, 다시 생긴 요청만 남는다', () => {
+    const ev = [human('msg-3', undefined, 'auth'), resumed(1), human('msg-5', undefined, 'auth')]
+    expect(attentionItems(withHuman('msg-3', 'msg-5'), ev, { hasSpecDraft: false }).map((i) => (i as { eventId: string }).eventId)).toEqual(['msg-5'])
+    expect(attentionItems(withHuman('msg-3'), [human('msg-3', undefined, 'openai_cap'), resumed(1)], { hasSpecDraft: false })).toEqual([])
+  })
+  it('다른 사유의 사람 요청은 RESUMED로 닫히지 않는다', () => {
+    expect(attentionItems(withHuman('msg-3'), [human('msg-3', 't1', 'repeat_finding'), resumed(1)], { hasSpecDraft: false })).toHaveLength(1)
   })
   it('스펙 초안 카드는 INTAKE에서만, 맨 앞', () => {
     expect(attentionItems(stateWith({}), [], { hasSpecDraft: true })).toEqual([{ kind: 'spec', draftPath: 'spec.draft.md' }])

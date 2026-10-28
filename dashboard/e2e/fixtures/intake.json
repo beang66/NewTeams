@@ -1,0 +1,34 @@
+{
+  "plan": null,
+  "agents": {
+    "roles": {
+      "master": {
+        "provider": "claude",
+        "model": "claude-sonnet"
+      },
+      "planner": {
+        "provider": "claude",
+        "model": "claude-sonnet"
+      },
+      "dev": {
+        "provider": "claude",
+        "model": "claude-sonnet"
+      },
+      "qa": {
+        "provider": "claude",
+        "model": "claude-haiku"
+      },
+      "reviewer": {
+        "provider": "codex",
+        "model": "gpt-review"
+      }
+    }
+  },
+  "telegram": {
+    "state": "off"
+  },
+  "events": [],
+  "prompts": {},
+  "human": {},
+  "ids": {}
+}

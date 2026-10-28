@@ -19,6 +19,11 @@ describe('since', () => {
     const resolved = mk('GUIDANCE', 'user', 'dev', { payload: { action: 'guidance', text: 'x', resolves: 'h1' } })
     expect(some(sinceLastVisit([seen, h, resolved], seen.id)).humanOpen).toBe(0)
   })
+  it('재개로 닫힌 로그인 요청은 주의에 세지 않는다', () => {
+    const h = human('h1', undefined, 'auth')
+    expect(some(sinceLastVisit([seen, paused(t(1)), h, resumed(t(2))], seen.id)).humanOpen).toBe(0)
+    expect(some(sinceLastVisit([seen, human('h2', 't1', 'repeat_finding'), resumed(t(2))], seen.id)).humanOpen).toBe(1)
+  })
   it('unknown(첫 방문·모르는 id)과 none(새 이벤트 없음)을 구분', () => {
     expect(sinceLastVisit([seen, approve('a')], null)).toEqual({ kind: 'unknown' })
     expect(sinceLastVisit([seen, approve('a')], 'nope')).toEqual({ kind: 'unknown' })

@@ -4,6 +4,12 @@ export interface SinceSummary { fromTs: string | null; approved: number; rejecte
 /** unknown: 첫 방문이거나 lastSeenId를 못 찾음(기준점 다시 잡기). none: 새 이벤트 없음. */
 export type Since = { kind: 'unknown' } | { kind: 'none' } | ({ kind: 'some' } & SinceSummary)
 
+/** A login/cap request is closed by the human [재개], which the server records only as RESUMED. */
+const resumedAfter = (e: Envelope, later: Envelope[]): boolean => {
+  const reason = (e.payload as { reason?: unknown } | null)?.reason
+  return (reason === 'auth' || reason === 'openai_cap') && later.some((x) => x.type === 'RESUMED')
+}
+
 export function sinceLastVisit(events: Envelope[], lastSeenId: string | null): Since {
   if (!lastSeenId) return { kind: 'unknown' }
   const idx = events.findIndex((e) => e.id === lastSeenId)
@@ -23,7 +29,7 @@ export function sinceLastVisit(events: Envelope[], lastSeenId: string | null): S
     rejected: count('REJECT'),
     paused: count('PAUSED'),
     autoResumed: lastPaused >= 0 && after.slice(lastPaused + 1).some((e) => e.type === 'RESUMED'),
-    humanOpen: after.filter((e) => e.type === 'HUMAN_REQUIRED' && !resolved.has(e.id)).length,
+    humanOpen: after.filter((e, i) => e.type === 'HUMAN_REQUIRED' && !resolved.has(e.id) && !resumedAfter(e, after.slice(i + 1))).length,
     ids: after.map((e) => e.id),
   }
 }

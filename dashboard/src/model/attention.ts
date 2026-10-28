@@ -6,6 +6,9 @@ export type AttentionItem =
   | { kind: 'human'; eventId: string; task?: string; reason: string; detail: string; findings: Finding[]; tried: string[] }
   | { kind: 'login'; eventId: string }
 
+/** Pauses that only a human [재개] ends; a later RESUMED means the human already acted. */
+const RESUME_CLEARS = new Set(['auth', 'openai_cap'])
+
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' ? (v as Record<string, unknown>) : {})
 
 export function attentionItems(state: RunState, events: Envelope[], opts: { hasSpecDraft: boolean }): AttentionItem[] {
@@ -17,6 +20,8 @@ export function attentionItems(state: RunState, events: Envelope[], opts: { hasS
     const ev = events[idx]!
     const p = obj(ev.payload)
     const reason = typeof p.reason === 'string' ? p.reason : ''
+    // 사람이 [재개]하면 서버는 RESUMED만 발행한다(humanRequired는 GUIDANCE로만 비워진다). 재개된 로그인·상한 요청은 더 이상 사람 차례가 아니다.
+    if (RESUME_CLEARS.has(reason) && events.slice(idx + 1).some((e) => e.type === 'RESUMED')) continue
     if (reason === 'auth') { items.push({ kind: 'login', eventId: id }); continue }
     let findings: Finding[] = []
     const tried: string[] = []

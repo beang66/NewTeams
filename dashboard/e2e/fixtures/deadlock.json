@@ -1,0 +1,596 @@
+{
+  "plan": {
+    "tasks": [
+      {
+        "id": "t1",
+        "title": "할 일 데이터 모델과 저장소",
+        "deps": [],
+        "ownedFiles": [
+          "src/todo/model.ts",
+          "src/todo/store.ts"
+        ],
+        "difficulty": "mid",
+        "acceptance": [
+          "할 일을 저장하고 다시 읽을 수 있다"
+        ],
+        "qaScenarios": [
+          {
+            "id": "S-t1-1",
+            "steps": [
+              "앱을 연다",
+              "할 일을 추가한다",
+              "새로고침한다"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "t2",
+        "title": "할 일 목록 화면",
+        "deps": [
+          "t1"
+        ],
+        "ownedFiles": [
+          "src/ui/TodoList.tsx"
+        ],
+        "difficulty": "mid",
+        "acceptance": [
+          "추가한 할 일이 목록 맨 위에 나타난다"
+        ],
+        "qaScenarios": [
+          {
+            "id": "S-t2-1",
+            "steps": [
+              "할 일을 추가한다"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "t3",
+        "title": "완료 상태가 새로고침 후에도 유지",
+        "deps": [
+          "t1"
+        ],
+        "ownedFiles": [
+          "src/todo/persist.ts"
+        ],
+        "difficulty": "high",
+        "acceptance": [
+          "완료로 표시한 항목은 새로고침 후에도 완료 상태다"
+        ],
+        "qaScenarios": [
+          {
+            "id": "S-t3-1",
+            "steps": [
+              "할 일을 완료로 표시한다",
+              "새로고침한다"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "t4",
+        "title": "할 일 삭제 버튼",
+        "deps": [
+          "t1"
+        ],
+        "ownedFiles": [
+          "src/ui/DeleteButton.tsx"
+        ],
+        "difficulty": "low",
+        "acceptance": [
+          "삭제하면 목록에서 사라진다"
+        ],
+        "qaScenarios": [
+          {
+            "id": "S-t4-1",
+            "steps": [
+              "할 일을 삭제한다"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "t5",
+        "title": "완료 항목만 보는 필터",
+        "deps": [
+          "t3"
+        ],
+        "ownedFiles": [
+          "src/ui/Filter.tsx"
+        ],
+        "difficulty": "low",
+        "acceptance": [
+          "필터를 켜면 완료 항목만 보인다"
+        ],
+        "qaScenarios": [
+          {
+            "id": "S-t5-1",
+            "steps": [
+              "필터를 켠다"
+            ]
+          }
+        ]
+      }
+    ],
+    "testCommands": [
+      "npm test"
+    ],
+    "devCommand": "npm run dev"
+  },
+  "agents": {
+    "roles": {
+      "master": {
+        "provider": "claude",
+        "model": "claude-sonnet"
+      },
+      "planner": {
+        "provider": "claude",
+        "model": "claude-sonnet"
+      },
+      "dev": {
+        "provider": "claude",
+        "model": "claude-sonnet"
+      },
+      "qa": {
+        "provider": "claude",
+        "model": "claude-haiku"
+      },
+      "reviewer": {
+        "provider": "codex",
+        "model": "gpt-review"
+      }
+    }
+  },
+  "telegram": {
+    "state": "connected",
+    "botUsername": "orch_todo_bot"
+  },
+  "events": [
+    {
+      "id": "msg-0001",
+      "ts": "2026-10-28T03:27:00.000Z",
+      "type": "CHAT",
+      "from": "user",
+      "to": "master",
+      "payload": {
+        "text": "할 일 앱 만들어 줘"
+      }
+    },
+    {
+      "id": "msg-0002",
+      "ts": "2026-10-28T03:28:00.000Z",
+      "type": "CHAT",
+      "from": "master",
+      "to": "user",
+      "payload": {
+        "text": "저장은 브라우저에만 하면 될까요?"
+      },
+      "usage": {
+        "in": 900,
+        "out": 300,
+        "cached": 2000
+      }
+    },
+    {
+      "id": "msg-0003",
+      "ts": "2026-10-28T03:29:00.000Z",
+      "type": "STATE_CHANGE",
+      "from": "controller",
+      "to": "all",
+      "payload": {
+        "stage": "SPEC_APPROVED"
+      }
+    },
+    {
+      "id": "msg-0004",
+      "ts": "2026-10-28T03:30:00.000Z",
+      "type": "STATE_CHANGE",
+      "from": "controller",
+      "to": "all",
+      "payload": {
+        "stage": "SEED"
+      }
+    },
+    {
+      "id": "msg-0005",
+      "ts": "2026-10-28T03:31:00.000Z",
+      "type": "STATE_CHANGE",
+      "from": "controller",
+      "to": "all",
+      "payload": {
+        "stage": "PLAN"
+      }
+    },
+    {
+      "id": "msg-0006",
+      "ts": "2026-10-28T03:32:00.000Z",
+      "type": "STATE_CHANGE",
+      "from": "controller",
+      "to": "all",
+      "payload": {
+        "stage": "BUILD"
+      }
+    },
+    {
+      "id": "msg-0007",
+      "ts": "2026-10-28T03:33:00.000Z",
+      "type": "ASSIGN",
+      "from": "controller",
+      "to": "dev",
+      "task": "t1",
+      "round": 1,
+      "payload": {
+        "title": "할 일 데이터 모델과 저장소"
+      },
+      "promptRef": "p-t1-r1"
+    },
+    {
+      "id": "msg-0008",
+      "ts": "2026-10-28T03:34:00.000Z",
+      "type": "REPORT",
+      "from": "dev",
+      "to": "controller",
+      "task": "t1",
+      "round": 1,
+      "payload": {
+        "summary": "구현 완료, 테스트 통과"
+      },
+      "usage": {
+        "in": 4200,
+        "out": 1800,
+        "cached": 9000
+      }
+    },
+    {
+      "id": "msg-0009",
+      "ts": "2026-10-28T03:35:00.000Z",
+      "type": "REVIEW_REQUEST",
+      "from": "controller",
+      "to": "reviewer",
+      "task": "t1",
+      "round": 1,
+      "payload": {
+        "diff": "diff --git a/src b/src"
+      }
+    },
+    {
+      "id": "msg-0010",
+      "ts": "2026-10-28T03:36:00.000Z",
+      "type": "APPROVE",
+      "from": "reviewer",
+      "to": "controller",
+      "task": "t1",
+      "round": 1,
+      "payload": {
+        "verdict": "approve",
+        "findings": [],
+        "resolved": []
+      },
+      "usage": {
+        "in": 2500,
+        "out": 400,
+        "cached": 3000
+      }
+    },
+    {
+      "id": "msg-0011",
+      "ts": "2026-10-28T03:37:00.000Z",
+      "type": "STATE_CHANGE",
+      "from": "controller",
+      "to": "all",
+      "task": "t1",
+      "payload": {
+        "taskStatus": "merged"
+      }
+    },
+    {
+      "id": "msg-0012",
+      "ts": "2026-10-28T03:38:00.000Z",
+      "type": "ASSIGN",
+      "from": "controller",
+      "to": "dev",
+      "task": "t2",
+      "round": 1,
+      "payload": {
+        "title": "할 일 목록 화면"
+      },
+      "promptRef": "p-t2-r1"
+    },
+    {
+      "id": "msg-0013",
+      "ts": "2026-10-28T03:39:00.000Z",
+      "type": "REPORT",
+      "from": "dev",
+      "to": "controller",
+      "task": "t2",
+      "round": 1,
+      "payload": {
+        "summary": "구현 완료, 테스트 통과"
+      },
+      "usage": {
+        "in": 4200,
+        "out": 1800,
+        "cached": 9000
+      }
+    },
+    {
+      "id": "msg-0014",
+      "ts": "2026-10-28T03:40:00.000Z",
+      "type": "REVIEW_REQUEST",
+      "from": "controller",
+      "to": "reviewer",
+      "task": "t2",
+      "round": 1,
+      "payload": {
+        "diff": "diff --git a/src b/src"
+      }
+    },
+    {
+      "id": "msg-0015",
+      "ts": "2026-10-28T03:41:00.000Z",
+      "type": "ASSIGN",
+      "from": "controller",
+      "to": "dev",
+      "task": "t4",
+      "round": 1,
+      "payload": {
+        "title": "할 일 삭제 버튼"
+      },
+      "promptRef": "p-t4-r1"
+    },
+    {
+      "id": "msg-0016",
+      "ts": "2026-10-28T03:42:00.000Z",
+      "type": "ASSIGN",
+      "from": "controller",
+      "to": "dev",
+      "task": "t3",
+      "round": 1,
+      "payload": {
+        "title": "완료 상태가 새로고침 후에도 유지"
+      },
+      "promptRef": "p-t3-r1"
+    },
+    {
+      "id": "msg-0017",
+      "ts": "2026-10-28T03:43:00.000Z",
+      "type": "REPORT",
+      "from": "dev",
+      "to": "controller",
+      "task": "t3",
+      "round": 1,
+      "payload": {
+        "summary": "완료 상태를 메모리에 저장"
+      },
+      "usage": {
+        "in": 4800,
+        "out": 2100,
+        "cached": 9000
+      }
+    },
+    {
+      "id": "msg-0018",
+      "ts": "2026-10-28T03:44:00.000Z",
+      "type": "REVIEW_REQUEST",
+      "from": "controller",
+      "to": "reviewer",
+      "task": "t3",
+      "round": 1,
+      "payload": {}
+    },
+    {
+      "id": "msg-0019",
+      "ts": "2026-10-28T03:45:00.000Z",
+      "type": "REJECT",
+      "from": "reviewer",
+      "to": "controller",
+      "task": "t3",
+      "round": 1,
+      "payload": {
+        "verdict": "reject",
+        "findings": [
+          {
+            "id": "F-3-1",
+            "severity": "major",
+            "file": "src/todo/persist.ts",
+            "issue": "새로고침 후 완료 상태가 사라짐",
+            "evidence_ref": "evidence/t3/r1/step-2.png"
+          }
+        ],
+        "resolved": []
+      },
+      "usage": {
+        "in": 2600,
+        "out": 500,
+        "cached": 3000
+      }
+    },
+    {
+      "id": "msg-0020",
+      "ts": "2026-10-28T03:46:00.000Z",
+      "type": "ASSIGN",
+      "from": "controller",
+      "to": "dev",
+      "task": "t3",
+      "round": 2,
+      "payload": {
+        "title": "완료 상태가 새로고침 후에도 유지",
+        "findings": [
+          "F-3-1"
+        ]
+      },
+      "promptRef": "p-t3-r2"
+    },
+    {
+      "id": "msg-0021",
+      "ts": "2026-10-28T03:47:00.000Z",
+      "type": "REPORT",
+      "from": "dev",
+      "to": "controller",
+      "task": "t3",
+      "round": 2,
+      "payload": {
+        "summary": "localStorage에 저장 추가"
+      },
+      "usage": {
+        "in": 5100,
+        "out": 2300,
+        "cached": 9500
+      }
+    },
+    {
+      "id": "msg-0022",
+      "ts": "2026-10-28T03:48:00.000Z",
+      "type": "REJECT",
+      "from": "harness",
+      "to": "controller",
+      "task": "t3",
+      "round": 2,
+      "payload": {
+        "verdict": "reject",
+        "findings": [
+          {
+            "id": "H-3-1",
+            "severity": "blocker",
+            "file": "src/todo/persist.test.ts",
+            "issue": "테스트 실패: persist.test.ts (1 failed)"
+          }
+        ],
+        "resolved": []
+      }
+    },
+    {
+      "id": "msg-0023",
+      "ts": "2026-10-28T03:49:00.000Z",
+      "type": "ASSIGN",
+      "from": "controller",
+      "to": "dev",
+      "task": "t3",
+      "round": 3,
+      "payload": {
+        "title": "완료 상태가 새로고침 후에도 유지"
+      },
+      "promptRef": "p-t3-r3"
+    },
+    {
+      "id": "msg-0024",
+      "ts": "2026-10-28T03:50:00.000Z",
+      "type": "REPORT",
+      "from": "dev",
+      "to": "controller",
+      "task": "t3",
+      "round": 3,
+      "payload": {
+        "summary": "테스트 수정"
+      },
+      "usage": {
+        "in": 5000,
+        "out": 2000,
+        "cached": 9500
+      }
+    },
+    {
+      "id": "msg-0025",
+      "ts": "2026-10-28T03:51:00.000Z",
+      "type": "REVIEW_REQUEST",
+      "from": "controller",
+      "to": "reviewer",
+      "task": "t3",
+      "round": 3,
+      "payload": {}
+    },
+    {
+      "id": "msg-0026",
+      "ts": "2026-10-28T03:52:00.000Z",
+      "type": "REJECT",
+      "from": "reviewer",
+      "to": "controller",
+      "task": "t3",
+      "round": 3,
+      "payload": {
+        "verdict": "reject",
+        "findings": [
+          {
+            "id": "F-3-1",
+            "severity": "major",
+            "file": "src/todo/persist.ts",
+            "issue": "새로고침 후 완료 상태가 사라짐",
+            "evidence_ref": "evidence/t3/r1/step-2.png"
+          }
+        ],
+        "resolved": []
+      },
+      "usage": {
+        "in": 2700,
+        "out": 500,
+        "cached": 3000
+      }
+    },
+    {
+      "id": "msg-0027",
+      "ts": "2026-10-28T03:53:00.000Z",
+      "type": "ESCALATE",
+      "from": "controller",
+      "to": "master",
+      "task": "t3",
+      "round": 3,
+      "payload": {
+        "reason": "repeat_finding"
+      }
+    },
+    {
+      "id": "msg-0028",
+      "ts": "2026-10-28T03:54:00.000Z",
+      "type": "GUIDANCE",
+      "from": "master",
+      "to": "controller",
+      "task": "t3",
+      "round": 3,
+      "payload": {
+        "action": "guidance",
+        "text": "저장 키를 todo.items 하나로 통일하고, 로드할 때 완료 필드를 병합하세요"
+      },
+      "usage": {
+        "in": 1500,
+        "out": 400,
+        "cached": 2000
+      }
+    },
+    {
+      "id": "msg-0029",
+      "ts": "2026-10-28T03:55:00.000Z",
+      "type": "HUMAN_REQUIRED",
+      "from": "controller",
+      "to": "user",
+      "task": "t3",
+      "round": 3,
+      "payload": {
+        "reason": "repeat_finding",
+        "detail": "같은 지적 F-3-1이 3회 반복됐고 마스터 지침으로도 풀리지 않았습니다"
+      }
+    }
+  ],
+  "prompts": {
+    "p-t1-r1": "당신은 개발 에이전트입니다. t1 \"할 일 데이터 모델과 저장소\"만 구현하세요. 소유 파일: src/todo/model.ts, src/todo/store.ts",
+    "p-t2-r1": "당신은 개발 에이전트입니다. t2 \"할 일 목록 화면\"만 구현하세요. 소유 파일: src/ui/TodoList.tsx",
+    "p-t4-r1": "당신은 개발 에이전트입니다. t4 \"할 일 삭제 버튼\"만 구현하세요. 소유 파일: src/ui/DeleteButton.tsx",
+    "p-t3-r1": "당신은 개발 에이전트입니다. t3 \"완료 상태가 새로고침 후에도 유지\"만 구현하세요. 소유 파일: src/todo/persist.ts",
+    "p-t3-r2": "당신은 개발 에이전트입니다. 직전 검수가 F-3-1(새로고침 후 완료 상태가 사라짐)을 지적했습니다.\n지적을 해결하고 같은 범위(src/todo/persist.ts)만 수정하세요.\n테스트: npm test",
+    "p-t3-r3": "당신은 개발 에이전트입니다. 테스트 실패(H-3-1)를 고치세요."
+  },
+  "human": {
+    "iterations/t3.md": "# t3 · 완료 상태가 새로고침 후에도 유지\n\n## 1회차 — 검수 반려\n리뷰어가 F-3-1(새로고침 후 완료 상태가 사라짐)을 지적했습니다. [원본](../raw/events.jsonl#msg-0016)\n\n## 2회차 — 하네스 반려\n테스트 persist.test.ts가 실패해 하네스가 반려했습니다. [원본](../raw/events.jsonl#msg-0020)\n\n## 3회차 — 같은 지적 반복\n리뷰어가 F-3-1을 다시 지적했습니다. [원본](../raw/events.jsonl#msg-0023)\n"
+  },
+  "ids": {
+    "t1a": "msg-0007",
+    "t3r1": "msg-0016",
+    "t3rej1": "msg-0019",
+    "t3r2": "msg-0020",
+    "t3rej2": "msg-0022",
+    "t3r3": "msg-0023",
+    "t3rej3": "msg-0026",
+    "human": "msg-0029"
+  }
+}
