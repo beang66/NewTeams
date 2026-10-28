@@ -1,0 +1,60 @@
+/* Lane sequence view (Task 7) — colors only via tokens */
+.lanes { display: flex; flex-direction: column; min-height: 0; }
+.laneview { display: flex; flex-direction: column; flex: 1; min-height: 0; background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.lane-toolbar { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--line); font-size: var(--fs-12); }
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); overflow: hidden; }
+.seg button, .lane-toggle {
+  font: inherit; font-size: var(--fs-12); color: var(--ink-subtle); background: none; border: 0; cursor: pointer;
+  padding: var(--space-1) var(--space-2); transition: color var(--dur), background var(--dur);
+}
+.seg button + button { border-left: 1px solid var(--line-strong); }
+.seg button[aria-pressed='true'] { color: var(--ink); background: var(--surface-3); }
+.lane-toggle { border: 1px solid var(--line-strong); border-radius: var(--radius-sm); }
+.lane-toggle[aria-pressed='true'] { color: var(--ink); }
+.lane-toggle.is-follow::before { content: '\25CF'; margin-right: var(--space-1); color: var(--ink-faint); }
+.lane-toggle.is-follow[aria-pressed='true']::before { color: var(--accent); }
+.lane-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.lane-svg { display: block; font-family: var(--font-body); font-size: var(--fs-12); }
+.lane-head-bg { fill: var(--surface-1); }
+.lane-title { fill: var(--ink-muted); font-size: var(--fs-13); }
+.lane-meta { fill: var(--ink-subtle); }
+.lane-status { fill: var(--ink-faint); }
+.lane-status.is-accent { fill: var(--accent-hover); }
+.lane-status.is-bad { fill: var(--bad); }
+.lane-status.is-warn { fill: var(--warn); }
+.lane-status.is-ok { fill: var(--ok); }
+.lane-badge rect { fill: var(--surface-3); stroke: var(--line-strong); }
+.lane-badge text { fill: var(--ink-muted); font-family: var(--font-mono); font-weight: 600; }
+.lane-guides line { stroke: var(--line); }
+.lane-axis text { fill: var(--ink-faint); }
+.lane-now line { stroke: var(--accent); stroke-dasharray: 3 4; stroke-opacity: .5; }
+.lane-now text { fill: var(--accent-hover); }
+.hatch-line { stroke: var(--warn); stroke-opacity: .2; stroke-width: 3; }
+.arrow { color: var(--ink-subtle); cursor: pointer; outline: none; }
+.arrow.tone-accent { color: var(--accent); }
+.arrow.tone-ok { color: var(--ok); }
+.arrow.tone-bad { color: var(--bad); }
+.arrow.tone-warn { color: var(--warn); }
+.arrow-line { stroke: currentColor; stroke-width: 1.5; }
+.arrow-tip { fill: currentColor; }
+.arrow-hit { stroke: transparent; stroke-width: 10; }
+.arrow-label { fill: var(--ink-subtle); }
+.arrow.tone-bad .arrow-label { fill: var(--bad); }
+.arrow:hover .arrow-line { stroke-width: 2.5; }
+.arrow.is-highlight .arrow-hit { stroke: var(--accent); stroke-opacity: .15; }
+.arrow.is-selected .arrow-hit { stroke: var(--accent); stroke-opacity: .35; }
+.arrow.is-selected .arrow-label { fill: var(--ink); }
+.arrow:focus-visible .arrow-hit { stroke: var(--accent); stroke-opacity: .5; }
+/* Narrow-screen timeline */
+.timeline { flex: 1; min-height: 0; max-height: 70vh; overflow-y: auto; background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.timeline-list { position: relative; margin: 0; padding: 0; list-style: none; }
+.timeline-row { position: absolute; top: 0; left: 0; width: 100%; }
+.timeline-item {
+  display: flex; align-items: center; gap: var(--space-2); width: 100%; height: 100%; min-width: 0;
+  font: inherit; font-size: var(--fs-13); color: var(--ink-muted); text-align: left; cursor: pointer;
+  background: none; border: 0; border-bottom: 1px solid var(--line); padding: 0 var(--space-3);
+}
+.timeline-item .truncate { flex: 1; }
+.timeline-item[aria-pressed='true'] { color: var(--ink); box-shadow: inset 2px 0 0 var(--accent); }
+.timeline-time, .timeline-id { font-size: var(--fs-12); color: var(--ink-subtle); }
+.timeline-type { font-size: var(--fs-12); color: var(--ink-muted); white-space: nowrap; }
