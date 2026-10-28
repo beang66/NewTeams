@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { RunView } from '../api/useRun'
 import { usageView } from '../model/usage'
 import { LaneView } from '../components/LaneView'
+import { AskBar } from '../components/AskBar'
+import type { DetailSub } from '../components/DetailTab'
 import { RightPanel, type PanelTab } from '../components/RightPanel'
 import { PausedBanner } from '../components/PausedBanner'
 import { SinceBar } from '../components/SinceBar'
@@ -24,21 +26,30 @@ function useMediaQuery(query: string): boolean {
   return matches
 }
 
-/** Slots `.board`, `.lanes`, `.panel`, `.askbar` are filled by Tasks 6-9. */
-export function ControlScreen({ run }: { run: RunView }) {
-  const [panelOpen, setPanelOpen] = useState(false)
+interface Props {
+  run: RunView
+  hasSpecDraft?: boolean
+  /** Open straight on this event's raw log entry (used when a report link jumps here). */
+  initialRawEvent?: string
+  topBarExtra?: ReactNode
+}
+
+export function ControlScreen({ run, hasSpecDraft = false, initialRawEvent, topBarExtra }: Props) {
+  const [panelOpen, setPanelOpen] = useState(initialRawEvent !== undefined)
   const [selectedTask, setSelectedTask] = useState<string | undefined>()
-  const [selectedEventId, setSelectedEventId] = useState<string | undefined>()
-  const [tab, setTab] = useState<PanelTab>('attention')
+  const [selectedEventId, setSelectedEventId] = useState<string | undefined>(initialRawEvent)
+  const [tab, setTab] = useState<PanelTab>(initialRawEvent ? 'detail' : 'attention')
+  const [sub, setSub] = useState<DetailSub>(initialRawEvent ? 'raw' : 'human')
   const [highlightIds, setHighlightIds] = useState<string[] | undefined>()
   const closePanel = useCallback(() => setPanelOpen(false), [])
   const selectEvent = (id: string) => { setSelectedEventId(id); setSelectedTask(undefined); setTab('detail') }
   const selectTask = (id: string) => { setSelectedTask(id); setSelectedEventId(undefined); setTab('detail') }
+  const showRaw = (id: string) => { selectEvent(id); setSub('raw'); setPanelOpen(true) }
   const narrow = useMediaQuery(NARROW)
   const paused = usageView(run.events, run.state, run.agents, new Date()).paused
   return (
     <div className="control">
-      <TopBar run={run} onOpenAttention={() => { setTab('attention'); setPanelOpen(true) }} />
+      <TopBar run={run} hasSpecDraft={hasSpecDraft} extra={topBarExtra} onOpenAttention={() => { setTab('attention'); setPanelOpen(true) }} />
       {paused && <PausedBanner paused={paused} />}
       <SinceBar events={run.events} onOpenTimeline={setHighlightIds} />
       <main className="control-grid">
@@ -51,9 +62,9 @@ export function ControlScreen({ run }: { run: RunView }) {
             : <LaneView events={run.events} state={run.state} agents={run.agents} selectedId={selectedEventId}
                 onSelectEvent={selectEvent} highlightIds={highlightIds} />}
         </section>
-        <RightPanel run={run} tab={tab} onTab={setTab} selection={{ eventId: selectedEventId, taskId: selectedTask }}
+        <RightPanel run={run} hasSpecDraft={hasSpecDraft} sub={sub} onSub={setSub} tab={tab} onTab={setTab} selection={{ eventId: selectedEventId, taskId: selectedTask }}
           onSelectEvent={selectEvent} onSelectTask={selectTask} open={panelOpen} onClose={closePanel} />
-        <div className="askbar" />
+        <AskBar events={run.events} onRawLink={showRaw} />
       </main>
     </div>
   )

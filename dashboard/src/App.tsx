@@ -1,14 +1,32 @@
-import { useRun } from './api/useRun'
+import { useRun, type RunView } from './api/useRun'
+import { hasDraft, useSpecDraft } from './api/useSpecDraft'
+import { Skeleton } from './components/Skeleton'
+import { TopBar } from './components/TopBar'
 import { ControlScreen } from './screens/ControlScreen'
+import { DoneScreen } from './screens/DoneScreen'
+import { IntakeScreen } from './screens/IntakeScreen'
 
-// Placeholders until the intake/done screens land.
-const IntakeScreen = () => <h1 className="sr-only">요구사항 정리</h1>
-const DoneScreen = () => <h1 className="sr-only">완료</h1>
+function Shell({ run }: { run: RunView }) {
+  const { draft, setDraft } = useSpecDraft(!run.loading && run.state.stage === 'INTAKE')
+  if (run.loading) {
+    return (
+      <div className="control">
+        <TopBar run={run} />
+        <main className="skeleton-page">{[4, 6, 4].map((n, i) => <Skeleton key={i} lines={n} />)}</main>
+      </div>
+    )
+  }
+  const { stage } = run.state
+  if (stage === 'INTAKE') return <IntakeScreen run={run} draft={draft} onDraft={setDraft} />
+  if (stage === 'DONE') return <DoneScreen run={run} />
+  return <ControlScreen run={run} hasSpecDraft={hasDraft(draft)} />
+}
 
-export function App() {
-  const run = useRun()
-  if (run.loading) return <h1 className="sr-only">에이전트 관제</h1>
-  if (run.state.stage === 'INTAKE') return <IntakeScreen />
-  if (run.state.stage === 'DONE') return <DoneScreen />
-  return <ControlScreen run={run} />
+function LiveApp() {
+  return <Shell run={useRun()} />
+}
+
+/** `runOverride` lets tests supply a fixed run instead of the live server connection. */
+export function App({ runOverride }: { runOverride?: RunView }) {
+  return runOverride ? <Shell run={runOverride} /> : <LiveApp />
 }

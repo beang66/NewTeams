@@ -1,0 +1,155 @@
+import { readFileSync } from 'node:fs'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { Envelope } from '@orch/protocol/messages'
+import { initialState } from '@orch/store/state'
+import { api } from '../../src/api/client'
+import type { RunView } from '../../src/api/useRun'
+import { App } from '../../src/App'
+import { AskBar } from '../../src/components/AskBar'
+import { DoneScreen } from '../../src/screens/DoneScreen'
+import { IntakeScreen } from '../../src/screens/IntakeScreen'
+import { ev } from '../fakes'
+
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
+
+const mk = (stage: RunView['state']['stage'], events: Envelope[] = [], extra: Partial<RunView> = {}): RunView => ({
+  state: { ...initialState, stage }, events, plan: null, agents: null, connected: true, loading: false, ...extra,
+})
+const intakeRun = (events: Envelope[]) => mk('INTAKE', events)
+const doneRun = mk('DONE', [
+  ev('msg-0001', 'ASSIGN', {}, { task: 't1' }), ev('msg-0002', 'REJECT', {}, { task: 't1' }), ev('msg-0003', 'APPROVE', {}, { task: 't1' }),
+], { state: { ...initialState, stage: 'DONE', tasks: { t1: { status: 'merged', round: 2 } }, apiSpendUsd: 0.5 } })
+
+describe('IntakeScreen', () => {
+  it('빈 상태 문구', () => {
+    render(<IntakeScreen run={intakeRun([])} draft={null} />)
+    expect(screen.getByText('만들고 싶은 것을 마스터에게 설명해 주세요. 대화가 끝나면 오른쪽에 스펙 초안이 채워집니다.')).toBeInTheDocument()
+  })
+  it('초안이 없으면 스펙 승인 비활성', () => {
+    render(<IntakeScreen run={intakeRun([])} draft={null} />)
+    expect(screen.getByRole('button', { name: '스펙 승인' })).toBeDisabled()
+  })
+  it('초안이 있으면 스펙 승인 활성, 승인 → api.approveSpec', async () => {
+    const approve = vi.spyOn(api, 'approveSpec').mockResolvedValue()
+    render(<IntakeScreen run={intakeRun([])} draft={'# 스펙'} />)
+    await userEvent.click(screen.getByRole('button', { name: '스펙 승인' }))
+    expect(approve).toHaveBeenCalledTimes(1)
+  })
+  it('대화 전송 → api.chat, 응답에 specDraft 있으면 초안 다시 불러옴', async () => {
+    const chat = vi.spyOn(api, 'chat').mockResolvedValue({ reply: '정리했습니다', specDraft: 'spec.draft.md' })
+    const human = vi.spyOn(api, 'human').mockResolvedValue('# 새 초안')
+    render(<IntakeScreen run={intakeRun([])} draft={null} />)
+    await userEvent.type(screen.getByRole('textbox', { name: '마스터에게 보내기' }), '앱을 만들어 줘{Enter}')
+    expect(chat).toHaveBeenCalledWith('앱을 만들어 줘')
+    expect(await screen.findByRole('heading', { name: '새 초안' })).toBeInTheDocument()
+    expect(human).toHaveBeenCalledWith('spec.draft.md')
+    expect(screen.getByRole('button', { name: '스펙 승인' })).toBeEnabled()
+  })
+  it('Shift+Enter는 줄바꿈, Enter는 전송', async () => {
+    const chat = vi.spyOn(api, 'chat').mockResolvedValue({ reply: 'ok' })
+    render(<IntakeScreen run={intakeRun([])} draft={null} />)
+    const box = screen.getByRole('textbox', { name: '마스터에게 보내기' })
+    await userEvent.type(box, '가{Shift>}{Enter}{/Shift}나')
+    expect(chat).not.toHaveBeenCalled()
+    expect(box).toHaveValue('가\n나')
+    await userEvent.type(box, '{Enter}')
+    expect(chat).toHaveBeenCalledWith('가\n나')
+  })
+  it('CHAT 이벤트를 대화로 보여 준다', () => {
+    render(<IntakeScreen run={intakeRun([ev('msg-0001', 'CHAT', { text: '안녕하세요' }, { from: 'user' })])} draft={null} />)
+    expect(screen.getByText('안녕하세요')).toBeInTheDocument()
+  })
+})
+
+describe('DoneScreen / App', () => {
+  it('DONE이면 보고서 화면', async () => {
+    vi.spyOn(api, 'human').mockResolvedValue('# 최종 평가\n완료')
+    render(<App runOverride={doneRun} />)
+    expect(await screen.findByRole('heading', { name: '최종 평가' })).toBeInTheDocument()
+  })
+  it('오른쪽 열은 실행 상태에서 계산한다 (태스크·반려·API 지출)', async () => {
+    vi.spyOn(api, 'human').mockResolvedValue('# 보고')
+    render(<DoneScreen run={doneRun} />)
+    await screen.findByRole('heading', { name: '보고' })
+    expect(screen.getByRole('row', { name: /태스크 1/ })).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: /반려 1/ })).toBeInTheDocument()
+    expect(within(screen.getByRole('complementary', { name: '숫자로 보기' })).getByText('$0.50 / $8')).toBeInTheDocument()
+  })
+  it('Markdown 내려받기는 report.md 내용으로 Blob을 만든다', async () => {
+    const report = '# 최종 평가\n본문'
+    vi.spyOn(api, 'human').mockResolvedValue(report)
+    const create = vi.fn(() => 'blob:x'); const revoke = vi.fn()
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: create, revokeObjectURL: revoke }))
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
+    render(<DoneScreen run={doneRun} />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Markdown 내려받기' }))
+    const blob = (create.mock.calls[0] as unknown as [Blob])[0]
+    expect(blob.type).toBe('text/markdown;charset=utf-8')
+    expect(await blob.text()).toBe(report)
+    expect(click).toHaveBeenCalled()
+    expect(revoke).toHaveBeenCalledWith('blob:x')
+  })
+  it('관제 화면 보기 토글', async () => {
+    vi.spyOn(api, 'human').mockResolvedValue('# 보고')
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
+    render(<DoneScreen run={doneRun} />)
+    await userEvent.click(await screen.findByRole('button', { name: '관제 화면 보기' }))
+    expect(screen.getByRole('region', { name: '레인' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '보고서 보기' }))
+    expect(await screen.findByRole('heading', { name: '보고' })).toBeInTheDocument()
+  })
+  it('로딩 중 스켈레톤', () => {
+    render(<App runOverride={{ ...doneRun, loading: true }} />)
+    expect(screen.getAllByTestId('skeleton').length).toBeGreaterThan(0)
+  })
+  it('INTAKE 중 초안을 불러와 스펙 승인을 켠다', async () => {
+    vi.spyOn(api, 'human').mockResolvedValue('# 초안')
+    render(<App runOverride={intakeRun([])} />)
+    await waitFor(() => expect(screen.getByRole('button', { name: '스펙 승인' })).toBeEnabled())
+    expect(screen.getByRole('button', { name: '주의 1' })).toBeInTheDocument()
+  })
+})
+
+describe('AskBar', () => {
+  it('묻기 → 답변 표시, 사용량 안내', async () => {
+    const ask = vi.spyOn(api, 'ask').mockResolvedValue('msg-0023에서 권한 문제로 멈췄습니다')
+    render(<AskBar events={[]} />)
+    expect(screen.getByText('사용량을 씁니다')).toBeInTheDocument()
+    await userEvent.type(screen.getByRole('textbox', { name: '마스터에게 묻기' }), 't3이 왜 멈췄지?{Enter}')
+    expect(ask).toHaveBeenCalledWith('t3이 왜 멈췄지?')
+    expect(await screen.findByText('msg-0023에서 권한 문제로 멈췄습니다')).toBeInTheDocument()
+  })
+  it('요청 중에는 입력이 비활성', async () => {
+    let done!: (v: string) => void
+    vi.spyOn(api, 'ask').mockReturnValue(new Promise((r) => { done = r }))
+    render(<AskBar events={[]} />)
+    await userEvent.type(screen.getByRole('textbox', { name: '마스터에게 묻기' }), '질문{Enter}')
+    expect(screen.getByRole('textbox', { name: '마스터에게 묻기' })).toBeDisabled()
+    done('답')
+    expect(await screen.findByText('답')).toBeInTheDocument()
+  })
+  it('답변의 원본 링크는 onRawLink', async () => {
+    vi.spyOn(api, 'ask').mockResolvedValue('[근거](raw/events.jsonl#msg-0009)')
+    const onRaw = vi.fn()
+    render(<AskBar events={[]} onRawLink={onRaw} />)
+    await userEvent.type(screen.getByRole('textbox', { name: '마스터에게 묻기' }), 'q{Enter}')
+    await userEvent.click(await screen.findByRole('link', { name: '근거' }))
+    expect(onRaw).toHaveBeenCalledWith('msg-0009')
+  })
+  it('최근 이벤트 한 줄', () => {
+    render(<AskBar events={[ev('msg-0004', 'CHAT', {}, { from: '마스터', to: '나' })]} />)
+    expect(screen.getByText(/msg-0004 · 마스터 → 나 · 대화/)).toBeInTheDocument()
+  })
+})
+
+it('paper 토큰은 와이어프레임 값 그대로', () => {
+  const css = readFileSync('src/styles/paper.css', 'utf8')
+  for (const [k, v] of Object.entries({ '--p-bg': '#f3f0e8', '--p-sheet': '#fbf9f4', '--p-ink': '#141414', '--p-ink2': '#3d3a35', '--p-ink3': '#6b665d', '--p-hair': '#cfc9bd', '--p-ok': '#1f6f3a', '--p-bad': '#a8281e', '--p-warn': '#8a6100', '--p-now': '#4b55c0' }))
+    expect(css).toMatch(new RegExp(`${k}:\\s*${v}\\s*;`, 'i'))
+})
+it('@media print에서 상단 바와 묻기 바를 숨긴다', () => {
+  const css = readFileSync('src/styles/screens.css', 'utf8')
+  expect(css).toMatch(/@media print[\s\S]*\.topbar[\s\S]*\.askbar[\s\S]*display:\s*none/)
+})

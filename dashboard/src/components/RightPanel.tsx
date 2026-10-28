@@ -19,15 +19,21 @@ interface Props {
   onSelectEvent?: (eventId: string) => void
   onSelectTask?: (taskId: string) => void
   onOpenSpec?: () => void
+  hasSpecDraft?: boolean
+  /** Optional lift of the Detail sub-tab so callers can open the Raw view directly. */
+  sub?: DetailSub
+  onSub?: (sub: DetailSub) => void
   /** Drawer state at <=1024px; on wide screens the panel is always visible. */
   open?: boolean
   onClose?: () => void
 }
 
-export function RightPanel({ run, tab, onTab, selection, onSelectEvent, onSelectTask, onOpenSpec, open, onClose }: Props) {
-  const [sub, setSub] = useState<DetailSub>('human')
+export function RightPanel({ run, tab, onTab, selection, onSelectEvent, onSelectTask, onOpenSpec, hasSpecDraft = false, sub: subProp, onSub, open, onClose }: Props) {
+  const [subLocal, setSubLocal] = useState<DetailSub>('human')
+  const sub = subProp ?? subLocal
+  const setSub = onSub ?? setSubLocal
   const ref = useRef<HTMLElement>(null)
-  const items = useMemo(() => attentionItems(run.state, run.events, { hasSpecDraft: false }), [run.state, run.events])
+  const items = useMemo(() => attentionItems(run.state, run.events, { hasSpecDraft }), [run.state, run.events, hasSpecDraft])
 
   const closeRef = useRef(onClose)
   closeRef.current = onClose
