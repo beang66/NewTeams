@@ -1,7 +1,7 @@
 # 작업 인계: 오케스트레이터 코어 (계획 1/2) — Codex용
 
 - 작성: 2026-10-27, Claude Code 세션(사용량 한도 직전)
-- 저장소: `C:\myproject\new-team\superpower`, 브랜치 `orchestrator-v2` (원격 `origin` = github.com/beang66/NewTeams)
+- 저장소: `C:\myproject\New-teams\orchestration-platform`, 브랜치 `orchestrator-v2` (원격 `origin` = github.com/beang66/NewTeams)
 - 원격 `main`은 별개 프로젝트(NewTeams Studio)이므로 **건드리지 말 것**
 
 ## 1. 먼저 읽을 문서 (이 순서)

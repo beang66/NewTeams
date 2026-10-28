@@ -2,7 +2,7 @@
 
 이전 인계 문서([2026-10-27-codex-handoff.md](2026-10-27-codex-handoff.md))는 오케스트레이터 코어 단계의 기록이다. **지금 상태와 다음 할 일은 이 문서가 기준이다.**
 
-- 저장소: `C:\myproject\new-team\superpower`, 브랜치 `orchestrator-v2`
+- 저장소: `C:\myproject\New-teams\orchestration-platform`, 브랜치 `orchestrator-v2`
 - 원격 기준은 `4633ab8`이며 이후 구현은 로컬 커밋이다. 정확한 차이는 `git status -sb`, `git log origin/orchestrator-v2..HEAD`로 확인한다. 원격 `main`은 별개 프로젝트이니 건드리지 말 것. 푸시는 사용자 확인 후에만.
 - 작업 트리의 `DESIGN.md` 변경(표 구분선 서식)은 이 작업과 무관하다. 커밋하지 말 것.
 
