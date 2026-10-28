@@ -8,6 +8,8 @@ import './styles/tokens.css'
 import './styles/base.css'
 import './styles/shell.css'
 import './styles/lanes.css'
+import './styles/paper.css'
+import './styles/panel.css'
 import { App } from './App'
 
 createRoot(document.getElementById('root')!).render(

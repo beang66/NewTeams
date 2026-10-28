@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { RunView } from '../api/useRun'
 import { usageView } from '../model/usage'
 import { LaneView } from '../components/LaneView'
+import { RightPanel, type PanelTab } from '../components/RightPanel'
 import { PausedBanner } from '../components/PausedBanner'
 import { SinceBar } from '../components/SinceBar'
 import { TaskBoard } from '../components/TaskBoard'
@@ -28,25 +29,30 @@ export function ControlScreen({ run }: { run: RunView }) {
   const [panelOpen, setPanelOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<string | undefined>()
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>()
+  const [tab, setTab] = useState<PanelTab>('attention')
   const [highlightIds, setHighlightIds] = useState<string[] | undefined>()
+  const closePanel = useCallback(() => setPanelOpen(false), [])
+  const selectEvent = (id: string) => { setSelectedEventId(id); setSelectedTask(undefined); setTab('detail') }
+  const selectTask = (id: string) => { setSelectedTask(id); setSelectedEventId(undefined); setTab('detail') }
   const narrow = useMediaQuery(NARROW)
   const paused = usageView(run.events, run.state, run.agents, new Date()).paused
   return (
     <div className="control">
-      <TopBar run={run} onOpenAttention={() => setPanelOpen(true)} />
+      <TopBar run={run} onOpenAttention={() => { setTab('attention'); setPanelOpen(true) }} />
       {paused && <PausedBanner paused={paused} />}
       <SinceBar events={run.events} onOpenTimeline={setHighlightIds} />
       <main className="control-grid">
         <aside className="board" aria-label="태스크 보드">
-          <TaskBoard state={run.state} plan={run.plan} selectedTask={selectedTask} onSelect={setSelectedTask} />
+          <TaskBoard state={run.state} plan={run.plan} selectedTask={selectedTask} onSelect={selectTask} />
         </aside>
         <section className="lanes" aria-label="레인">
           {narrow
-            ? <TimelineList events={run.events} selectedId={selectedEventId} onSelectEvent={setSelectedEventId} />
+            ? <TimelineList events={run.events} selectedId={selectedEventId} onSelectEvent={selectEvent} />
             : <LaneView events={run.events} state={run.state} agents={run.agents} selectedId={selectedEventId}
-                onSelectEvent={setSelectedEventId} highlightIds={highlightIds} />}
+                onSelectEvent={selectEvent} highlightIds={highlightIds} />}
         </section>
-        <aside className="panel" aria-label="오른쪽 패널" data-open={panelOpen ? '' : undefined} />
+        <RightPanel run={run} tab={tab} onTab={setTab} selection={{ eventId: selectedEventId, taskId: selectedTask }}
+          onSelectEvent={selectEvent} onSelectTask={selectTask} open={panelOpen} onClose={closePanel} />
         <div className="askbar" />
       </main>
     </div>
