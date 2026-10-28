@@ -25,6 +25,7 @@ function baseGraph(): WorkGraph {
 function completedGraph(): WorkGraph {
   const graph = baseGraph()
   const artifacts: ArtifactRecord[] = [
+    artifact('artifact-plan', 'run-report.research-plan', 'research-plan', 'artifacts/plan.md', {}),
     artifact('artifact-sources', 'run-report.collect-sources', 'source-notes', 'artifacts/sources.md', {}),
     artifact('artifact-report', 'run-report.write-report', 'final-report', 'artifacts/report.md', {
       sections: input.requiredSections,

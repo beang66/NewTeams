@@ -183,6 +183,7 @@ export function validatePackRun<I>(pack: WorkPack<I>, graph: WorkGraph, runId: s
   const evidence = graph.evidence.filter((item) => item.runId === runId)
   const blueprint = pack.createBlueprint(input.data)
   findings.push(...validateInstantiatedTasks(blueprint, tasks))
+  findings.push(...validateRequiredOutputs(blueprint, tasks, artifacts))
   findings.push(...pack.review({ run, input: input.data, tasks, artifacts, evidence }))
   return result(findings)
 }
@@ -258,5 +259,33 @@ function validateInstantiatedTasks(blueprint: WorkPackBlueprint, tasks: WorkTask
   const findings: PackReviewFinding[] = []
   for (const key of expected) if (!actual.has(key)) findings.push({ code: 'missing-task', severity: 'blocker', message: `팩 태스크 없음: ${key}` })
   for (const key of actual) if (!expected.has(key)) findings.push({ code: 'unexpected-task', severity: 'major', message: `팩에 없는 태스크: ${key}` })
+  return findings
+}
+
+function validateRequiredOutputs(
+  blueprint: WorkPackBlueprint,
+  tasks: WorkTaskRecord[],
+  artifacts: ArtifactRecord[],
+): PackReviewFinding[] {
+  const taskByKey = new Map(tasks.map((task) => [task.key, task]))
+  const findings: PackReviewFinding[] = []
+  for (const template of blueprint.tasks) {
+    const task = taskByKey.get(template.key)
+    if (!task) continue
+    for (const requirement of template.outputs.filter((output) => output.required)) {
+      const artifact = artifacts.find((item) => item.taskId === task.id && item.kind === requirement.kind)
+      if (!artifact) {
+        findings.push({
+          code: 'missing-required-artifact', severity: 'blocker', entityId: task.id,
+          message: `${template.title}: 필수 산출물 ${requirement.kind} 없음`,
+        })
+      } else if (!requirement.mediaTypes.includes(artifact.mediaType)) {
+        findings.push({
+          code: 'invalid-artifact-media-type', severity: 'blocker', entityId: artifact.id,
+          message: `${requirement.kind}: 허용되지 않은 media type ${artifact.mediaType}`,
+        })
+      }
+    }
+  }
   return findings
 }
