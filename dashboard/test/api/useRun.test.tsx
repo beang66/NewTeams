@@ -80,6 +80,72 @@ describe('useRun', () => {
     unmount()
     expect(es.closed).toBe(true)
   })
+
+  it('/api/events가 state보다 앞서면(msg-0006) 상태에 접어 넣고 목록에 한 번만 둔다', async () => {
+    const es = new FakeEventSource()
+    stubFetch({ ...routes(), '/api/events': [200, [...initial, ev('msg-0006', 'STATE_CHANGE', { stage: 'BUILD' })]] })
+    const { result } = renderHook(() => useRun({ eventSourceFactory: () => es.asEventSource() }))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.state.stage).toBe('BUILD')
+    expect(result.current.state.lastEventId).toBe('msg-0006')
+    expect(result.current.events.filter((e) => e.id === 'msg-0006')).toHaveLength(1)
+    act(() => es.emit(ev('msg-0006', 'STATE_CHANGE', { stage: 'BUILD' })))
+    expect(result.current.events.filter((e) => e.id === 'msg-0006')).toHaveLength(1)
+  })
+
+  it('state가 events보다 앞서면(msg-0006) 스트림 이벤트는 목록에만 추가, 상태엔 재적용 안 함', async () => {
+    const es = new FakeEventSource()
+    const ahead = { ...serverState, lastEventId: 'msg-0006', tasks: { T1: { status: 'approved', round: 2 } } }
+    stubFetch({ ...routes(), '/api/state': [200, ahead] })
+    const { result } = renderHook(() => useRun({ eventSourceFactory: () => es.asEventSource() }))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.events.map((e) => e.id)).not.toContain('msg-0006')
+    // re-applying this ASSIGN would visibly regress T1 to running/round 1
+    act(() => es.emit(ev('msg-0006', 'ASSIGN', {}, { task: 'T1', round: 1 })))
+    expect(result.current.events.filter((e) => e.id === 'msg-0006')).toHaveLength(1)
+    expect(result.current.state.tasks.T1).toEqual({ status: 'approved', round: 2 })
+    act(() => es.emit(ev('msg-0006', 'ASSIGN', {}, { task: 'T1', round: 1 })))
+    expect(result.current.events.filter((e) => e.id === 'msg-0006')).toHaveLength(1)
+  })
+
+  it('형식이 잘못된 id는 경고 후 건너뛰고 이후 이벤트는 정상 처리', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const es = new FakeEventSource()
+    stubFetch(routes())
+    const { result } = renderHook(() => useRun({ eventSourceFactory: () => es.asEventSource() }))
+    act(() => es.emit(ev('bogus')))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    act(() => { es.emit(ev('msg-x')); es.emit(ev('msg-0006')) })
+    expect(result.current.error).toBeUndefined()
+    expect(result.current.events.map((e) => e.id)).toEqual([...initial.map((e) => e.id), 'msg-0006'])
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
+  })
+
+  it('EventSource가 CLOSED가 되면 3초 뒤 다시 만들고 언마운트 시 타이머를 정리한다', async () => {
+    vi.useFakeTimers()
+    const first = new FakeEventSource()
+    const second = new FakeEventSource()
+    const made = [first, second]
+    const factory = vi.fn(() => made.shift()!.asEventSource())
+    stubFetch(routes())
+    const { result, unmount } = renderHook(() => useRun({ eventSourceFactory: factory }))
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    act(() => first.open())
+    expect(result.current.connected).toBe(true)
+    act(() => first.failClosed())
+    expect(result.current.connected).toBe(false)
+    expect(factory).toHaveBeenCalledTimes(1)
+    await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
+    expect(factory).toHaveBeenCalledTimes(2)
+    act(() => second.emit(ev('msg-0006')))
+    expect(result.current.connected).toBe(true)
+    expect(result.current.events.at(-1)?.id).toBe('msg-0006')
+    act(() => second.failClosed())
+    unmount()
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    expect(factory).toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('api', () => {

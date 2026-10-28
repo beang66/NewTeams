@@ -8,6 +8,7 @@ export class FakeEventSource {
   onerror: ((e?: unknown) => void) | null = null
   onopen: ((e?: unknown) => void) | null = null
   closed = false
+  readyState = 1
   private listeners: Record<string, Listener[]> = {}
   constructor(public url = '/api/stream') {}
   addEventListener(type: string, fn: Listener): void { (this.listeners[type] ??= []).push(fn) }
@@ -15,6 +16,8 @@ export class FakeEventSource {
   close(): void { this.closed = true }
   emit(env: Envelope): void { for (const l of this.listeners.envelope ?? []) l({ data: JSON.stringify(env) }) }
   fail(): void { this.onerror?.() }
+  /** Browser gave up reconnecting (readyState CLOSED). */
+  failClosed(): void { this.readyState = 2; this.onerror?.() }
   open(): void { this.onopen?.() }
   asEventSource(): EventSource { return this as unknown as EventSource }
 }
