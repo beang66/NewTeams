@@ -6,8 +6,9 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createInterface } from 'node:readline'
 import type { Readable, Writable } from 'node:stream'
+import type { FastifyInstance } from 'fastify'
 import { loadConfig, resolveConfig, type AgentProvider, type Config } from './config.js'
-import { systemClock } from './clock.js'
+import { systemClock, type Clock } from './clock.js'
 import { ProjectStore } from './store/projectStore.js'
 import { Workflow } from './engine/workflow.js'
 import { AgentRunner } from './runners/agentRunner.js'
@@ -16,7 +17,10 @@ import { OpenAIRunner } from './runners/openaiRunner.js'
 import { ReviewerRunner } from './runners/reviewerRunner.js'
 import { createWorkflowActions } from './server/actions.js'
 import { buildServer, listenLocal } from './server/http.js'
-import { attachNotifier, consoleNotifier } from './server/notifier.js'
+import { attachNotifier, consoleNotifier, NOTIFY_TYPES } from './server/notifier.js'
+import { TelegramBot } from './telegram/bot.js'
+import { BotApi } from './telegram/botApi.js'
+import { readTelegramSecrets, redact, type TelegramSecrets } from './telegram/env.js'
 
 export function createProgram(): Command {
   const program = new Command().name('orch').description('로컬 멀티 에이전트 오케스트레이터')
@@ -53,16 +57,9 @@ export function createProgram(): Command {
     .action(async (name: string, options: { dashboard?: string }) => {
     const cfg = config()
     const wf = await openExisting(cfg, name)
-    const detach = attachNotifier(wf.bus, consoleNotifier)
     const dashboardDir = resolveDashboardDir(options.dashboard)
-    const actions = createWorkflowActions(wf, async (error) => {
-      console.error('Workflow failed; answer the human request to retry', error)
-      await wf.bus.publish({ type: 'HUMAN_REQUIRED', from: 'controller', to: 'user', payload: {
-        reason: 'workflow_error', detail: error instanceof Error ? error.message : String(error),
-      } })
-    })
-    const app = buildServer(wf, { resume: true, actions, ...(dashboardDir ? { dashboardDir } : {}) })
-    app.addHook('onClose', async () => { detach() })
+    const { app } = assembleServe(cfg, wf, process.env, { dashboardDir })
+    installServeShutdown(app)
     try {
       const address = await listenLocal(app, cfg.port)
       console.log(`오케스트레이터: ${address}`)
@@ -74,7 +71,71 @@ export function createProgram(): Command {
   program.command('chat <name>').description('터미널 대화 (/approve, /exit)').action(async (name: string) => {
     await runTerminalChat(await openExisting(config(), name))
   })
+  program.command('telegram-check').description('텔레그램 연결 확인 메시지 한 건 전송').action(async () => {
+    await telegramCheck(config(), process.env)
+  })
   return program
+}
+
+interface TelegramOptions { api?: BotApi; log?: (message: string) => void }
+interface ServeOptions extends TelegramOptions { clock?: Clock; dashboardDir?: string }
+
+/** HTTP와 Telegram이 동일한 직렬화 동작을 공유하고 서버 생명주기로 함께 종료된다. */
+export function assembleServe(cfg: Config, wf: Workflow, env: NodeJS.ProcessEnv, options: ServeOptions = {}) {
+  const secrets = readTelegramSecrets(env)
+  const log = options.log ?? console.log
+  const actions = createWorkflowActions(wf, async error => {
+    const detail = safeTelegramError(error, secrets)
+    console.error('Workflow failed; answer the human request to retry', detail)
+    await wf.bus.publish({ type: 'HUMAN_REQUIRED', from: 'controller', to: 'user', payload: { reason: 'workflow_error', detail } })
+  })
+  const bot = secrets ? new TelegramBot({ secrets, cfg: cfg.telegram, wf, actions, clock: options.clock ?? systemClock, api: options.api }) : undefined
+  const detachConsole = attachNotifier(wf.bus, consoleNotifier)
+  const detachTelegram = bot ? attachNotifier(wf.bus, bot, [...NOTIFY_TYPES, 'RESUMED', 'APPROVE']) : undefined
+  const app = buildServer(wf, { resume: true, actions, dashboardDir: options.dashboardDir, telegramStatus: () => bot?.status() ?? { state: 'off' } })
+  app.addHook('onListen', async () => {
+    if (!bot) { log('텔레그램: 꺼짐 (환경 변수 없음)'); return }
+    // Telegram 장애나 getMe 지연이 HTTP listen 및 workflow drive를 기다리게 하지 않는다.
+    void bot.start().then(() => {
+      const status = bot.status()
+      if (status.state === 'connected') log(`텔레그램: @${status.botUsername ?? ''} 연결됨`)
+    }).catch(error => console.warn(`텔레그램: ${safeTelegramError(error, secrets)}`))
+  })
+  app.addHook('onClose', async () => {
+    detachConsole(); detachTelegram?.()
+    await bot?.stop()
+  })
+  return { app, bot, actions }
+}
+
+/** 실제 CLI에서는 환경 변수만 읽으며, 테스트는 루프백 API/명시적 env를 주입한다. */
+export async function telegramCheck(cfg: Config, env: NodeJS.ProcessEnv, options: TelegramOptions = {}): Promise<void> {
+  const secrets = readTelegramSecrets(env)
+  if (!secrets) throw new Error('TELEGRAM_BOT_TOKEN과 TELEGRAM_CHAT_ID를 모두 설정하세요.')
+  const api = options.api ?? new BotApi(secrets.token, cfg.telegram.apiBase)
+  const log = options.log ?? console.log
+  try {
+    const me = await api.getMe()
+    await api.sendMessage(secrets.chatId, '연결 확인 ✓')
+    log(`텔레그램: @${me.username} 연결됨`)
+  } catch (error) { throw new Error(`텔레그램 연결 확인 실패: ${safeTelegramError(error, secrets)}`) }
+}
+
+export function installServeShutdown(app: FastifyInstance): void {
+  const close = () => {
+    void app.close().catch(() => { console.error('서버 종료 실패'); process.exitCode = 1 })
+  }
+  process.once('SIGINT', close)
+  process.once('SIGTERM', close)
+  app.addHook('onClose', async () => {
+    process.off('SIGINT', close)
+    process.off('SIGTERM', close)
+  })
+}
+
+function safeTelegramError(error: unknown, secrets: TelegramSecrets | null): string {
+  const message = redact(error instanceof Error ? error.message : String(error), secrets?.token)
+  return secrets ? message.split(secrets.chatId).join('[chat]') : message
 }
 
 /** 명시한 폴더, 없으면 저장소 dashboard/dist(src와 dist 모두 orchestrator/ 한 단계 아래)에 index.html이 있을 때만 사용. */
