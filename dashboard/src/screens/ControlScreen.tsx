@@ -10,6 +10,7 @@ import { SinceBar } from '../components/SinceBar'
 import { TaskBoard } from '../components/TaskBoard'
 import { TimelineList } from '../components/TimelineList'
 import { TopBar } from '../components/TopBar'
+import { PipelineOverview } from './PipelineOverview'
 
 const NARROW = '(max-width: 768px)'
 function useMediaQuery(query: string): boolean {
@@ -41,31 +42,42 @@ export function ControlScreen({ run, hasSpecDraft = false, initialRawEvent, topB
   const [tab, setTab] = useState<PanelTab>(initialRawEvent ? 'detail' : 'attention')
   const [sub, setSub] = useState<DetailSub>(initialRawEvent ? 'raw' : 'human')
   const [highlightIds, setHighlightIds] = useState<string[] | undefined>()
+  const [view, setView] = useState<'control' | 'overview'>('control')
   const closePanel = useCallback(() => setPanelOpen(false), [])
   const selectEvent = (id: string) => { setSelectedEventId(id); setSelectedTask(undefined); setTab('detail') }
   const selectTask = (id: string) => { setSelectedTask(id); setSelectedEventId(undefined); setTab('detail') }
   const showRaw = (id: string) => { selectEvent(id); setSub('raw'); setPanelOpen(true) }
+  // Overview links jump back to the control view with the right panel open on that task / message.
+  const openTask = (id: string) => { selectTask(id); setSub('human'); setPanelOpen(true); setView('control') }
+  const openRaw = (id: string) => { showRaw(id); setView('control') }
   const narrow = useMediaQuery(NARROW)
   const paused = usageView(run.events, run.state, run.agents, new Date()).paused
   return (
     <div className="control">
-      <TopBar run={run} hasSpecDraft={hasSpecDraft} extra={topBarExtra} onOpenAttention={() => { setTab('attention'); setPanelOpen(true) }} />
+      <TopBar run={run} hasSpecDraft={hasSpecDraft} extra={topBarExtra} onOpenAttention={() => { setTab('attention'); setPanelOpen(true) }} view={view} onView={setView} />
       {paused && <PausedBanner paused={paused} />}
       <SinceBar events={run.events} onOpenTimeline={setHighlightIds} />
-      <main className="control-grid">
-        <aside className="board" aria-label="태스크 보드">
-          <TaskBoard state={run.state} plan={run.plan} selectedTask={selectedTask} onSelect={selectTask} />
-        </aside>
-        <section className="lanes" aria-label="레인">
-          {narrow
-            ? <TimelineList events={run.events} selectedId={selectedEventId} onSelectEvent={selectEvent} />
-            : <LaneView events={run.events} state={run.state} agents={run.agents} selectedId={selectedEventId}
-                onSelectEvent={selectEvent} highlightIds={highlightIds} />}
-        </section>
-        <RightPanel run={run} hasSpecDraft={hasSpecDraft} sub={sub} onSub={setSub} tab={tab} onTab={setTab} selection={{ eventId: selectedEventId, taskId: selectedTask }}
-          onSelectEvent={selectEvent} onSelectTask={selectTask} open={panelOpen} onClose={closePanel} />
-        <AskBar events={run.events} onRawLink={showRaw} />
-      </main>
+      {view === 'overview' ? (
+        <main className="control-grid is-overview">
+          <PipelineOverview run={run} onOpenTask={openTask} onShowRaw={openRaw} />
+          <AskBar events={run.events} onRawLink={openRaw} />
+        </main>
+      ) : (
+        <main className="control-grid">
+          <aside className="board" aria-label="태스크 보드">
+            <TaskBoard state={run.state} plan={run.plan} selectedTask={selectedTask} onSelect={selectTask} />
+          </aside>
+          <section className="lanes" aria-label="레인">
+            {narrow
+              ? <TimelineList events={run.events} selectedId={selectedEventId} onSelectEvent={selectEvent} />
+              : <LaneView events={run.events} state={run.state} agents={run.agents} selectedId={selectedEventId}
+                  onSelectEvent={selectEvent} highlightIds={highlightIds} />}
+          </section>
+          <RightPanel run={run} hasSpecDraft={hasSpecDraft} sub={sub} onSub={setSub} tab={tab} onTab={setTab} selection={{ eventId: selectedEventId, taskId: selectedTask }}
+            onSelectEvent={selectEvent} onSelectTask={selectTask} open={panelOpen} onClose={closePanel} />
+          <AskBar events={run.events} onRawLink={showRaw} />
+        </main>
+      )}
     </div>
   )
 }

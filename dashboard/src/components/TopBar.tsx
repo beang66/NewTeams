@@ -6,15 +6,21 @@ import { StageRail } from './StageRail'
 import { UsageGauges } from './UsageGauges'
 import { TelegramChip } from './TelegramChip'
 
-interface Props { run: RunView; onOpenAttention?: () => void; now?: () => Date; hasSpecDraft?: boolean; extra?: ReactNode }
+interface Props { run: RunView; onOpenAttention?: () => void; now?: () => Date; hasSpecDraft?: boolean; extra?: ReactNode; view?: 'control' | 'overview'; onView?: (v: 'control' | 'overview') => void }
 
-export function TopBar({ run, onOpenAttention, now = () => new Date(), hasSpecDraft = false, extra }: Props) {
+export function TopBar({ run, onOpenAttention, now = () => new Date(), hasSpecDraft = false, extra, view = 'control', onView }: Props) {
   const count = attentionItems(run.state, run.events, { hasSpecDraft }).length
   const usage = usageView(run.events, run.state, run.agents, now())
   return (
     <header className="topbar">
       <h1 className="topbar-title">에이전트 관제</h1>
       <StageRail stage={run.state.stage} />
+      {onView && (
+        <div className="seg" role="group" aria-label="화면 전환">
+          <button type="button" aria-pressed={view === 'control'} onClick={() => onView('control')}>관제</button>
+          <button type="button" aria-pressed={view === 'overview'} onClick={() => onView('overview')}>개요</button>
+        </div>
+      )}
       <div className="topbar-right">
         {extra}
         <UsageGauges usage={usage} />
