@@ -50,6 +50,11 @@ describe('config telegram', () => {
     expect(() => resolveConfig({ telegram: { quietHours: { start: '22:00', end: '22:00' } } } as any)).toThrow(/telegram/)
     expect(() => resolveConfig({ telegram: { heartbeatMinutes: 3 } } as any)).toThrow(/telegram/)
   })
+  it('숫자와 URL 검증', () => {
+    for (const t of [{ pollTimeoutSec: 0 }, { pollTimeoutSec: 1.5 }, { batchSeconds: -1 }, { batchSeconds: 1.5 }, { apiBase: 'nope' }, { dashboardUrl: 'nope' }])
+      expect(() => resolveConfig({ telegram: t } as any)).toThrow(/telegram/)
+    expect(resolveConfig({ telegram: { dashboardUrl: 'http://localhost:4317', pollTimeoutSec: 1, batchSeconds: 0 } } as any).telegram.dashboardUrl).toBe('http://localhost:4317')
+  })
   it('telegram은 깊게 병합되고 telegram 없는 설정도 로드', () => {
     const c = resolveConfig({ telegram: { batchSeconds: 10, quietHours: { start: '23:00', end: '07:00' }, heartbeatMinutes: 60 } } as any)
     expect(c.telegram.batchSeconds).toBe(10)

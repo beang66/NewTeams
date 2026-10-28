@@ -5,8 +5,9 @@ export type Callback =
 
 const EVENT_ID = /^msg-\d+$/
 const ASK_KEY = /^[a-z0-9]{1,16}$/
-const WITH_EVENT = { g: 'guide', k: 'skip', K: 'skipConfirm', d: 'detail' } as const
 const PREFIX = { guide: 'g', skip: 'k', skipConfirm: 'K', detail: 'd' } as const
+type EventKind = keyof typeof PREFIX
+const WITH_EVENT = new Map<string, EventKind>((Object.entries(PREFIX) as [EventKind, string][]).map(([k, p]) => [p, k]))
 
 export function encodeCallback(c: Callback): string {
   switch (c.kind) {
@@ -32,6 +33,6 @@ export function decodeCallback(data: string): Callback | null {
   if (i < 1) return null
   const head = data.slice(0, i), rest = data.slice(i + 1)
   if (head === 'q') return ASK_KEY.test(rest) ? { kind: 'ask', key: rest } : null
-  if (head in WITH_EVENT && EVENT_ID.test(rest)) return { kind: WITH_EVENT[head as keyof typeof WITH_EVENT], eventId: rest }
-  return null
+  const kind = WITH_EVENT.get(head)
+  return kind && EVENT_ID.test(rest) ? { kind, eventId: rest } : null
 }

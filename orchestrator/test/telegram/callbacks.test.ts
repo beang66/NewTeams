@@ -17,6 +17,6 @@ describe('telegram callbacks', () => {
     expect(ALL_CALLBACKS.map(encodeCallback)).toEqual(['g:msg-0058', 'k:msg-1', 'K:msg-1234567890', 'd:msg-7', 'a', 'A', 'r', 'q:abc123', 'rp', 'x'])
   })
   it('잘못된 값은 null', () => {
-    for (const s of ['g:foo', 'g:msg-', 'g:msg-1x', 'q:', 'q:ABC', 'q:' + 'a'.repeat(17), 'a:1', 'rp:1', '', 'g:msg-1\n']) expect(decodeCallback(s)).toBeNull()
+    for (const s of ['g:foo', 'g:msg-', 'g:msg-1x', 'q:', 'q:ABC', 'q:' + 'a'.repeat(17), 'a:1', 'rp:1', '', 'g:msg-1\n', 'toString:msg-1', 'constructor:msg-1', 'valueOf:msg-1', '__proto__:msg-1']) expect(decodeCallback(s)).toBeNull()
   })
 })
