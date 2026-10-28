@@ -43,13 +43,31 @@ type P = Record<string, unknown>
 const pl = (e: Envelope): P => (e.payload && typeof e.payload === 'object' ? (e.payload as P) : {})
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v.length > 0 ? v : undefined)
 
-/** 코드 펜스, diff 머리글, 프롬프트 경로를 텍스트에서 제거한다. */
+const LINE_MAX = 200
+const cap = (l: string): string => (l.length > LINE_MAX ? l.slice(0, /[\ud800-\udbff]/.test(l[LINE_MAX - 1]!) ? LINE_MAX - 1 : LINE_MAX) + '…' : l)
+
+/** diff 머리글과, 그 뒤 hunk 본문(+/-/공백으로 시작하는 줄)을 버리는 필터 */
+function diffFilter(): (l: string) => boolean {
+  let inDiff = false
+  return (l) => {
+    if (/^(diff --git |index |--- |\+\+\+ |@@ )/.test(l)) { inDiff = true; return false }
+    if (inDiff && /^[-+ ]/.test(l)) return false
+    inDiff = false
+    return true
+  }
+}
+
+/** 코드 블록 통째, diff 줄, 프롬프트 경로를 제거하고 각 줄을 200자로 줄인다. */
 function sanitize(s: string): string {
   return s
-    .replace(/```/g, '')
-    .replace(/diff --git[^\n]*/g, '')
-    .replace(/\S*raw\/prompts\S*/g, '')
+    .replace(/```[\s\S]*?(```|$)/g, '')
+    .split('\n')
+    .filter(diffFilter())
+    .map((l) => cap(l.replace(/\S*raw\/prompts\S*/g, '')))
+    .join('\n')
 }
+const oneLine = (s: string): string => cap(sanitize(s).replace(/\s+/g, ' ').trim())
+const reasonOf = (v: unknown): string => (str(v) ? reasonLabel(v as string) : '알 수 없음')
 
 function findingsOf(e: Envelope): Finding[] {
   const f = pl(e).findings
@@ -112,7 +130,7 @@ export function messageForEvent(e: Envelope, ctx: FormatContext): OutMessage | n
   switch (e.type) {
     case 'CHAT': {
       if (e.from !== 'master' || p.specApprovalRequired !== true) return null
-      const body = specBody(ctx.specSummary)
+      const body = specBody(ctx.specSummary?.map(sanitize))
       const row = [btn('승인', { kind: 'approve' })] as { text: string; callback?: Callback; url?: string }[]
       if (ctx.dashboardUrl) row.push({ text: '대시보드에서 보기', url: ctx.dashboardUrl })
       return {
@@ -121,7 +139,7 @@ export function messageForEvent(e: Envelope, ctx: FormatContext): OutMessage | n
       }
     }
     case 'HUMAN_REQUIRED': {
-      const reason = str(p.reason) ?? 'other'
+      const reason = str(p.reason) ?? ''
       const detail = str(p.detail)
       const extra = detail ? `\n${sanitize(detail)}` : ''
       if (reason === 'auth' || reason === 'openai_cap') {
@@ -132,14 +150,14 @@ export function messageForEvent(e: Envelope, ctx: FormatContext): OutMessage | n
       if (reason === 'workflow_error') {
         return {
           kind: 'error', silent: false, eventId: e.id, buttons: [[btn('자세히', { kind: 'detail', eventId: e.id })]],
-          text: clip(`🔴 ${who} 워크플로 오류 — ${reasonLabel(reason)}${extra}`),
+          text: clip(`🔴 ${who} 워크플로 오류 — ${reasonOf(reason)}${extra}`),
         }
       }
       const issue = keyIssue(lastReject(e.task, ctx.events, e)) ?? (detail ? sanitize(detail).replace(/\s+/g, ' ').trim() : undefined)
       return {
         kind: 'human', silent: false, eventId: e.id,
         buttons: [[btn('지침 쓰기', { kind: 'guide', eventId: e.id }), btn('건너뛰기', { kind: 'skip', eventId: e.id }), btn('자세히', { kind: 'detail', eventId: e.id })]],
-        text: clip(`🔴 ${who} 사람 필요 — ${reasonLabel(reason)}${issue ? `: ${issue}` : ''}`),
+        text: clip(`🔴 ${who} 사람 필요 — ${reasonOf(reason)}${issue ? `: ${issue}` : ''}`),
       }
     }
     case 'STATE_CHANGE': {
@@ -157,7 +175,7 @@ export function messageForEvent(e: Envelope, ctx: FormatContext): OutMessage | n
     }
     case 'PAUSED': {
       const until = str(p.until)
-      const why = reasonLabel(str(p.reason) ?? 'other')
+      const why = reasonOf(p.reason)
       return { kind: 'paused', silent: true, eventId: e.id, text: `⏸ 일시정지 — ${why}${until ? `, ${hhmm(until)} 재개 예정` : ''}` }
     }
     case 'RESUMED':
@@ -179,7 +197,7 @@ export function statusText(ctx: FormatContext): string {
     `진행 중 ${running} · 반려 ${rejected} · 주의 ${ctx.state.humanRequired.length}`,
   ]
   const pz = ctx.state.paused
-  if (pz) lines.push(`⏸ 일시정지 — ${reasonLabel(pz.reason)}${pz.until ? `, ${hhmm(pz.until)} 재개 예정` : ''}`)
+  if (pz) lines.push(`⏸ 일시정지 — ${reasonOf(pz.reason)}${pz.until ? `, ${hhmm(pz.until)} 재개 예정` : ''}`)
   return clip(lines.join('\n'))
 }
 

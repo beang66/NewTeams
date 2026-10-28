@@ -114,6 +114,35 @@ describe('detailText', () => {
   })
 })
 
+describe('sanitize (via messages)', () => {
+  const body = 'SECRET_BODY_TEXT'
+  const dirty = ['앞 문장', 'FENCE', "const x = '" + body + "'", 'FENCE', 'diff --git a/f b/f', 'index 1..2', '--- a/f', '+++ b/f', '@@ -1 +1 @@', '-' + body + 'OLD', '+' + body + 'NEW', '뒤 문장'].join('\n').replaceAll('FENCE', '```')
+  it('코드 블록 본문과 diff 줄이 지침/지적/상세에 남지 않는다', () => {
+    const events = [reject('t3', [F('F-1', 'major', dirty)]), guidance('t3', 'hint', dirty), human('msg-7', 't3', 'repeat_finding', dirty)]
+    const m = messageForEvent(events[2]!, ctxWith(events))!
+    const d = detailText('msg-7', ctxWith(events))
+    for (const t of [m.text, d]) {
+      expect(t).not.toContain(body)
+      expect(t).not.toMatch(/@@|\+\+\+|---|index 1/)
+    }
+    expect(m.text).toContain('앞 문장')
+    expect(d).toContain('앞 문장')
+  })
+  it('닫히지 않은 펜스는 끝까지 제거, 긴 줄은 200자로', () => {
+    const m = messageForEvent(human('msg-8', 't1', 'workflow_error', 'ok\n```\n' + body), ctx)!
+    expect(m.text).not.toContain(body)
+    const long = messageForEvent(human('msg-9', 't1', 'workflow_error', '가'.repeat(500)), ctx)!
+    expect(long.text.length).toBeLessThan(260)
+  })
+  it('specSummary도 정제한다', () => {
+    const m = messageForEvent(specChat(), { ...ctx, specSummary: ['구현 범위', '- 항목', '```', body, '```'] })!
+    expect(m.text).not.toContain(body)
+  })
+  it('사유가 없으면 알 수 없음', () => {
+    expect(messageForEvent({ ...human('msg-10', 't1', 'x'), payload: {} }, ctx)!.text.split('\n')[0]).toBe('🔴 t1 사람 필요 — 알 수 없음')
+  })
+})
+
 describe('clip', () => {
   it('짧으면 그대로', () => { expect(clip('abc')).toBe('abc') })
   it('4096 안에서 서로게이트를 자르지 않는다', () => {
