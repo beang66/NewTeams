@@ -160,14 +160,15 @@ export function instantiateWorkPackRun<I>(pack: WorkPack<I>, options: Instantiat
 
 /** 공통 관계 무결성, 팩/입력/태스크 일치, 팩 고유 검수 순서로 판정한다. */
 export function validatePackRun<I>(pack: WorkPack<I>, graph: WorkGraph, runId: string): PackReviewResult {
-  const findings: PackReviewFinding[] = validateWorkGraph(graph).map((item) => ({
+  const run = graph.runs.find((item) => item.id === runId)
+  if (!run) return result([{ code: 'missing-run', severity: 'blocker', message: `실행 없음: ${runId}` }])
+
+  const findings: PackReviewFinding[] = validateWorkGraph(sliceRunGraph(graph, run)).map((item) => ({
     code: `relationship:${item.code}`,
     severity: 'blocker',
     message: item.message,
     entityId: item.entityId,
   }))
-  const run = graph.runs.find((item) => item.id === runId)
-  if (!run) return result([...findings, { code: 'missing-run', severity: 'blocker', message: `실행 없음: ${runId}` }])
 
   if (run.workPack.id !== pack.manifest.id || run.workPack.version !== pack.manifest.version) {
     findings.push({ code: 'pack-mismatch', severity: 'blocker', message: '실행에 고정된 작업 팩 id/version과 검수 팩이 다름', entityId: runId })
@@ -186,6 +187,16 @@ export function validatePackRun<I>(pack: WorkPack<I>, graph: WorkGraph, runId: s
   findings.push(...validateRequiredOutputs(blueprint, tasks, artifacts))
   findings.push(...pack.review({ run, input: input.data, tasks, artifacts, evidence }))
   return result(findings)
+}
+
+function sliceRunGraph(graph: WorkGraph, run: RunRecord): WorkGraph {
+  return {
+    projects: graph.projects.filter((project) => project.id === run.projectId),
+    runs: graph.runs.filter((item) => item.id === run.id),
+    tasks: graph.tasks.filter((task) => task.runId === run.id),
+    artifacts: graph.artifacts.filter((artifact) => artifact.runId === run.id),
+    evidence: graph.evidence.filter((item) => item.runId === run.id),
+  }
 }
 
 function result(findings: PackReviewFinding[]): PackReviewResult {
