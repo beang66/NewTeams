@@ -138,6 +138,11 @@ describe('sanitize (via messages)', () => {
     const m = messageForEvent(specChat(), { ...ctx, specSummary: ['구현 범위', '- 항목', '```', body, '```'] })!
     expect(m.text).not.toContain(body)
   })
+  it('여러 줄 specSummary의 코드 블록 안 목록도 제거한다', () => {
+    const m = messageForEvent(specChat(), { ...ctx, specSummary: ['구현 범위', '```', '- ' + body, '```', '- 안전한 요약'] })!
+    expect(m.text).not.toContain(body)
+    expect(m.text).toContain('안전한 요약')
+  })
   it('사유가 없으면 알 수 없음', () => {
     expect(messageForEvent({ ...human('msg-10', 't1', 'x'), payload: {} }, ctx)!.text.split('\n')[0]).toBe('🔴 t1 사람 필요 — 알 수 없음')
   })
@@ -183,6 +188,11 @@ describe('statusText / tasksText / reportSummary', () => {
     expect(r).toContain('수용 기준 3/4')
     expect(r).not.toContain('```')
     expect(r).not.toContain('code')
+  })
+  it('reportSummary는 코드 펜스 없는 diff 본문도 제거한다', () => {
+    const r = reportSummary('# 보고\n변경 요약\ndiff --git a/a b/a\n--- a/a\n+++ b/a\n@@ -1 +1 @@\n-OLD_SECRET\n+NEW_SECRET\n검증 완료', ctx)
+    expect(r).not.toMatch(/OLD_SECRET|NEW_SECRET|@@|--- a/)
+    expect(r).toContain('검증 완료')
   })
   it('stageLabel', () => { expect(stageLabel('FINAL_QA')).toBe('최종 QA') })
 })

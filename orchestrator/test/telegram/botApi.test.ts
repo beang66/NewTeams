@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { writeFileSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -82,6 +82,18 @@ describe('BotApi', () => {
     const slow = new BotApi(fake.token, fake.base, { fetchImpl: ((_u: any, init: any) => new Promise((_r, rej) => { init.signal.addEventListener('abort', () => rej(init.signal.reason)) })) as typeof fetch, timeoutMs: 20 })
     const e = await slow.getMe().catch(e => e)
     expect(e).toBeInstanceOf(TelegramApiError); expect(e.message).toContain('timeout')
+  })
+  it('getUpdates의 429 재시도 대기 중에도 caller abort로 즉시 종료한다', async () => {
+    const controller = new AbortController()
+    let sleeping = false
+    const slow = new BotApi(fake.token, fake.base, {
+      fetchImpl: (async () => new Response(JSON.stringify({ ok: false, parameters: { retry_after: 60 } }), { status: 429 })) as typeof fetch,
+      sleep: async () => { sleeping = true; await new Promise<void>(() => {}) },
+    })
+    const result = slow.getUpdates(0, 1, controller.signal).catch(e => e)
+    await vi.waitFor(() => expect(sleeping).toBe(true))
+    controller.abort()
+    expect(await Promise.race([result, new Promise(resolve => setTimeout(() => resolve('still waiting'), 100))])).toMatchObject({ status: 0, message: expect.stringContaining('aborted') })
   })
 })
 

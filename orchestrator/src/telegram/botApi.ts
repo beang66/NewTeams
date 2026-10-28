@@ -24,12 +24,12 @@ const MAX_RETRY_AFTER_SEC = 60
 
 export class BotApi {
   private readonly fetchImpl: typeof fetch
-  private readonly sleep: (ms: number) => Promise<void>
+  private readonly sleep?: (ms: number) => Promise<void>
   private readonly timeoutMs: number
 
   constructor(private readonly token: string, private readonly apiBase: string, opts: BotApiOptions = {}) {
     this.fetchImpl = opts.fetchImpl ?? fetch
-    this.sleep = opts.sleep ?? (ms => new Promise(r => setTimeout(r, ms)))
+    this.sleep = opts.sleep
     this.timeoutMs = opts.timeoutMs ?? 15_000
   }
 
@@ -55,14 +55,31 @@ export class BotApi {
         throw this.fail(method, 0, err.cause?.message ?? err.message ?? String(e))
       }
       let data: { ok?: boolean; result?: T; description?: string; parameters?: { retry_after?: number } } | undefined
-      try { data = await res.json() as typeof data } catch { data = undefined }
+      try { data = await res.json() as typeof data } catch {
+        if (signal?.aborted) throw this.fail(method, 0, 'aborted')
+        if (timeout.aborted) throw this.fail(method, 0, 'timeout')
+        data = undefined
+      }
       if (res.status === 429 && attempt === 0) {
         const sec = Math.min(Math.max(Number(data?.parameters?.retry_after) || 0, 0), MAX_RETRY_AFTER_SEC)
-        await this.sleep(sec * 1000)
+        await this.retryDelay(method, sec * 1000, signal)
         continue
       }
       if (!res.ok || !data?.ok) throw this.fail(method, res.status, data?.description ?? `HTTP ${res.status}`)
       return data.result as T
+    }
+  }
+
+  private async retryDelay(method: string, ms: number, signal?: AbortSignal): Promise<void> {
+    if (signal?.aborted) throw this.fail(method, 0, 'aborted')
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let interrupt!: () => void
+    const aborted = new Promise<never>((_resolve, reject) => { interrupt = () => reject(this.fail(method, 0, 'aborted')) })
+    signal?.addEventListener('abort', interrupt, { once: true })
+    const delay = this.sleep ? this.sleep(ms) : new Promise<void>(resolve => { timer = setTimeout(resolve, ms) })
+    try { await Promise.race([delay, aborted]) } finally {
+      if (timer) clearTimeout(timer)
+      signal?.removeEventListener('abort', interrupt)
     }
   }
 
@@ -102,7 +119,7 @@ export class BotApi {
     await this.call('sendPhoto', form)
   }
 
-  getMe(): Promise<{ username: string }> {
-    return this.call<{ username: string }>('getMe', {})
+  getMe(signal?: AbortSignal): Promise<{ username: string }> {
+    return this.call<{ username: string }>('getMe', {}, this.timeoutMs, signal)
   }
 }

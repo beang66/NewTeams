@@ -63,9 +63,10 @@ function sanitize(s: string): string {
     .replace(/```[\s\S]*?(```|$)/g, '')
     .split('\n')
     .filter(diffFilter())
-    .map((l) => cap(l.replace(/\S*raw\/prompts\S*/g, '')))
+    .map((l) => cap(l.replace(/\S*raw[\\/]prompts\S*/g, '')))
     .join('\n')
 }
+export { sanitize as sanitizeTelegramText }
 const oneLine = (s: string): string => cap(sanitize(s).replace(/\s+/g, ' ').trim())
 const reasonOf = (v: unknown): string => (str(v) ? reasonLabel(v as string) : '알 수 없음')
 
@@ -130,7 +131,7 @@ export function messageForEvent(e: Envelope, ctx: FormatContext): OutMessage | n
   switch (e.type) {
     case 'CHAT': {
       if (e.from !== 'master' || p.specApprovalRequired !== true) return null
-      const body = specBody(ctx.specSummary?.map(sanitize))
+      const body = specBody(ctx.specSummary ? sanitize(ctx.specSummary.join('\n')).split('\n') : undefined)
       const row = [btn('승인', { kind: 'approve' })] as { text: string; callback?: Callback; url?: string }[]
       if (ctx.dashboardUrl) row.push({ text: '대시보드에서 보기', url: ctx.dashboardUrl })
       return {
@@ -254,12 +255,12 @@ export function detailText(eventId: string, ctx: FormatContext): string {
 
 export function reportSummary(reportMd: string | null, _ctx: FormatContext): string {
   if (!reportMd || reportMd.trim() === '') return '보고서가 아직 없습니다'
-  const noFence = reportMd.replace(/```[\s\S]*?(```|$)/g, '')
-  const lines = noFence
+  const safe = sanitize(reportMd)
+  const lines = safe
     .split('\n')
     .map((l) => l.replace(/^#+\s*/, '').trimEnd())
     .filter((l) => l.trim() !== '' && !/^diff --git/.test(l) && !/raw\/prompts/.test(l))
-  const acc = acceptanceCount(noFence)
+  const acc = acceptanceCount(safe)
   const head = acc ? `✅ 수용 기준 ${acc.n}/${acc.m}` : null
   return clip([...(head ? [head] : []), ...lines.slice(0, 30)].join('\n'))
 }
