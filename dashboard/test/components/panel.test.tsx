@@ -36,6 +36,11 @@ describe('Markdown', () => {
     await userEvent.click(screen.getByRole('link', { name: '원본' }))
     expect(onSelect).toHaveBeenCalledWith('msg-0042')
   })
+  it('javascript: 링크와 이미지는 무력화된다', () => {
+    const { container } = render(<Markdown source={'[x](javascript:alert(1)) ![i](http://evil.test/a.png)'} />)
+    expect(container.querySelector('a[href^="javascript"]')).toBeNull()
+    expect(container.querySelector('img')).toBeNull()
+  })
   it('외부 링크는 rel=noreferrer, ../ 없는 raw/ 링크도 인식', async () => {
     const onSelect = vi.fn()
     render(<Markdown source={'[밖](https://example.com) [안](raw/events.jsonl#msg-0007)'} onRawLink={onSelect} />)
@@ -166,6 +171,35 @@ describe('AttentionTab', () => {
     rerender(<AttentionTab items={[{ ...cap, eventId: 'msg-0011' }]} />)
     expect(screen.getByText('아직 상한이 그대로입니다')).toBeInTheDocument()
   })
+  it('지침 보내기 더블클릭은 answer를 한 번만 호출', async () => {
+    const answer = vi.spyOn(api, 'answer').mockImplementation(() => new Promise<void>(() => undefined))
+    render(<AttentionTab items={[HUMAN_ITEM]} />)
+    await userEvent.type(screen.getByRole('textbox', { name: '지침' }), 'x')
+    const btn = screen.getByRole('button', { name: '지침 보내기' })
+    fireEvent.click(btn); fireEvent.click(btn)
+    expect(answer).toHaveBeenCalledTimes(1)
+  })
+  it('건너뛰기 확인으로 바뀌면 포커스가 확인 버튼으로 이동', async () => {
+    render(<AttentionTab items={[HUMAN_ITEM]} />)
+    await userEvent.click(screen.getByRole('button', { name: '이 태스크 건너뛰기' }))
+    expect(screen.getByRole('button', { name: /정말 건너뛸까요/ })).toHaveFocus()
+    await userEvent.click(screen.getByRole('button', { name: '취소' }))
+    expect(screen.getByRole('button', { name: '이 태스크 건너뛰기' })).toHaveFocus()
+  })
+  it('409 처리됨 상태에서 포커스가 이미 처리됨 문구로 이동', async () => {
+    vi.spyOn(api, 'answer').mockRejectedValue(new ApiError(409, 'x'))
+    render(<AttentionTab items={[HUMAN_ITEM]} />)
+    await userEvent.type(screen.getByRole('textbox', { name: '지침' }), 'x')
+    await userEvent.click(screen.getByRole('button', { name: '지침 보내기' }))
+    await waitFor(() => expect(screen.getByText('이미 처리됨')).toHaveFocus())
+  })
+  it('다른 사유의 새 카드에는 재시도 메시지가 없다', async () => {
+    vi.spyOn(api, 'resume').mockResolvedValue()
+    const { rerender } = render(<AttentionTab items={[LOGIN_ITEM]} />)
+    await userEvent.click(screen.getByRole('button', { name: '로그인했어요, 재개' }))
+    rerender(<AttentionTab items={[{ ...HUMAN_ITEM, reason: 'openai_cap', task: undefined, findings: [], tried: [], eventId: 'msg-0030' }]} />)
+    expect(screen.queryByText('아직 상한이 그대로입니다')).toBeNull()
+  })
   it('스펙 카드: 스펙 보기', async () => {
     const onOpenSpec = vi.fn()
     render(<AttentionTab items={[{ kind: 'spec', draftPath: 'spec.draft.md' }]} onOpenSpec={onOpenSpec} />)
@@ -211,6 +245,26 @@ describe('RightPanel 마스터 · 상세', () => {
     expect(img).toHaveAttribute('src', '/api/human/evidence/t1/r2/s1.png')
     expect(spy).toHaveBeenCalledWith('iterations/t1.md')
   })
+  it('증거 경로 탈출/절대/스킴/역슬래시 항목은 건너뛴다', async () => {
+    const names = ['../../raw/prompts/x.txt', '/abs.png', 'C:\\x.png', 'a\\b.png', 'http://e.test/a.png', 'ok.png']
+    vi.spyOn(api, 'human').mockImplementation(async (p) => {
+      if (p === 'iterations/t1.md') return '기록'
+      if (p === 'evidence/t1/r2/manifest.json') return JSON.stringify([{ scenarioId: 's', steps: names.map((screenshot, i) => ({ step: i, action: 'a', screenshot, ts: '' })) }])
+      return null
+    })
+    render(<RightPanel run={runWith()} tab="detail" onTab={() => undefined} selection={{ taskId: 't1' }} />)
+    await screen.findByRole('img', { name: 'ok.png' })
+    expect(screen.getAllByRole('img')).toHaveLength(1)
+  })
+  it('서랍을 닫으면 포커스가 연 버튼으로 돌아간다', () => {
+    const opener = document.createElement('button'); document.body.appendChild(opener); opener.focus()
+    const props = { run: runWith(), tab: 'attention' as const, onTab: () => undefined, selection: {} }
+    const { rerender } = render(<RightPanel {...props} open={false} />)
+    rerender(<RightPanel {...props} open />)
+    rerender(<RightPanel {...props} open={false} />)
+    expect(opener).toHaveFocus()
+    opener.remove()
+  })
   it('상세: 파일이 없어도 오류 배너 없이 빈 상태', async () => {
     vi.spyOn(api, 'human').mockResolvedValue(null)
     render(<RightPanel run={runWith()} tab="detail" onTab={() => undefined} selection={{ taskId: 't1' }} />)
@@ -232,8 +286,9 @@ describe('RightPanel 마스터 · 상세', () => {
     await userEvent.click(screen.getByRole('tab', { name: '원본' }))
     expect(await screen.findByText('프롬프트 본문')).toBeInTheDocument()
     expect(screen.getByText(/"type": "ASSIGN"/)).toBeInTheDocument()
-    await userEvent.click(screen.getAllByRole('button', { name: '복사' })[0]!)
+    await userEvent.click(screen.getByRole('button', { name: 'Envelope 복사' }))
     expect(writeText).toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: '프롬프트 복사' })).toBeInTheDocument()
   })
   it('Markdown의 원본 링크 → 이벤트 선택 + 원본 탭', async () => {
     vi.spyOn(api, 'human').mockResolvedValue('[근거](../raw/events.jsonl#msg-0005)')

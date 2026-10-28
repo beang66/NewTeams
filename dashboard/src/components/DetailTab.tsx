@@ -23,6 +23,10 @@ function useQuiet<T>(key: string | undefined, load: () => Promise<T | null>): T 
   return state?.key === key ? state.value : undefined
 }
 
+const SAFE_SHOT = (name: string): boolean =>
+  name !== '' && !name.startsWith('/') && !name.includes('\\') && !/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(name)
+  && !name.split('/').some((seg) => seg === '..' || seg === '.')
+
 async function evidenceShots(task: string, round: number): Promise<{ src: string; name: string }[] | null> {
   const base = `evidence/${task}/r${round}`
   const text = await api.human(`${base}/manifest.json`)
@@ -31,7 +35,7 @@ async function evidenceShots(task: string, round: number): Promise<{ src: string
   const out: { src: string; name: string }[] = []
   for (const scenario of Array.isArray(manifest) ? manifest : []) {
     for (const s of Array.isArray(scenario?.steps) ? scenario.steps : []) {
-      if (typeof s?.screenshot === 'string') out.push({ name: s.screenshot, src: `/api/human/${base}/${s.screenshot.split('/').map(encodeURIComponent).join('/')}` })
+      if (typeof s?.screenshot === 'string' && SAFE_SHOT(s.screenshot)) out.push({ name: s.screenshot, src: `/api/human/${base}/${s.screenshot.split('/').map(encodeURIComponent).join('/')}` })
     }
   }
   return out
@@ -66,7 +70,7 @@ function CopyBlock({ label, text }: { label: string; text: string }) {
   }
   return (
     <section className="raw-block">
-      <header><h4>{label}</h4><button type="button" className="btn" onClick={copy} aria-label="복사">{copied ? '복사됨' : '복사'}</button></header>
+      <header><h4>{label}</h4><button type="button" className="btn" onClick={copy} aria-label={`${label} 복사`}>{copied ? '복사됨' : '복사'}</button></header>
       <pre className="mono raw-pre">{text}</pre>
     </section>
   )

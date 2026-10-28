@@ -33,10 +33,11 @@ export function RightPanel({ run, tab, onTab, selection, onSelectEvent, onSelect
   closeRef.current = onClose
   useEffect(() => {
     if (!open) return
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
     ref.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus()
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeRef.current?.() }
     document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
+    return () => { document.removeEventListener('keydown', onKey); if (opener?.isConnected) opener.focus() }
   }, [open])
 
   const showEvidence = (taskId: string) => { onSelectTask?.(taskId); setSub('human'); onTab('detail') }

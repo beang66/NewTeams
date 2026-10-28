@@ -3,16 +3,17 @@ import type { AttentionItem } from '../model/attention'
 import { AttentionCard, retryMessageFor, type CardCtx } from './AttentionCard'
 
 const RETRY_WINDOW_MS = 5000
+const reasonOf = (i: AttentionItem): string => (i.kind === 'login' ? 'auth' : i.kind === 'human' ? i.reason : '')
 const itemKey = (i: AttentionItem): string => (i.kind === 'spec' ? 'spec' : i.eventId)
 
 export function AttentionTab({ items, ...ctx }: { items: AttentionItem[] } & Omit<CardCtx, 'onResumed' | 'retryMessage'>) {
-  const resumed = useRef<{ at: number; seen: Set<string> } | null>(null)
+  const resumed = useRef<{ at: number; seen: Set<string>; reason: string } | null>(null)
   const [repeated, setRepeated] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const r = resumed.current
     if (!r || Date.now() - r.at > RETRY_WINDOW_MS) return
-    const fresh = items.filter((i) => !r.seen.has(itemKey(i)) && retryMessageFor(i))
+    const fresh = items.filter((i) => !r.seen.has(itemKey(i)) && retryMessageFor(i) && reasonOf(i) === r.reason)
     if (fresh.length === 0) return
     for (const i of fresh) r.seen.add(itemKey(i))
     setRepeated((prev) => new Set([...prev, ...fresh.map(itemKey)]))
@@ -27,7 +28,7 @@ export function AttentionTab({ items, ...ctx }: { items: AttentionItem[] } & Omi
           <AttentionCard key={key} item={item}
             ctx={{
               ...ctx,
-              onResumed: () => { resumed.current = { at: Date.now(), seen: new Set(items.map(itemKey)) } },
+              onResumed: (reason: string) => { resumed.current = { at: Date.now(), seen: new Set(items.map(itemKey)), reason } },
               retryMessage: repeated.has(key) ? retryMessageFor(item) : undefined,
             }} />
         )

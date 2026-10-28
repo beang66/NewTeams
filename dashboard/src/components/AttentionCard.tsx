@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Plan } from '@orch/protocol/plan'
 import type { RunState } from '@orch/store/state'
 import { ApiError, api } from '../api/client'
@@ -12,7 +12,7 @@ export interface CardCtx {
   onEvidence?: (taskId: string) => void
   onOpenSpec?: () => void
   /** Called after a successful [재개] so the tab can watch for a repeat of the same reason. */
-  onResumed?: () => void
+  onResumed?: (reason: string) => void
   retryMessage?: string
 }
 
@@ -30,15 +30,28 @@ export function AttentionCard({ item, ctx }: { item: AttentionItem; ctx: CardCtx
   const [error, setError] = useState<string | undefined>()
   const [handled, setHandled] = useState(false)
 
+  const inflight = useRef(false)
+  const confirmRef = useRef<HTMLButtonElement>(null)
+  const skipRef = useRef<HTMLButtonElement>(null)
+  const doneRef = useRef<HTMLParagraphElement>(null)
+  const firstConfirm = useRef(true)
+  useEffect(() => {
+    if (firstConfirm.current) { firstConfirm.current = false; return }
+    if (confirmSkip) confirmRef.current?.focus(); else skipRef.current?.focus()
+  }, [confirmSkip])
+  useEffect(() => { if (handled) doneRef.current?.focus() }, [handled])
+
   const run = async (kind: Exclude<Busy, undefined>, fn: () => Promise<void>) => {
+    if (inflight.current) return
+    inflight.current = true
     setBusy(kind); setError(undefined)
     try {
       await fn()
-      if (kind === 'resume') ctx.onResumed?.()
+      if (kind === 'resume') ctx.onResumed?.(item.kind === 'login' ? 'auth' : item.kind === 'human' ? item.reason : '')
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) setHandled(true)
       else setError(e instanceof Error ? e.message : String(e))
-    } finally { setBusy(undefined) }
+    } finally { inflight.current = false; setBusy(undefined) }
   }
 
   if (item.kind === 'spec') {
@@ -69,7 +82,7 @@ export function AttentionCard({ item, ctx }: { item: AttentionItem; ctx: CardCtx
         <h3 className="acard-title">터미널에서 다시 로그인 필요</h3>
         <p className="acard-text">Claude: 터미널에서 <code>claude</code> 실행 후 <code>/login</code> · Codex: <code>codex login</code></p>
         {status}
-        {handled ? <p className="acard-done">이미 처리됨</p> : <div className="acard-actions">{resumeBtn('로그인했어요, 재개')}</div>}
+        {handled ? <p className="acard-done" ref={doneRef} tabIndex={-1}>이미 처리됨</p> : <div className="acard-actions">{resumeBtn('로그인했어요, 재개')}</div>}
       </article>
     )
   }
@@ -105,7 +118,7 @@ export function AttentionCard({ item, ctx }: { item: AttentionItem; ctx: CardCtx
         </div>
       )}
       {status}
-      {handled ? <p className="acard-done">이미 처리됨</p> : (
+      {handled ? <p className="acard-done" ref={doneRef} tabIndex={-1}>이미 처리됨</p> : (
         <>
           <label className="field">
             <span className="field-label">지침</span>
@@ -122,11 +135,11 @@ export function AttentionCard({ item, ctx }: { item: AttentionItem; ctx: CardCtx
             </button>
             {item.reason === 'openai_cap' && resumeBtn('재개')}
             {canSkip && !confirmSkip && (
-              <button type="button" className="btn" disabled={disabled} onClick={() => setConfirmSkip(true)}>이 태스크 건너뛰기</button>
+              <button type="button" className="btn" ref={skipRef} disabled={disabled} onClick={() => setConfirmSkip(true)}>이 태스크 건너뛰기</button>
             )}
             {canSkip && confirmSkip && (
               <>
-                <button type="button" className="btn is-danger" disabled={disabled}
+                <button type="button" className="btn is-danger" ref={confirmRef} disabled={disabled}
                   onClick={() => void run('skip', async () => { await api.answer(item.eventId, { action: 'skip', text, restartSession: restart }); setConfirmSkip(false) })}>
                   {busy === 'skip' ? '보내는 중…' : confirmText}
                 </button>
