@@ -1,6 +1,7 @@
 import type { Clock } from '../clock.js'
 import type { EventBus } from '../bus/eventBus.js'
 import { RunnerError } from '../runners/types.js'
+import type { Envelope } from '../protocol/messages.js'
 
 type PauseReason = 'rate_limit' | 'auth' | 'openai_cap'
 const HOUR_MS = 3_600_000
@@ -18,6 +19,7 @@ export class PauseGate {
   private signalSwitch: () => void = () => {}
   private resumedPromise: Promise<void> = Promise.resolve()
   private humanRequiredSent = false
+  private humanRequiredPublish: Promise<Envelope> | undefined
 
   constructor(private readonly bus: EventBus, private readonly clock: Clock) {
     this.switchedToHuman = new Promise<void>((r) => { this.signalSwitch = r })
@@ -43,6 +45,16 @@ export class PauseGate {
 
   async resumeByHuman(): Promise<void> {
     if (!this._paused || this.mode !== 'human') return
+    // 게이트가 발행한 HUMAN_REQUIRED를 해결 처리해 RunState.humanRequired에서 빠지게 한다.
+    const pending = this.humanRequiredPublish
+    this.humanRequiredPublish = undefined
+    if (pending) {
+      const hr = await pending
+      await this.bus.publish({
+        type: 'GUIDANCE', from: 'user', to: 'controller',
+        payload: { action: 'resume', text: '재개', resolves: hr.id },
+      })
+    }
     this.humanRelease?.()
     await this.resumedPromise
   }
@@ -65,6 +77,7 @@ export class PauseGate {
     this.resumedPromise = this.runPause(reason).catch((err) => {
       this._paused = false
       this.humanRequiredSent = false
+      this.humanRequiredPublish = undefined
       console.error('PauseGate failed', err)
     })
   }
@@ -83,10 +96,12 @@ export class PauseGate {
   private async publishHumanRequired(reason: PauseReason): Promise<void> {
     if (this.humanRequiredSent) return
     this.humanRequiredSent = true
-    await this.bus.publish({
+    const p = this.bus.publish({
       type: 'HUMAN_REQUIRED', from: 'orchestrator', to: 'user',
       payload: { reason, detail: reason === 'openai_cap' ? CAP_DETAIL : AUTH_DETAIL },
     })
+    this.humanRequiredPublish = p
+    await p
   }
 
   private async runPause(reason: PauseReason): Promise<void> {
@@ -106,6 +121,7 @@ export class PauseGate {
     }
     this._paused = false
     this.humanRequiredSent = false
+    this.humanRequiredPublish = undefined
     this.switchedToHuman = new Promise<void>((r) => { this.signalSwitch = r })
     await this.bus.publish({ type: 'RESUMED', from: 'orchestrator', to: 'all', payload: {} })
   }

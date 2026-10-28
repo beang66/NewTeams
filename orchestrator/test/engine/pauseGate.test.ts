@@ -6,6 +6,7 @@ import { EventBus } from '../../src/bus/eventBus.js'
 import { ProjectStore } from '../../src/store/projectStore.js'
 import { RunnerError } from '../../src/runners/types.js'
 import type { Envelope } from '../../src/protocol/messages.js'
+import { rebuildState } from '../../src/store/state.js'
 import { tmpDir, recordingClock, type RecordingClock } from '../helpers.js'
 
 let root: string
@@ -72,7 +73,9 @@ describe('PauseGate', () => {
     expect(log[1]!.payload).toEqual({ reason: 'auth', detail: '터미널에서 다시 로그인 필요' })
     await gate.resumeByHuman()
     await expect(p).resolves.toBe('done')
-    expect(types()).toEqual(['PAUSED', 'HUMAN_REQUIRED', 'RESUMED'])
+    expect(types()).toEqual(['PAUSED', 'HUMAN_REQUIRED', 'GUIDANCE', 'RESUMED'])
+    expect(log[2]).toMatchObject({ from: 'user', payload: { action: 'resume', resolves: log[1]!.id } })
+    expect(rebuildState(log).humanRequired).toEqual([])
     expect(gate.paused).toBe(false)
   })
 
@@ -88,6 +91,9 @@ describe('PauseGate', () => {
     await gate.resumeByHuman()
     expect(await Promise.all([a, b, c])).toEqual(['a', 'b', 'c'])
     expect(types().filter((t) => t === 'RESUMED')).toHaveLength(1)
+    const hr = log.find((e) => e.type === 'HUMAN_REQUIRED')!
+    expect(log.filter((e) => e.type === 'GUIDANCE').map((e) => (e.payload as { resolves: string }).resolves)).toEqual([hr.id])
+    expect(rebuildState(log).humanRequired).toEqual([])
   })
 
   it('openai cap은 PAUSED(openai_cap)+HUMAN_REQUIRED 후 사람 재개를 기다린다', async () => {
@@ -98,6 +104,9 @@ describe('PauseGate', () => {
     expect((log[1]!.payload as { detail: string }).detail).toContain('$8')
     await gate.resumeByHuman()
     await expect(p).resolves.toBe('ok')
+    expect(types()).toEqual(['PAUSED', 'HUMAN_REQUIRED', 'GUIDANCE', 'RESUMED'])
+    expect(log[2]!.payload).toMatchObject({ resolves: log[1]!.id })
+    expect(rebuildState(log).humanRequired).toEqual([])
   })
 
   it('timeout/crash/format은 그대로 던진다', async () => {
@@ -115,5 +124,6 @@ describe('PauseGate', () => {
     const gate = new PauseGate(bus, clock)
     await gate.resumeByHuman()
     expect(log).toHaveLength(0)
+    expect(types()).not.toContain('GUIDANCE')
   })
 })

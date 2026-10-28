@@ -126,6 +126,8 @@ export function renderDecisions(events: Envelope[]): string {
     const detail = typeof p.detail === 'string' ? ` — ${p.detail}` : ''
     if (e.type === 'STATE_CHANGE' && p.stage === 'SPEC_APPROVED') lines.push(`- ${t} 스펙 승인 ${link}`)
     else if (e.type === 'ESCALATE') lines.push(`- ${t} ${e.task ?? '?'} 마스터 호출 (${reasonText(p.reason)})${detail} ${link}`)
+    else if (e.type === 'GUIDANCE' && p.action === 'resume')
+      lines.push(`- ${t} 사람 재개${typeof p.resolves === 'string' ? ` (해결: ${p.resolves})` : ''} ${link}`)
     else if (e.type === 'GUIDANCE')
       lines.push(`- ${t} ${e.task ?? '?'} 마스터 지침 [${String(p.action)}]: ${String(p.text ?? '')}${typeof p.resolves === 'string' ? ` (해결: ${p.resolves})` : ''} ${link}`)
     else if (e.type === 'HUMAN_REQUIRED') lines.push(`- ${t} ${e.task ?? '?'} 사람 개입 필요 (${reasonText(p.reason)})${detail} ${link}`)
