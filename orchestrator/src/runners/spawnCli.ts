@@ -2,6 +2,7 @@ import spawn from 'cross-spawn'
 import { spawn as nodeSpawn } from 'node:child_process'
 import { appendFileSync, mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
+import { assertChildStartAllowed, trackOwnedChild } from './ownedChildren.js'
 
 export interface SpawnResult { exitCode: number; stdoutLines: string[]; stderr: string; timedOut: boolean }
 export interface SpawnOptions {
@@ -28,7 +29,8 @@ export function rawLogAppender(path: string): (line: string) => void {
   return (line) => appendFileSync(path, line + '\n', 'utf8')
 }
 
-export function spawnCli(bin: string, args: string[], o: SpawnOptions): Promise<SpawnResult> {
+export async function spawnCli(bin: string, args: string[], o: SpawnOptions): Promise<SpawnResult> {
+  assertChildStartAllowed()
   return new Promise((resolve) => {
     const stdoutLines: string[] = []
     let stderr = ''
@@ -59,7 +61,9 @@ export function spawnCli(bin: string, args: string[], o: SpawnOptions): Promise<
         env: { ...process.env, ...o.env },
         stdio: ['pipe', 'pipe', 'pipe'],
         windowsHide: true,
+        detached: process.platform !== 'win32',
       })
+      trackOwnedChild(child)
     } catch (e) {
       stderr = (e as Error).message
       finish(127)

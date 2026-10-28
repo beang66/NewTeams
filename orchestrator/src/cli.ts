@@ -21,8 +21,9 @@ import { attachNotifier, consoleNotifier, NOTIFY_TYPES } from './server/notifier
 import { TelegramBot } from './telegram/bot.js'
 import { BotApi } from './telegram/botApi.js'
 import { readTelegramSecrets, redact, type TelegramSecrets } from './telegram/env.js'
+import { stopOwnedChildren } from './runners/ownedChildren.js'
 
-export function createProgram(): Command {
+export function createProgram(onServe: (app: FastifyInstance) => void = installServeShutdown): Command {
   const program = new Command().name('orch').description('로컬 멀티 에이전트 오케스트레이터')
     .option('--config <path>', 'JSON 설정 파일 경로')
   const config = () => loadConfig(program.opts<{ config?: string }>().config)
@@ -59,7 +60,7 @@ export function createProgram(): Command {
     const wf = await openExisting(cfg, name)
     const dashboardDir = resolveDashboardDir(options.dashboard)
     const { app } = assembleServe(cfg, wf, process.env, { dashboardDir })
-    installServeShutdown(app)
+    onServe(app)
     try {
       const address = await listenLocal(app, cfg.port)
       console.log(`오케스트레이터: ${address}`)
@@ -122,15 +123,46 @@ export async function telegramCheck(cfg: Config, env: NodeJS.ProcessEnv, options
 }
 
 export function installServeShutdown(app: FastifyInstance): void {
-  const close = () => {
-    void app.close().catch(() => { console.error('서버 종료 실패'); process.exitCode = 1 })
+  const detach = installCliShutdown(() => app.close())
+  app.addHook('onClose', async () => { detach() })
+}
+
+/** 실제 CLI의 signal 경계. 자식 트리를 종료한 뒤 남은 gate/타이머와 함께 프로세스를 끝낸다. */
+export function installCliShutdown(close: () => Promise<unknown> = async () => {}): () => void {
+  let stopping = false
+  const shutdown = () => {
+    if (stopping) return
+    stopping = true
+    // close가 진행되는 동안에도 다음 러너/체크 프로세스 생성을 차단한다.
+    const childrenStopped = stopOwnedChildren()
+    void finishCliShutdown(close, childrenStopped)
   }
-  process.once('SIGINT', close)
-  process.once('SIGTERM', close)
-  app.addHook('onClose', async () => {
-    process.off('SIGINT', close)
-    process.off('SIGTERM', close)
-  })
+  process.on('SIGINT', shutdown)
+  process.on('SIGTERM', shutdown)
+  return () => {
+    if (stopping) return // 트리 종료 중 추가 signal의 기본 동작으로 부모만 종료되면 안 된다.
+    process.off('SIGINT', shutdown)
+    process.off('SIGTERM', shutdown)
+  }
+}
+
+async function finishCliShutdown(close: () => Promise<unknown>, childrenStopped: Promise<void>): Promise<void> {
+  let code = 0
+  let timer: NodeJS.Timeout | undefined
+  // 활성 HTTP 요청도 인증 gate를 기다릴 수 있으므로 graceful close만 무한 대기하지 않는다.
+  const closing = Promise.resolve().then(close).catch(() => { console.error('서버 종료 실패'); code = 1 })
+  const deadline = new Promise<void>(resolve => { timer = setTimeout(resolve, 3000) })
+  try {
+    await Promise.all([childrenStopped, Promise.race([closing, deadline])])
+  } catch {
+    console.error('자식 프로세스 종료 실패')
+    // OS가 트리 종료를 거부했으면 자식을 고아로 남기고 강제 종료하지 않는다.
+    process.exitCode = 1
+    return
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+  process.exit(code)
 }
 
 function safeTelegramError(error: unknown, secrets: TelegramSecrets | null): string {
@@ -186,7 +218,9 @@ async function openExisting(cfg: Config, name: string): Promise<Workflow> {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  createProgram().parseAsync().catch((error: unknown) => {
+  let serving: FastifyInstance | undefined
+  installCliShutdown(async () => { await serving?.close() })
+  createProgram(app => { serving = app }).parseAsync().catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : error)
     process.exitCode = 1
   })

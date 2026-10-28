@@ -2,16 +2,19 @@ import { spawn, spawnSync } from 'node:child_process'
 import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
 import picomatch from 'picomatch'
+import { assertChildStartAllowed, trackOwnedChild } from '../runners/ownedChildren.js'
 
 export interface CheckResult { ok: boolean; results: { cmd: string; exitCode: number; output: string }[] }
 
 const OUTPUT_LIMIT = 4000
 
 function runOne(cwd: string, cmd: string, timeoutMs: number): Promise<{ exitCode: number; output: string }> {
+  assertChildStartAllowed()
   return new Promise((resolve) => {
     let out = ''
     let settled = false
-    const child = spawn(cmd, { cwd, shell: true, windowsHide: true })
+    const child = spawn(cmd, { cwd, shell: true, windowsHide: true, detached: process.platform !== 'win32' })
+    trackOwnedChild(child)
     const finish = (exitCode: number, suffix = '') => {
       if (settled) return
       settled = true
