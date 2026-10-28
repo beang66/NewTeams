@@ -206,8 +206,13 @@ it('human 404는 null', async () => { stubFetch(404, {}); expect(await api.human
 
 ### Task 4: 화면 모델 (순수 함수)
 
+> **시나리오 반영 추가 (2026-10-28, `docs/scenarios/2026-10-28-user-scenarios.md` §6):** `model/since.ts`를 추가한다.
+> `export function sinceLastVisit(events: Envelope[], lastSeenId: string | null): { fromTs: string | null; approved: number; rejected: number; paused: number; autoResumed: boolean; humanOpen: number; ids: string[] } | null` — lastSeenId 이후 이벤트가 없으면 null, lastSeenId가 null이면(첫 방문) null.
+> `export function sinceText(s): string` → `"2시간 전부터 · 승인 3 · 반려 2 · 일시정지 1회(자동 재개됨) · 주의 0"` (0인 항목은 생략하되 주의는 항상 표시). 시간 문구는 "N분 전/N시간 전/N일 전".
+> 테스트: 승인·반려·일시정지 집계, 자동 재개 여부, lastSeenId가 없을 때 null.
+
 **Files:**
-- Create: `dashboard/src/model/labels.ts`, `lanes.ts`, `board.ts`, `attention.ts`, `usage.ts`
+- Create: `dashboard/src/model/labels.ts`, `lanes.ts`, `board.ts`, `attention.ts`, `usage.ts`, `since.ts`
 - Test: `dashboard/test/model/*.test.ts`
 
 **Interfaces:**
@@ -287,6 +292,11 @@ it('사용량: provider별 토큰 합과 재개까지 남은 시간', () => {
 ---
 
 ### Task 5: 화면 뼈대 — 상단 바, 단계 레일, 사용량, 일시정지 배너
+
+> **시나리오 반영 추가 (S3, S8):**
+> - `components/SinceBar.tsx`: 상단 바 바로 아래 한 줄. `sinceLastVisit`(Task 4)가 null이 아니면 `sinceText`를 보여 주고, 누르면 `onOpenTimeline(ids)`, [확인함]이나 화면 클릭 시 닫힌다. 마지막 확인 ID는 localStorage 키 `orch.lastSeen.<프로젝트 경로>`에 저장한다(읽기·쓰기를 try/catch로 감싸고, 실패해도 화면은 정상). 탭이 다시 보이게 될 때(`visibilitychange`)와 [확인함] 시 현재 마지막 이벤트 ID로 갱신.
+> - 텔레그램 연결 칩: `api.telegram()`(`GET /api/telegram` → `{ state: 'off'|'connecting'|'connected'|'error', botUsername?, lastError? }`, Task 3의 client에 메서드 추가)를 30초마다 읽어 상단 바 오른쪽에 작은 칩으로 표시. off는 칩 숨김, connected는 회색 `텔레그램 @이름`, error는 노랑 `텔레그램 끊김`(title에 lastError).
+> - 테스트: 요약 줄 표시·닫기·localStorage 실패 시에도 렌더, 텔레그램 칩 상태별 표시.
 
 **Files:**
 - Create: `dashboard/src/components/TopBar.tsx`, `StageRail.tsx`, `UsageGauges.tsx`, `PausedBanner.tsx`, `dashboard/src/screens/ControlScreen.tsx`(3열 그리드 빈 영역 포함), `src/App.tsx` 수정(단계별 화면 전환: INTAKE→IntakeScreen 자리 표시, DONE→DoneScreen 자리 표시, 그 밖→ControlScreen)
@@ -378,7 +388,7 @@ it('계획이 없으면 안내 문구', () => { render(<TaskBoard state={initial
 **동작:**
 - SVG 하나. 왼쪽 200px 레인 머리(이름, 배지, 상태 칩, 현재 태스크, rN, 경과 시간, 토큰). 오른쪽은 시간 축. 화살표는 출발 레인 → 도착 레인 세로선 + 화살촉, 옆에 `typeLabel` 짧게.
 - 기본은 **실시간 따라가기**(오른쪽 끝 = 지금). 사용자가 가로로 스크롤하거나 확대하면 따라가기를 끄고, 토글 버튼으로 다시 켠다.
-- 확대/축소: 창 폭 1분·5분·15분·1시간·전체(버튼 그룹). 창 안의 화살표만 그린다(`windowArrows`).
+- 확대/축소: 창 폭 **5분·1시간·전체 3단계**(버튼 그룹, 시나리오 §6에서 5단계→3단계로 줄임; SinceBar가 구간 이동을 대신한다). 창 안의 화살표만 그린다(`windowArrows`). `highlightIds?: string[]`를 받으면 그 이벤트들의 화살표를 옅게 강조한다(S3).
 - 완료된 레인(status done) 접기 토글(기본 켜짐: 완료 레인을 한 줄로 축소).
 - 일시정지 구간은 빗금 패턴(`--warn` 20% 투명).
 - 화살표 클릭 또는 Enter → `onSelectEvent(id)`. 각 화살표는 `role="button"`과 `aria-label="<발신> → <수신>: <종류> <id>"`.
@@ -421,6 +431,7 @@ it('TimelineList는 최신이 아래, 가상 스크롤로 일부만 렌더', () 
 **동작:**
 - **주의 탭:** 카드 목록.
   - `human` 카드: 제목(태스크 + `reasonLabel`), 반복된 지적 목록(id·심각도·문구), 마스터가 시도한 지침, 지침 입력 textarea + [지침 보내기](`action:'guidance'`) + [이 태스크 건너뛰기](`action:'skip'`, 확인 문구를 같은 카드 안에서 한 번 더 묻는 2단계 버튼) + 체크박스 "새 세션으로 다시 시작"(`restartSession`). 스펙 §7.4의 "재분할" 선택지는 서버 API가 지원하지 않으므로 넣지 않는다(재분할은 마스터가 결정한다).
+  - **시나리오 반영 추가 (S4, S5):** 건너뛰기 확인 문구는 `정말 건너뛸까요? 이 태스크에 의존하는 <n>개 태스크도 함께 건너뜁니다`(plan의 deps로 계산, 0개면 뒷부분 생략). `plan` 태스크의 교착 카드에는 건너뛰기 버튼을 두지 않는다. 제출이 409(ActionConflict)이면 카드를 `이미 처리됨`(회색, 버튼 없음)으로 바꾼다 — 텔레그램에서 먼저 처리한 경우. 카드 머리에 [근거 보기] 링크(상세 [사람용] 탭으로 이동)를 두고, 모바일 폭에서도 보인다. login 카드에서 [재개] 후 5초 안에 같은 사유의 HUMAN_REQUIRED가 다시 오면 카드 안에 `아직 로그인되지 않았습니다`를 보여 준다. 테스트: 409 → 이미 처리됨, 의존 개수 문구, plan 카드 건너뛰기 없음, 로그인 재실패 문구.
   - `login` 카드: "터미널에서 다시 로그인 필요" + 안내 문구 "Claude: 터미널에서 `claude` 실행 후 `/login` · Codex: `codex login`"(글자로만 표시, 실행하지 않음) + [로그인했어요, 재개](`api.resume()`).
   - `spec` 카드: "스펙 초안이 준비됐습니다" + [스펙 보기](INTAKE 화면으로 이동).
   - 제출 중에는 버튼 비활성 + "보내는 중…", 실패하면 카드 안에 `ApiError.message`.
@@ -475,7 +486,8 @@ it('상세 원본 탭: Envelope JSON과 프롬프트 전문', async () => { vi.s
 **동작:**
 - **IntakeScreen(INTAKE):** 가운데 마스터 대화(CHAT 이벤트 + 입력창, Enter 전송·Shift+Enter 줄바꿈), 오른쪽 스펙 초안(`spec.draft.md`, `chat` 응답에 specDraft가 있으면 다시 불러옴). 초안이 있을 때만 [스펙 승인] 활성. 승인 후 서버가 다음 단계로 진행하면 SSE로 stage가 바뀌어 자동으로 관제 화면으로 넘어간다. 첫 화면(이벤트 0개) 빈 상태 문구: "만들고 싶은 것을 마스터에게 설명해 주세요. 대화가 끝나면 오른쪽에 스펙 초안이 채워집니다."
 - **DoneScreen(DONE):** `report.md`를 Markdown으로, 상단에 "완료" 칩과 [관제 화면 보기] 토글(레인 기록을 다시 볼 수 있게).
-- **AskBar(하단):** "마스터에게 묻기" 입력 → `api.ask` 응답을 입력창 위에 펼침(Markdown, 원본 링크 동작 포함). 오른쪽에 최근 이벤트 한 줄(`typeLabel` + 발신 → 수신 + 시각).
+- **AskBar(하단):** "마스터에게 묻기" 입력 → `api.ask` 응답을 입력창 위에 펼침(Markdown, 원본 링크 동작 포함). 오른쪽에 최근 이벤트 한 줄(`typeLabel` + 발신 → 수신 + 시각). **추가(S6):** 입력창 옆에 작게 `사용량을 씁니다`.
+- **추가(S7, 문서 형식):** DoneScreen과 상세 [사람용] 탭의 본문은 와이어프레임 `docs/wireframes/dashboard-wireframes.html`의 7번·3번(✦) 문서 형식을 따른다. `src/styles/paper.css`에 `.paper` 범위 토큰(와이어프레임의 `--p-*` 값 그대로: 바탕 `#f3f0e8`, 시트 `#fbf9f4`, 글자 `#141414`/`#3d3a35`/`#6b665d`, 선 `#141414`/`#cfc9bd`, 승인 `#1f6f3a`, 반려 `#a8281e`, 주의 `#8a6100`, 현재 `#4b55c0`)을 두고, 상단 바·하단 묻기는 다크 그대로. 세리프 제목 글꼴은 Noto Serif KR을 npm 패키지(`@fontsource/noto-serif-kr`, 700 한 굵기, 한국어 서브셋)로 번들. 완료 화면에 [Markdown 내려받기] 버튼: `report.md`를 그대로 파일로 저장(원본 프롬프트 없음). PDF는 브라우저 인쇄로 대신하고 `@media print`에서 상단 바·하단을 숨긴다. 테스트: paper 토큰 값, 내려받기 버튼이 report 내용으로 Blob을 만든다.
 - **로딩:** `run.loading`이면 각 영역 스켈레톤(회색 막대, 애니메이션 없음).
 
 - [ ] **Step 1: 실패하는 테스트 작성**
@@ -498,6 +510,8 @@ it('로딩 중 스켈레톤', () => { render(<App runOverride={{ ...run, loading
 ---
 
 ### Task 10: 브라우저 E2E — 가짜 이벤트 스트림으로 상태별 화면 확인
+
+> **시나리오 반영 변경:** 상태별 테스트 대신 시나리오 흐름 테스트로 쓴다 — S1(대화→초안→승인→관제 전환), S2(주의 0 강조 없음, 연결 끊김 칩), S3(마지막 확인 ID 저장→새 이벤트→요약 줄 숫자), S4(지침 전송→처리됨, 409→이미 처리됨), S5(일시정지 배너·주의 0 유지, 로그인 카드→재개), S6(보드→사람용→원본→프롬프트, 클릭 3회), S7(완료→근거 링크→Markdown 내려받기), 그리고 Task 12의 파이프라인 개요 열기. 아래 원래 테스트 목록은 이 흐름 안에 포함된다. 실행 순서상 Task 12를 먼저 끝낸 뒤 진행한다.
 
 **Files:**
 - Create: `dashboard/e2e/fixtures/{intake,build,paused,deadlock,done}.json`(각각 `{state, plan, agents, events}`), `dashboard/e2e/mockApi.ts`, `dashboard/e2e/states.spec.ts`
@@ -544,3 +558,43 @@ test('모바일 폭: 시간순 목록과 패널 서랍, 가로 스크롤 없음'
 - [ ] **Step 2:** 브라우저에서 `http://127.0.0.1:4317/` 열기. 확인 항목: DONE 보고서 화면, [관제 화면 보기]로 레인 59개 이벤트 재생, 반려 화살표 → 상세 원본에 프롬프트 전문, iterations 사람용 탭, 최종 QA 캡처 썸네일, "마스터에게 묻기"는 실제 CLI를 부르므로 **사용자 확인 후에만** 실행.
 - [ ] **Step 3:** 결과와 스크린샷 경로를 `docs/smoke-test.md`에 기록.
 - [ ] **Step 4: Commit** — `git commit -m "docs: record dashboard check against smoke project"`
+
+---
+
+### Task 12: 파이프라인 개요 화면 (문서 형식, 시나리오 반영 추가)
+
+와이어프레임 2-1번(✦). 단계 레일 오른쪽의 [관제 | 개요] 전환으로 연다. **Task 9 다음, Task 10 전에 실행한다.**
+
+**Files:**
+- Create: `dashboard/src/model/pipeline.ts`, `dashboard/src/screens/PipelineOverview.tsx`
+- Modify: `dashboard/src/components/TopBar.tsx`(전환 버튼), `dashboard/src/screens/ControlScreen.tsx`
+- Test: `dashboard/test/model/pipeline.test.ts`, `dashboard/test/screens/pipeline.test.tsx`
+
+**Interfaces:**
+- Consumes: `RunView`, `Plan`, `AgentConfig`, `stageLabel`, `.paper` 토큰(Task 9)
+- Produces:
+```ts
+export type StepState = 'done' | 'now' | 'future' | 'human'
+export interface PipelineView {
+  fixed: string                                   // "작업 C sonnet · 검수 G 읽기 전용 · 병렬 3 · 반려 상한 5 · 같은 지적 2회 · API $8" (agents와 기본값에서 생성)
+  intake: { stage: Stage; state: StepState; note: string }[]   // 요구사항, 스펙 승인(사람), 시드, 기획⇄검수
+  loop: { harnessRejects: number; reviewRejects: number; deadlocks: number; humanOpen: string[]; reviewingTask?: string }
+  finish: { stage: Stage; state: StepState }[]    // 통합, 최종 QA, 보고, 완료
+  tasks: { id: string; title: string; round: number; rejects: number; status: TaskStatus }[]
+  tokens: { role: string; provider: 'C' | 'G'; tokens: number; cachedPct: number }[]
+}
+export function pipelineView(run: RunView): PipelineView
+```
+**동작:** 와이어프레임 2-1 그대로 — 1·2·3 구간의 단계 상자(굵은 선=지난 단계, 라벤더 외곽선=지금, 회색=아직, 점선 빨강=되돌아간 경로와 횟수), 고정 조건 박스, 오른쪽 "태스크별 루프"·"토큰은 어디에 썼나" 표(고정폭 숫자). 상자 안 링크는 해당 iterations 문서(상세 [사람용])로, 메시지 ID는 원본으로 간다. 1024px 이하에서는 오른쪽 표가 그림 아래로 내려간다.
+
+- [ ] **Step 1: 실패하는 테스트 작성**
+```ts
+it('지금 단계는 now, 지난 단계는 done', () => { expect(pipelineView(runAt('BUILD')).intake.map(s => s.state)).toEqual(['done', 'human', 'done', 'done']) })
+it('하네스 반려와 검수 반려를 따로 센다', () => { expect(pipelineView(runWith([reject('t1', 'harness'), reject('t1', 'reviewer'), reject('t2', 'reviewer')])).loop).toMatchObject({ harnessRejects: 1, reviewRejects: 2 }) })
+it('고정 조건은 agents 설정을 반영한다', () => { expect(pipelineView(runWithAgents({ dev: { provider: 'codex', model: 'codex-default' } })).fixed).toMatch(/^작업 G/) })
+it('개요 화면: 표의 반려 수와 지금 위치 강조', () => { render(<PipelineOverview run={RUN} />); expect(screen.getByRole('row', { name: /t3.*3.*3/ })).toBeInTheDocument(); expect(document.querySelector('.stp.now')).not.toBeNull() })
+```
+- [ ] **Step 2: 실패 확인** — FAIL
+- [ ] **Step 3: 구현**
+- [ ] **Step 4: 통과 확인** — `npm test`, `npm run build` PASS
+- [ ] **Step 5: Commit** — `git commit -m "feat(dashboard): pipeline overview in document style"`
