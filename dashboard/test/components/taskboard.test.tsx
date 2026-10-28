@@ -28,8 +28,8 @@ describe('TaskBoard', () => {
   })
   it('클릭하면 onSelect(taskId), 선택된 항목은 aria-pressed', () => {
     const onSelect = vi.fn(); render(<TaskBoard state={S} plan={PLAN} selectedTask="a" onSelect={onSelect} />)
-    fireEvent.click(screen.getByRole('button', { name: /b/ })); expect(onSelect).toHaveBeenCalledWith('b')
-    expect(screen.getByRole('button', { name: /a/ })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: /^b\b/ })); expect(onSelect).toHaveBeenCalledWith('b')
+    expect(screen.getByRole('button', { name: /^a\b/ })).toHaveAttribute('aria-pressed', 'true')
   })
   it('계획이 없으면 안내 문구', () => {
     render(<TaskBoard state={initialState} plan={null} onSelect={vi.fn()} />)

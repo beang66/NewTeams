@@ -1,5 +1,5 @@
 import type { Plan } from '@orch/protocol/plan'
-import type { RunState } from '@orch/store/state'
+import type { RunState, TaskStatus } from '@orch/store/state'
 import { boardGroups, type BoardGroup } from '../model/board'
 
 interface Props {
@@ -10,18 +10,19 @@ interface Props {
   rejectLimit?: number
 }
 
-const CHIP: Record<string, { text: string; tone: string }> = {
-  review: { text: '검수', tone: 'is-accent' },
-  running: { text: '개발', tone: 'is-accent' },
+const CHIP: Record<TaskStatus, { text: string; tone: string }> = {
   pending: { text: '대기', tone: '' },
-  merged: { text: '병합', tone: 'is-ok' },
+  running: { text: '개발', tone: 'is-accent' },
+  review: { text: '검수', tone: 'is-accent' },
+  rejected: { text: '반려', tone: 'is-bad' },
   approved: { text: '승인', tone: 'is-ok' },
+  merged: { text: '병합', tone: 'is-ok' },
   blocked: { text: '건너뜀', tone: '' },
 }
 
-function chipFor(group: BoardGroup, status: string, round: number, limit: number): { text: string; tone: string } {
+function chipFor(group: BoardGroup, status: TaskStatus, round: number, limit: number): { text: string; tone: string } {
   if (group === 'rejected') return { text: `r${round}/${limit}`, tone: 'is-bad' }
-  return CHIP[status] ?? { text: status, tone: '' }
+  return CHIP[status] ?? { text: '-', tone: '' }
 }
 
 export function TaskBoard({ state, plan, selectedTask, onSelect, rejectLimit = 5 }: Props) {
@@ -33,7 +34,7 @@ export function TaskBoard({ state, plan, selectedTask, onSelect, rejectLimit = 5
           <h4>{g.label} {g.tasks.length}</h4>
           <ul>
             {g.tasks.map((t) => {
-              const chip = chipFor(g.group, state.tasks[t.id]!.status, t.round, rejectLimit)
+              const chip = chipFor(g.group, t.status, t.round, rejectLimit)
               return (
                 <li key={t.id}>
                   <button type="button" className="board-task" aria-pressed={selectedTask === t.id} onClick={() => onSelect(t.id)}>

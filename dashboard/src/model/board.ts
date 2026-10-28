@@ -14,9 +14,14 @@ const GROUPS: { group: BoardGroup; label: string; statuses: TaskStatus[] }[] = [
 ]
 
 export function boardGroups(state: RunState, plan: Plan | null): { group: BoardGroup; label: string; tasks: BoardTask[] }[] {
-  const titles = new Map((plan?.tasks ?? []).map((t) => [t.id, t.title]))
-  const ids = [...titles.keys()].filter((id) => state.tasks[id]).concat(Object.keys(state.tasks).filter((id) => !titles.has(id) && id !== 'plan' && id !== 'final'))
-  const tasks: BoardTask[] = ids.map((id) => ({ id, title: titles.get(id) ?? id, round: state.tasks[id]!.round, status: state.tasks[id]!.status }))
+  const planTasks = plan?.tasks ?? []
+  const titles = new Map(planTasks.map((t) => [t.id, t.title]))
+  // Every plan task is shown; a task with no state entry yet has never been assigned, so it is pending.
+  const extraIds = Object.keys(state.tasks).filter((id) => !titles.has(id) && id !== 'plan' && id !== 'final')
+  const tasks: BoardTask[] = [...planTasks.map((t) => t.id), ...extraIds].map((id) => {
+    const s = state.tasks[id]
+    return { id, title: titles.get(id) ?? id, round: s?.round ?? 0, status: s?.status ?? 'pending' }
+  })
   return GROUPS
     .map((g) => ({ group: g.group, label: g.label, tasks: tasks.filter((t) => g.statuses.includes(t.status)) }))
     .filter((g) => g.tasks.length > 0)
