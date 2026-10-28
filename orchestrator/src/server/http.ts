@@ -6,6 +6,7 @@ import type { Workflow } from '../engine/workflow.js'
 import type { Envelope } from '../protocol/messages.js'
 import { PlanSchema } from '../protocol/plan.js'
 import fastifyStatic from '@fastify/static'
+import { ActionConflict, createWorkflowActions, createWorkflowDriver, type TelegramStatus, type WorkflowActions } from './actions.js'
 
 const ID_PATTERN = '^msg-[0-9]+$'
 const textBody = (key: string) => ({
@@ -20,18 +21,18 @@ const mime: Record<string, string> = {
   '.json': 'application/json', '.zip': 'application/zip',
 }
 
-/** Runs at most one workflow, including while it is paused inside a runner. */
-export function createWorkflowDriver(wf: Workflow, onError: (error: unknown) => void | Promise<void>): () => void {
-  let running: Promise<unknown> | undefined
-  return () => {
-    if (running) return
-    running = Promise.resolve().then(() => wf.runUntilBlocked()).catch(onError).catch((error: unknown) => console.error('Workflow error notification failed', error)).finally(() => { running = undefined })
-  }
+export { createWorkflowDriver }
+
+export interface ServerOptions {
+  resume?: boolean
+  dashboardDir?: string
+  actions?: WorkflowActions
+  telegramStatus?: () => TelegramStatus
 }
 
-export function buildServer(wf: Workflow, options: { resume?: boolean; dashboardDir?: string } = {}): FastifyInstance {
+export function buildServer(wf: Workflow, options: ServerOptions = {}): FastifyInstance {
   const app = Fastify()
-  const drive = createWorkflowDriver(wf, async (error) => {
+  const actions = options.actions ?? createWorkflowActions(wf, async (error) => {
     console.error('Workflow failed; answer the human request to retry', error)
     await wf.bus.publish({ type: 'HUMAN_REQUIRED', from: 'controller', to: 'user', payload: {
       reason: 'workflow_error', detail: error instanceof Error ? error.message : String(error),
@@ -40,9 +41,10 @@ export function buildServer(wf: Workflow, options: { resume?: boolean; dashboard
   const streams = new Set<ServerResponse>()
   // preClose runs before waiting for active HTTP connections (including SSE).
   app.addHook('preClose', async () => { for (const stream of streams) stream.destroy() })
-  if (options.resume) app.addHook('onListen', async () => { drive() })
+  if (options.resume) app.addHook('onListen', async () => { actions.drive() })
   registerReadRoutes(app, wf, streams)
-  registerActionRoutes(app, wf, drive)
+  app.get('/api/telegram', async () => options.telegramStatus?.() ?? { state: 'off' })
+  registerActionRoutes(app, actions)
   if (options.dashboardDir) registerDashboard(app, options.dashboardDir)
   return app
 }
@@ -98,18 +100,18 @@ function registerDashboard(app: FastifyInstance, dashboardDir: string): void {
   })
 }
 
-function registerActionRoutes(app: FastifyInstance, wf: Workflow, drive: () => void): void {
-  let mutations: Promise<unknown> = Promise.resolve()
-  const mutate = (reply: FastifyReply, action: () => Promise<unknown>) => {
-    const result = mutations.then(() => workflowAction(reply, action))
-    mutations = result.catch(() => undefined)
-    return result
+function registerActionRoutes(app: FastifyInstance, actions: WorkflowActions): void {
+  const run = async (reply: FastifyReply, action: () => Promise<unknown>): Promise<unknown> => {
+    try { return await action() } catch (error) {
+      if (error instanceof ActionConflict) return reply.code(409).send({ error: error.message })
+      throw error
+    }
   }
+  const noContent = (reply: FastifyReply, action: () => Promise<unknown>) =>
+    run(reply, async () => { await action(); return reply.code(204).send() })
   app.post<{ Body: { message: string } }>('/api/chat', { schema: { body: textBody('message') } },
-    async (request, reply) => mutate(reply, () => wf.chat(request.body.message)))
-  app.post('/api/spec/approve', async (_request, reply) => mutate(reply, async () => {
-    await wf.approveSpec(); drive(); return reply.code(204).send()
-  }))
+    async (request, reply) => run(reply, () => actions.chat(request.body.message)))
+  app.post('/api/spec/approve', async (_request, reply) => noContent(reply, () => actions.approveSpec()))
   app.post<{ Params: { eventId: string }; Body: { action: 'guidance' | 'skip'; text: string; restartSession?: boolean } }>('/api/human/:eventId', {
     schema: {
       params: idParams('eventId'),
@@ -118,24 +120,10 @@ function registerActionRoutes(app: FastifyInstance, wf: Workflow, drive: () => v
         properties: { action: { type: 'string', enum: ['guidance', 'skip'] }, text: { type: 'string' }, restartSession: { type: 'boolean' } },
       },
     },
-  }, async (request, reply) => mutate(reply, async () => {
-    await wf.answerHuman(request.params.eventId, request.body); drive(); return reply.code(204).send()
-  }))
-  app.post('/api/resume', async (_request, reply) => {
-    await wf.gate.resumeByHuman(); drive(); return reply.code(204).send()
-  })
+  }, async (request, reply) => noContent(reply, () => actions.answer(request.params.eventId, request.body)))
+  app.post('/api/resume', async (_request, reply) => noContent(reply, () => actions.resume()))
   app.post<{ Body: { question: string } }>('/api/ask', { schema: { body: textBody('question') } },
-    async (request) => ({ answer: await wf.askLog(request.body.question) }))
-}
-
-async function workflowAction(reply: FastifyReply, action: () => Promise<unknown>): Promise<unknown> {
-  try { return await action() } catch (error) {
-    // State conflicts are expected client errors. Runner/storage failures remain server errors.
-    if (error instanceof Error && /INTAKE|스펙 초안|열린 HUMAN_REQUIRED/.test(error.message)) {
-      return reply.code(409).send({ error: error.message })
-    }
-    throw error
-  }
+    async (request) => ({ answer: await actions.ask(request.body.question) }))
 }
 
 function eventsAfter(events: Envelope[], after?: string): Envelope[] {

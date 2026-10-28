@@ -14,6 +14,7 @@ import { AgentRunner } from './runners/agentRunner.js'
 import { CodexRunner } from './runners/codexRunner.js'
 import { OpenAIRunner } from './runners/openaiRunner.js'
 import { ReviewerRunner } from './runners/reviewerRunner.js'
+import { createWorkflowActions } from './server/actions.js'
 import { buildServer, listenLocal } from './server/http.js'
 import { attachNotifier, consoleNotifier } from './server/notifier.js'
 
@@ -54,7 +55,13 @@ export function createProgram(): Command {
     const wf = await openExisting(cfg, name)
     const detach = attachNotifier(wf.bus, consoleNotifier)
     const dashboardDir = resolveDashboardDir(options.dashboard)
-    const app = buildServer(wf, { resume: true, ...(dashboardDir ? { dashboardDir } : {}) })
+    const actions = createWorkflowActions(wf, async (error) => {
+      console.error('Workflow failed; answer the human request to retry', error)
+      await wf.bus.publish({ type: 'HUMAN_REQUIRED', from: 'controller', to: 'user', payload: {
+        reason: 'workflow_error', detail: error instanceof Error ? error.message : String(error),
+      } })
+    })
+    const app = buildServer(wf, { resume: true, actions, ...(dashboardDir ? { dashboardDir } : {}) })
     app.addHook('onClose', async () => { detach() })
     try {
       const address = await listenLocal(app, cfg.port)
