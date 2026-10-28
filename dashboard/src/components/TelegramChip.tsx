@@ -15,7 +15,7 @@ export function TelegramChip() {
   switch (status.state) {
     case 'off': return null
     case 'connecting': return <span className="chip">텔레그램 연결 중</span>
-    case 'connected': return <span className="chip">{`텔레그램 @${status.botUsername ?? ''}`}</span>
+    case 'connected': return <span className="chip">{status.botUsername ? `텔레그램 @${status.botUsername}` : '텔레그램 연결됨'}</span>
     case 'error': return <span className="chip is-warn" title={status.lastError}>텔레그램 끊김</span>
   }
 }

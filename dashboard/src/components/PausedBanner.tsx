@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { reasonLabel } from '../model/labels'
 import type { UsageView } from '../model/usage'
 
@@ -15,19 +15,19 @@ function remainingText(ms: number): string {
 const hhmm = (d: Date): string => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 
 export function PausedBanner({ paused, now = Date.now }: { paused: Paused; now?: () => number }) {
-  const start = useRef(now())
-  const [tick, setTick] = useState(0)
+  const [, setTick] = useState(0)
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 1000)
+    const id = setInterval(() => setTick((t) => t + 1), 1000) // only forces a re-render
     return () => clearInterval(id)
   }, [])
-  void tick
-  const label = reasonLabel(paused.reason)
+  const label = `일시정지 · ${reasonLabel(paused.reason)}`
   let text: string
-  if (paused.needsHuman) text = `${label}으로 일시정지 — 터미널에서 다시 로그인 필요`
-  else if (paused.until && paused.remainingMs !== undefined) {
-    const left = Math.max(0, paused.remainingMs - (now() - start.current))
-    text = `${label}으로 일시정지 — ${hhmm(paused.until)}에 자동 재개 (${remainingText(left)})`
-  } else text = `${label}으로 일시정지 — 재개 시각 미정`
+  if (paused.needsHuman) {
+    if (paused.reason === 'auth') text = `${label} — 터미널에서 다시 로그인 필요`
+    else if (paused.reason === 'openai_cap') text = `${label} — OpenAI API 지출 상한($8) 도달 — 설정에서 상한(openaiCapUsd)을 올린 뒤 [재개]를 누르세요`
+    else text = `${label} — 사람 확인 필요`
+  } else if (paused.until) {
+    text = `${label} — ${hhmm(paused.until)}에 자동 재개 (${remainingText(paused.until.getTime() - now())})`
+  } else text = `${label} — 재개 시각 미정`
   return <div className="paused-banner" role="status">{text}</div>
 }

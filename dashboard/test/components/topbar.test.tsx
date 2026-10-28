@@ -25,9 +25,9 @@ describe('상단 바 뼈대', () => {
     expect(screen.getByText('개발').closest('li')).toHaveAttribute('aria-current', 'step')
   })
   it('주의 0이면 강조 없음, 1 이상이면 강조', () => {
-    const { rerender } = render(<TopBar run={runWith({ humanRequired: [] })} />)
+    const { rerender } = render(<TopBar run={runWith({ humanRequired: [] }, { events: [] })} />)
     expect(screen.getByRole('button', { name: /주의 0/ })).not.toHaveClass('is-alert')
-    rerender(<TopBar run={runWith({ humanRequired: ['msg-1'] })} />)
+    rerender(<TopBar run={runWith({ humanRequired: ['msg-1'] }, { events: [human('msg-1', undefined, 'repeat_finding')] })} />)
     expect(screen.getByRole('button', { name: /주의 1/ })).toHaveClass('is-alert')
   })
   it('주의 버튼은 onOpenAttention을 부른다', () => {
@@ -45,17 +45,29 @@ describe('상단 바 뼈대', () => {
     expect(screen.getByText('12,345')).toBeInTheDocument(); expect(screen.getByText('$1.20 / $8')).toBeInTheDocument()
   })
   it('일시정지 배너: 자동 재개 시각과 남은 시간', () => {
-    render(<PausedBanner paused={{ reason: 'rate_limit', until: new Date('2026-10-27T05:30:00Z'), remainingMs: 1_800_000, needsHuman: false }} />)
+    render(<PausedBanner now={() => Date.parse('2026-10-27T05:00:00Z')} paused={{ reason: 'rate_limit', until: new Date('2026-10-27T05:30:00Z'), remainingMs: 1_800_000, needsHuman: false }} />)
     expect(screen.getByRole('status')).toHaveTextContent(/사용량 한도.*재개.*30분/)
   })
   it('로그인이 필요하면 배너에 재개 버튼 대신 안내', () => {
-    render(<PausedBanner paused={{ reason: 'rate_limit', needsHuman: true }} />)
+    render(<PausedBanner paused={{ reason: 'auth', needsHuman: true }} />)
     expect(screen.getByRole('status')).toHaveTextContent('터미널에서 다시 로그인 필요')
+  })
+  it('OpenAI 지출 상한이면 상한을 올리라는 안내', () => {
+    render(<PausedBanner paused={{ reason: 'openai_cap', needsHuman: true }} />)
+    expect(screen.getByRole('status')).toHaveTextContent('openaiCapUsd')
+    expect(screen.getByRole('status')).not.toHaveTextContent('로그인')
+  })
+  it('다시 렌더돼도 남은 시간이 튀지 않는다', () => {
+    const until = new Date(600_000)
+    const { rerender } = render(<PausedBanner now={() => 0} paused={{ reason: 'rate_limit', until, remainingMs: 600_000, needsHuman: false }} />)
+    expect(screen.getByRole('status')).toHaveTextContent('10분')
+    rerender(<PausedBanner now={() => 120_000} paused={{ reason: 'rate_limit', until, remainingMs: 480_000, needsHuman: false }} />)
+    expect(screen.getByRole('status')).toHaveTextContent('8분')
   })
   it('남은 시간은 1초마다 줄고 언마운트하면 멈춘다', () => {
     vi.useFakeTimers()
     let now = 0
-    const { unmount } = render(<PausedBanner now={() => now} paused={{ reason: 'rate_limit', until: new Date(0), remainingMs: 90_000, needsHuman: false }} />)
+    const { unmount } = render(<PausedBanner now={() => now} paused={{ reason: 'rate_limit', until: new Date(90_000), remainingMs: 90_000, needsHuman: false }} />)
     expect(screen.getByRole('status')).toHaveTextContent('2분')
     now = 40_000
     act(() => { vi.advanceTimersByTime(1000) })
@@ -137,6 +149,11 @@ describe('TelegramChip', () => {
     setup({ state: 'connected', botUsername: 'orch_bot' })
     render(<TelegramChip />)
     expect(await screen.findByText('텔레그램 @orch_bot')).toBeInTheDocument()
+  })
+  it('connected인데 이름이 없으면 연결됨', async () => {
+    setup({ state: 'connected' })
+    render(<TelegramChip />)
+    expect(await screen.findByText('텔레그램 연결됨')).toBeInTheDocument()
   })
   it('connecting', async () => {
     setup({ state: 'connecting' })

@@ -1,11 +1,12 @@
 import type { RunView } from '../api/useRun'
+import { attentionItems } from '../model/attention'
 import { usageView } from '../model/usage'
 import { StageRail } from './StageRail'
 import { UsageGauges } from './UsageGauges'
 import { TelegramChip } from './TelegramChip'
 
 export function TopBar({ run, onOpenAttention, now = () => new Date() }: { run: RunView; onOpenAttention?: () => void; now?: () => Date }) {
-  const count = run.state.humanRequired.length
+  const count = attentionItems(run.state, run.events, { hasSpecDraft: false }).length
   const usage = usageView(run.events, run.state, run.agents, now())
   return (
     <header className="topbar">
