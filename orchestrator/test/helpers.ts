@@ -83,3 +83,35 @@ export const stateWith = (statuses: Record<string, TaskStatus>): RunState => ({
 })
 
 export const assign = (task: string, round = 1): Envelope => mk('ASSIGN', 'controller', 'dev', { prompt: '작업' }, { task, round })
+
+// ---- 타이머를 직접 굴리는 시계 (Outbox 테스트용) ----
+export interface ManualClock extends Clock {
+  set(iso: string): void
+  advance(ms: number): Promise<void>
+  advanceTo(iso: string): Promise<void>
+}
+export function manualClock(startIso: string): ManualClock {
+  let cur = new Date(startIso).getTime()
+  const pending: { wake: number; resolve: () => void }[] = []
+  const tick = async (n = 4): Promise<void> => { for (let i = 0; i < n; i++) await Promise.resolve() }
+  const run = async (target: number): Promise<void> => {
+    for (;;) {
+      let idx = -1
+      for (let i = 0; i < pending.length; i++) if (pending[i]!.wake <= target && (idx < 0 || pending[i]!.wake < pending[idx]!.wake)) idx = i
+      if (idx < 0) break
+      const [p] = pending.splice(idx, 1)
+      cur = Math.max(cur, p!.wake)
+      p!.resolve()
+      await tick()
+    }
+    cur = Math.max(cur, target)
+    await new Promise<void>(r => setImmediate(r))
+  }
+  return {
+    now: () => new Date(cur),
+    sleep: (ms) => new Promise<void>(resolve => { pending.push({ wake: cur + Math.max(0, ms), resolve }) }),
+    set: (iso) => { cur = new Date(iso).getTime() },
+    advance: (ms) => run(cur + ms),
+    advanceTo: (iso) => run(new Date(iso).getTime()),
+  }
+}
