@@ -81,3 +81,5 @@ export const stateWith = (statuses: Record<string, TaskStatus>): RunState => ({
   ...structuredClone(initialState),
   tasks: Object.fromEntries(Object.entries(statuses).map(([id, status]) => [id, { status, round: 1 }])),
 })
+
+export const assign = (task: string, round = 1): Envelope => mk('ASSIGN', 'controller', 'dev', { prompt: '작업' }, { task, round })

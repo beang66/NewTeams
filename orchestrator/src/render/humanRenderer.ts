@@ -13,6 +13,11 @@ const REASONS: Record<string, string> = {
 }
 const reasonText = (code: unknown): string => (typeof code === 'string' ? REASONS[code] ?? code : '알 수 없음')
 
+/** 사유 코드 → 사람이 읽는 문구 (표에 없으면 코드 그대로) */
+export function reasonLabel(code: string): string {
+  return Object.hasOwn(REASONS, code) ? REASONS[code]! : code
+}
+
 export const rawLink = (id: string): string => `[원본](../raw/events.jsonl#${id})`
 
 /** ISO 시각 → 로컬 HH:mm */
