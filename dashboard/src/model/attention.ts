@@ -27,7 +27,7 @@ export function attentionItems(state: RunState, events: Envelope[], opts: { hasS
         const f = obj(events[rejectAt]!.payload).findings
         findings = Array.isArray(f) ? (f as Finding[]) : []
       }
-      for (const e of events.slice(rejectAt + 1)) {
+      for (const e of events.slice(rejectAt + 1, idx)) {
         const text = obj(e.payload).text
         if (e.type === 'GUIDANCE' && e.task === ev.task && typeof text === 'string') tried.push(text)
       }

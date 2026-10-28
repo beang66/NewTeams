@@ -1,11 +1,14 @@
 import type { Envelope } from '@orch/protocol/messages'
 
-export interface Since { fromTs: string | null; approved: number; rejected: number; paused: number; autoResumed: boolean; humanOpen: number; ids: string[] }
+export interface SinceSummary { fromTs: string | null; approved: number; rejected: number; paused: number; autoResumed: boolean; humanOpen: number; ids: string[] }
+/** unknown: 첫 방문이거나 lastSeenId를 못 찾음(기준점 다시 잡기). none: 새 이벤트 없음. */
+export type Since = { kind: 'unknown' } | { kind: 'none' } | ({ kind: 'some' } & SinceSummary)
 
-export function sinceLastVisit(events: Envelope[], lastSeenId: string | null): Since | null {
-  if (!lastSeenId) return null
+export function sinceLastVisit(events: Envelope[], lastSeenId: string | null): Since {
+  if (!lastSeenId) return { kind: 'unknown' }
   const idx = events.findIndex((e) => e.id === lastSeenId)
-  if (idx < 0 || idx === events.length - 1) return null
+  if (idx < 0) return { kind: 'unknown' }
+  if (idx === events.length - 1) return { kind: 'none' }
   const after = events.slice(idx + 1)
   const count = (type: Envelope['type']): number => after.filter((e) => e.type === type).length
   const lastPaused = after.map((e) => e.type).lastIndexOf('PAUSED')
@@ -14,6 +17,7 @@ export function sinceLastVisit(events: Envelope[], lastSeenId: string | null): S
     return typeof r === 'string' ? [r] : []
   }))
   return {
+    kind: 'some',
     fromTs: events[idx]!.ts,
     approved: count('APPROVE'),
     rejected: count('REJECT'),
@@ -32,7 +36,7 @@ function ago(fromTs: string | null, now: Date): string {
   return `${Math.floor(min / 1440)}일 전부터`
 }
 
-export function sinceText(s: Since, now: Date): string {
+export function sinceText(s: Extract<Since, { kind: 'some' }>, now: Date): string {
   const parts = [ago(s.fromTs, now)].filter(Boolean)
   if (s.approved) parts.push(`승인 ${s.approved}`)
   if (s.rejected) parts.push(`반려 ${s.rejected}`)

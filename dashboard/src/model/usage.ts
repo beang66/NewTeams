@@ -2,6 +2,7 @@ import type { Envelope } from '@orch/protocol/messages'
 import type { RunState } from '@orch/store/state'
 import type { AgentConfig } from '../api/client'
 import { usageSources } from './lanes'
+import { providerOf } from './provider'
 
 export interface UsageView {
   byProvider: Record<'claude' | 'codex', { tokens: number; cached: number }>
@@ -9,9 +10,6 @@ export interface UsageView {
   apiCapUsd: number
   paused?: { reason: string; until?: Date; remainingMs?: number; needsHuman: boolean }
 }
-
-const providerOf = (role: string, agents: AgentConfig | null): 'claude' | 'codex' =>
-  agents?.roles[role]?.provider ?? (role === 'reviewer' ? 'codex' : 'claude')
 
 export function usageView(events: Envelope[], state: RunState, agents: AgentConfig | null, now: Date, apiCapUsd = 8): UsageView {
   const byProvider = { claude: { tokens: 0, cached: 0 }, codex: { tokens: 0, cached: 0 } }

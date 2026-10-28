@@ -17,6 +17,13 @@ describe('usage', () => {
     const u = usageView([rr, g], stateWith({}), { roles: { ...A.roles, qa: { provider: 'codex', model: 'x' } } }, NOW)
     expect(u.byProvider.codex).toEqual({ tokens: 100, cached: 5 }); expect(u.byProvider.claude.tokens).toBe(10)
   })
+  it('providerOf: reviewer는 codex 고정, 누락·null은 claude', () => {
+    const ev = [withUsage(approve('t1'), 5, 0), withUsage(report('t1'), 7, 0)]
+    for (const a of [{ roles: {} }, null]) {
+      const u = usageView(ev, stateWith({}), a, NOW)
+      expect([u.byProvider.codex.tokens, u.byProvider.claude.tokens]).toEqual([5, 7])
+    }
+  })
   it('API 지출과 기본 상한 8', () => {
     const u = usageView([], stateWith({}, { apiSpendUsd: 1.5 }), null, NOW)
     expect(u).toMatchObject({ apiSpendUsd: 1.5, apiCapUsd: 8 }); expect(u.paused).toBeUndefined()

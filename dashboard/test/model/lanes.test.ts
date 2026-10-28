@@ -34,6 +34,15 @@ describe('lanes', () => {
     expect(by()).toMatchObject({ 'dev:t1': 'done', 'qa:t2': 'running', reviewer: 'running', 'dev:t3': 'blocked', master: 'waiting' })
     expect(by({ ...st, paused: { reason: 'rate_limit' } })).toMatchObject({ 'dev:t2': 'paused', system: 'waiting' })
   })
+  it('provider: reviewer는 항상 G, 역할 누락·agents null이면 C', () => {
+    const badges = (a: Parameters<typeof buildLanes>[2]) => Object.fromEntries(buildLanes([assign('t1')], S, a).lanes.map((l) => [l.key, l.badge]))
+    expect(badges({ roles: {} })).toMatchObject({ reviewer: 'G', 'dev:t1': 'C', master: 'C', system: undefined })
+    expect(badges(null)).toMatchObject({ reviewer: 'G', 'dev:t1': 'C', planner: 'C' })
+  })
+  it('일시정지 중에도 완료 레인은 done', () => {
+    const lanes = buildLanes([], stateWith({ t1: 'approved', t2: 'running' }, { paused: { reason: 'rate_limit' } }), A).lanes
+    expect(lanes.find((l) => l.key === 'dev:t1')!.status).toBe('done'); expect(lanes.find((l) => l.key === 'dev:t2')!.status).toBe('paused')
+  })
   it('windowArrows는 창 안의 것만', () => {
     const arrows = Array.from({ length: 3000 }, (_, i) => arrow(i * 1000))
     expect(windowArrows(arrows, 10_000, 20_000)).toHaveLength(11)

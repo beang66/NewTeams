@@ -1,6 +1,7 @@
 import type { Envelope, MessageType, Usage } from '@orch/protocol/messages'
 import type { RunState } from '@orch/store/state'
 import type { AgentConfig } from '../api/client'
+import { providerOf } from './provider'
 
 export interface Lane { key: string; title: string; role: string; badge?: 'C' | 'G'; task?: string; status: 'running' | 'waiting' | 'blocked' | 'paused' | 'done'; round?: number; tokens: number }
 export interface Arrow { id: string; from: string; to: string; ts: number; type: MessageType; task?: string; tone: 'accent' | 'ok' | 'bad' | 'warn' | 'neutral' }
@@ -42,7 +43,7 @@ export function buildLanes(events: Envelope[], state: RunState, agents: AgentCon
   for (const e of events) {
     const ts = Date.parse(e.ts)
     if (e.task && !taskIds.includes(e.task)) taskIds.push(e.task)
-    if (e.from === 'user' || e.to === 'user') hasUser = hasUser || e.type === 'CHAT'
+    if (e.type === 'CHAT') hasUser = true
     if (e.type === 'PAUSED') { if (pausedSpans.at(-1)?.end !== undefined || pausedSpans.length === 0) pausedSpans.push({ start: ts }) }
     else if (e.type === 'RESUMED') { const last = pausedSpans.at(-1); if (last && last.end === undefined) last.end = ts }
     for (const s of usageSources(e)) {
@@ -59,7 +60,8 @@ export function buildLanes(events: Envelope[], state: RunState, agents: AgentCon
     if (t) blockedTasks.add(t)
   }
   const statusOf = (task: string | undefined, role: string): Lane['status'] => {
-    if (state.paused) return 'paused'
+    const done = task && ['approved', 'merged'].includes(state.tasks[task]?.status ?? '')
+    if (state.paused && !done) return 'paused'
     if (role === 'master' || role === 'planner') return role === 'planner' && state.stage === 'PLAN' ? 'running' : role === 'planner' && PAST_PLAN.has(state.stage) ? 'done' : 'waiting'
     if (role === 'reviewer') return Object.values(state.tasks).some((t) => t.status === 'review') ? 'running' : 'waiting'
     const st = task ? state.tasks[task]?.status : undefined
@@ -68,10 +70,7 @@ export function buildLanes(events: Envelope[], state: RunState, agents: AgentCon
     if (role === 'dev') return st === 'running' || st === 'rejected' ? 'running' : 'waiting'
     return st === 'review' ? 'running' : 'waiting'
   }
-  const badgeOf = (role: string): Lane['badge'] => {
-    const provider = agents?.roles[role]?.provider ?? (role === 'reviewer' && !agents ? 'codex' : undefined)
-    return provider === 'claude' ? 'C' : provider === 'codex' ? 'G' : undefined
-  }
+  const badgeOf = (role: string): Lane['badge'] => (role === 'system' || role === 'user' ? undefined : providerOf(role, agents) === 'claude' ? 'C' : 'G')
   const lane = (key: string, title: string, role: string, task?: string): Lane => {
     const l: Lane = { key, title, role, task, status: key === 'system' || key === 'user' ? 'waiting' : statusOf(task, role), tokens: tokens.get(key) ?? 0 }
     const badge = badgeOf(role)

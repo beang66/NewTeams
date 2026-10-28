@@ -10,6 +10,10 @@ describe('attention', () => {
     expect(items[0]).toMatchObject({ kind: 'human', task: 't1', reason: 'repeat_finding', tried: ['서버에서 검증'] })
     expect((items[0] as { findings: { id: string }[] }).findings.map((f) => f.id)).toEqual(['F-1'])
   })
+  it('HUMAN_REQUIRED 이후의 지침은 tried에 넣지 않는다', () => {
+    const items = attentionItems(withHuman('msg-0020'), [reject('t1', [F('F-1')]), guidance('t1', '전'), human('msg-0020', 't1', 'repeat_finding'), guidance('t1', '후')], { hasSpecDraft: false })
+    expect((items[0] as { tried: string[] }).tried).toEqual(['전'])
+  })
   it('auth HUMAN_REQUIRED는 login 카드', () => {
     expect(attentionItems(withHuman('msg-3'), [human('msg-3', undefined, 'auth')], { hasSpecDraft: false })[0]!.kind).toBe('login')
   })
