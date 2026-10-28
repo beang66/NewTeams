@@ -22,14 +22,15 @@ export interface TelegramConfig {
   dashboardUrl: string | null
   pollTimeoutSec: number
 }
+const httpUrl = z.url().refine(v => { try { const p = new URL(v).protocol; return p === 'http:' || p === 'https:' } catch { return false } }, 'http 또는 https URL만 허용')
 const hhmm = z.string().regex(/^\d{2}:\d{2}$/).refine(v => { const [h, m] = v.split(':').map(Number); return h! <= 23 && m! <= 59 }, 'HH:mm')
 const telegramSchema = z.object({
-  apiBase: z.url().optional(),
+  apiBase: httpUrl.optional(),
   quietHours: z.object({ start: hhmm, end: hhmm }).strict().refine(q => q.start !== q.end, 'start와 end가 같음').nullable().optional(),
   heartbeatMinutes: z.number().int().refine(n => n === 0 || (n >= 5 && n <= 1440), '0 또는 5~1440').optional(),
   batchSeconds: z.number().int().min(0).optional(),
   notifyTaskApprovals: z.boolean().optional(),
-  dashboardUrl: z.url().nullable().optional(),
+  dashboardUrl: httpUrl.nullable().optional(),
   pollTimeoutSec: z.number().int().min(1).optional(),
 }).strict()
 

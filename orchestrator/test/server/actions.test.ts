@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { RunnerError } from '../../src/runners/types.js'
 import { Workflow } from '../../src/engine/workflow.js'
 import { ActionConflict, createWorkflowActions } from '../../src/server/actions.js'
 import { buildServer } from '../../src/server/http.js'
@@ -44,6 +45,33 @@ describe('workflow actions', { timeout: 30_000 }, () => {
     try {
       await actions.answer(humanId, G)
       expect((await app.inject({ method: 'POST', url: `/api/human/${humanId}`, payload: G })).statusCode).toBe(409)
+    } finally { await app.close() }
+  })
+  it('게이트가 사람 재개를 기다리는 chat이 있어도 resume은 큐에 막히지 않는다', async () => {
+    const actions = createWorkflowActions(wf, vi.fn())
+    let first = true
+    vi.spyOn(wf, 'chat').mockImplementation(() => wf.gate.guard(async () => {
+      if (first) { first = false; throw new RunnerError('auth', 'login') }
+      return { reply: '완료' }
+    }))
+    const chat = actions.chat('안녕')
+    await vi.waitFor(() => expect(wf.gate.paused).toBe(true))
+    await expect(Promise.race([actions.resume().then(() => 'resumed'), new Promise(r => setTimeout(() => r('deadlock'), 2000))])).resolves.toBe('resumed')
+    await expect(chat).resolves.toEqual({ reply: '완료' })
+  })
+  it('HTTP: 게이트 대기 중 chat이 있어도 POST /api/resume은 204', async () => {
+    const actions = createWorkflowActions(wf, vi.fn())
+    let first = true
+    vi.spyOn(wf, 'chat').mockImplementation(() => wf.gate.guard(async () => {
+      if (first) { first = false; throw new RunnerError('auth', 'login') }
+      return { reply: '완료' }
+    }))
+    const app = buildServer(wf, { actions })
+    try {
+      const chat = app.inject({ method: 'POST', url: '/api/chat', payload: { message: '안녕' } })
+      await vi.waitFor(() => expect(wf.gate.paused).toBe(true))
+      expect((await app.inject({ method: 'POST', url: '/api/resume' })).statusCode).toBe(204)
+      expect((await chat).statusCode).toBe(200)
     } finally { await app.close() }
   })
   it('GET /api/telegram', async () => {

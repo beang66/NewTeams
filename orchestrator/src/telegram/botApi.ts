@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { basename } from 'node:path'
 import { redact } from './env.js'
 
-export interface TgMessage { message_id: number; chat: { id: number }; text?: string; reply_to_message?: TgMessage }
+export interface TgMessage { message_id: number; chat: { id: number }; from?: { id: number }; text?: string; reply_to_message?: TgMessage; reply_markup?: { inline_keyboard?: InlineButton[][] } }
 export interface TgUpdate { update_id: number; message?: TgMessage; callback_query?: { id: string; from: { id: number }; message?: TgMessage; data?: string } }
 export type InlineButton = { text: string; callback_data?: string; url?: string }
 

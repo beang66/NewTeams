@@ -25,6 +25,8 @@ interface Dependencies {
 interface Notice { id: number; message: OutMessage }
 interface Question { text: string; expiresAt: number; messageId: number }
 type Confirmation = { kind: 'skip'; eventId: string } | { kind: 'approve' }
+const STOP_GRACE_MS = 2000
+const ASK_MAX_LINES = 30
 const HELP = '/status 상태 · /tasks 태스크 · /report 보고서 · /resume 재개 · /ask <질문> 로그 질의'
 
 /** Long-polling 어댑터. 워크플로 동작은 HTTP와 같은 actions 인스턴스를 사용한다. */
@@ -34,7 +36,8 @@ export class TelegramBot implements Notifier {
   private readonly abort = new AbortController()
   private readonly notices = new Map<string, Notice>()
   private readonly messages = new Map<number, OutMessage>()
-  private readonly guidancePrompts = new Map<number, string>()
+  private readonly inflight = new Set<Promise<void>>()
+  private stopping?: Promise<void>
   private readonly confirmations = new Map<number, Confirmation>()
   private readonly questions = new Map<string, Question>()
   private readonly warnedChats = new Set<string>()
@@ -55,10 +58,21 @@ export class TelegramBot implements Notifier {
     return this.starting
   }
 
-  async stop(): Promise<void> {
+  stop(): Promise<void> {
+    this.stopping ??= this.shutdown()
+    return this.stopping
+  }
+
+  private async shutdown(): Promise<void> {
     this.abort.abort()
     await this.starting
     await this.polling
+    // 진행 중인 동작(사람 대기 등)은 잠깐만 기다리고 놓아 준다. 종료가 영원히 막히면 안 된다.
+    if (this.inflight.size > 0) {
+      let timer: ReturnType<typeof setTimeout> | undefined
+      await Promise.race([Promise.allSettled([...this.inflight]), new Promise<void>(resolve => { timer = setTimeout(resolve, STOP_GRACE_MS) })])
+      if (timer) clearTimeout(timer)
+    }
     this.outbox.stop()
     await this.outbox.flush()
   }
@@ -111,7 +125,7 @@ export class TelegramBot implements Notifier {
           if (!Number.isSafeInteger(update.update_id) || update.update_id < this.offset) continue
           // 사용량 동작은 재실행하지 않는다. 체크포인트 직후 종료된 명령은 사용자가 다시 입력한다.
           await this.saveOffset(update.update_id + 1)
-          try { await this.handleUpdate(update) } catch (error) { this.logError(error) }
+          this.dispatch(update)
         }
         // 테스트 서버처럼 빈 long-poll이 즉시 끝나도 CPU를 점유하지 않는다.
         if (updates.length === 0) await this.wait(50)
@@ -124,10 +138,16 @@ export class TelegramBot implements Notifier {
     }
   }
 
+  /** 동작은 polling 루프 밖에서 실행한다. 게이트 대기 중에도 /status, /resume을 받아야 한다. */
+  private dispatch(update: TgUpdate): void {
+    const task: Promise<void> = this.handleUpdate(update).catch(error => this.logError(error)).finally(() => { this.inflight.delete(task) })
+    this.inflight.add(task)
+  }
+
   private async handleUpdate(update: TgUpdate): Promise<void> {
     const callback = update.callback_query
     const message = callback?.message ?? update.message
-    if (!message || !this.allowed(message)) return
+    if (!message || !this.allowed(message, callback ? callback.from?.id : message.from?.id)) return
     if (callback) {
       let answer: string | undefined
       let acknowledged = false
@@ -155,16 +175,20 @@ export class TelegramBot implements Notifier {
     }
     try { await this.handleMessage(message) } catch (error) {
       if (error instanceof ActionConflict) {
-        const id = this.guidancePrompts.get(message.reply_to_message?.message_id ?? -1)
+        const id = guidanceTarget(message)
         if (id) await this.markEvent(id, '이미 처리됨')
         await this.reply('이미 처리됨')
       } else await this.reply(`처리 실패: ${this.safeError(error)}`)
     }
   }
 
-  private allowed(message: TgMessage): boolean {
+  private allowed(message: TgMessage, fromId: number | undefined): boolean {
     const id = String(message.chat.id)
-    if (id === this.deps.secrets.chatId) return true
+    if (id === this.deps.secrets.chatId) {
+      // 개인 채팅(양수 id)은 보낸 사람도 같은 id여야 한다. 그룹(음수 id)은 채팅 단위로만 확인한다.
+      const owner = Number(this.deps.secrets.chatId)
+      return !(owner > 0) || fromId === owner
+    }
     if (!this.warnedChats.has(id)) {
       this.warnedChats.add(id)
       console.warn(`텔레그램: 허용되지 않은 채팅 ${id}`)
@@ -177,8 +201,7 @@ export class TelegramBot implements Notifier {
       case 'guide': {
         await this.rememberSourceNotice(action.eventId, message)
         this.requireOpenHuman(action.eventId)
-        const prompt = await this.api.sendMessage(this.deps.secrets.chatId, `지침을 이 메시지에 답장으로 보내 주세요 · ${action.eventId}`, { forceReply: true })
-        this.guidancePrompts.set(prompt.message_id, action.eventId)
+        await this.api.sendMessage(this.deps.secrets.chatId, `지침을 이 메시지에 답장으로 보내 주세요 · ${action.eventId}`, { forceReply: true })
         return
       }
       case 'skip':
@@ -206,7 +229,7 @@ export class TelegramBot implements Notifier {
       case 'cancel': {
         this.confirmations.delete(message.message_id)
         for (const [key, question] of this.questions) if (question.messageId === message.message_id) this.questions.delete(key)
-        const original = this.messages.get(message.message_id)
+        const original = await this.originalOf(message)
         if (original?.eventId && original.kind === 'human' && !this.deps.wf.state().humanRequired.includes(original.eventId)) throw new ActionConflict('이미 처리됨')
         if (original?.kind === 'spec' && this.deps.wf.state().stage !== 'INTAKE') throw new ActionConflict('이미 처리됨')
         await this.api.editMessage(this.deps.secrets.chatId, message.message_id, this.safeText(original?.text ?? '취소됨'), original ? inlineButtons(original) : [])
@@ -232,11 +255,13 @@ export class TelegramBot implements Notifier {
   private async handleMessage(message: TgMessage): Promise<void> {
     const text = message.text?.trim()
     if (!text) return
-    const replyId = message.reply_to_message?.message_id
-    const eventId = replyId === undefined ? undefined : this.guidancePrompts.get(replyId)
-    if (eventId && new RegExp(`· ${eventId}$`).test(message.reply_to_message?.text ?? '')) {
+    // 재시작 후에도 동작하도록 메모리가 아니라 프롬프트 문구의 이벤트 id로 찾는다.
+    const eventId = guidanceTarget(message)
+    if (eventId) {
       await this.deps.actions.answer(eventId, { action: 'guidance', text })
-      await this.markEvent(eventId, `처리됨 ✓ · ${this.deps.wf.state().lastEventId ?? '지침'}`)
+      const events = await this.deps.wf.store.readEvents()
+      const guidance = events.filter(event => event.type === 'GUIDANCE' && (event.payload as { resolves?: unknown } | undefined)?.resolves === eventId).at(-1)
+      await this.markEvent(eventId, `처리됨 ✓ · ${guidance?.id ?? '지침'}`)
       return
     }
     const [command = '', ...words] = text.split(/\s+/)
@@ -280,7 +305,7 @@ export class TelegramBot implements Notifier {
   private async finishQuestion(question: Question, message: TgMessage): Promise<void> {
     const result = await this.deps.actions.ask(question.text)
     if (this.abort.signal.aborted) return
-    await this.reply(result)
+    await this.reply(capLines(sanitizeTelegramText(result), ASK_MAX_LINES))
     if (this.abort.signal.aborted) return
     await this.api.editMessage(this.deps.secrets.chatId, message.message_id, '처리됨 ✓ · 로그 질의', [])
   }
@@ -298,6 +323,25 @@ export class TelegramBot implements Notifier {
     await this.api.editMessage(this.deps.secrets.chatId, message.message_id, this.safeText(message.text ?? '확인'), [[
       { text: label, callback_data: encodeCallback(callback) }, { text: '취소', callback_data: encodeCallback({ kind: 'cancel' }) },
     ]])
+  }
+
+  /** 원래 알림: 메모리에 없으면(재시작 후) 확인 메시지의 버튼에서 이벤트를 찾아 다시 만든다. */
+  private async originalOf(message: TgMessage): Promise<OutMessage | undefined> {
+    const known = this.messages.get(message.message_id)
+    if (known) return known
+    const callbacks = (message.reply_markup?.inline_keyboard ?? []).flat().map(button => decodeCallback(button.callback_data ?? ''))
+    const skip = callbacks.find(callback => callback?.kind === 'skipConfirm')
+    if (skip?.kind === 'skipConfirm') {
+      await this.rememberSourceNotice(skip.eventId, message)
+      return this.messages.get(message.message_id)
+    }
+    if (callbacks.some(callback => callback?.kind === 'approveConfirm')) {
+      const ctx = await this.context()
+      const event = ctx.events.filter(candidate => candidate.type === 'CHAT' && candidate.from === 'master' && (candidate.payload as { specApprovalRequired?: unknown } | undefined)?.specApprovalRequired === true).at(-1)
+      const rebuilt = event ? messageForEvent(event, ctx) : null
+      if (rebuilt) { this.messages.set(message.message_id, rebuilt); return rebuilt }
+    }
+    return undefined
   }
 
   private async markEvent(eventId: string, result: string): Promise<void> {
@@ -397,6 +441,16 @@ export class TelegramBot implements Notifier {
       this.abort.signal.removeEventListener('abort', wake)
     }
   }
+}
+
+/** "지침을 … 답장으로 보내 주세요 · msg-0007" 프롬프트에 대한 답장이면 그 이벤트 id */
+function guidanceTarget(message: TgMessage): string | undefined {
+  return /· (msg-\d+)$/.exec(message.reply_to_message?.text ?? '')?.[1]
+}
+
+function capLines(text: string, max: number): string {
+  const lines = text.split('\n')
+  return lines.length > max ? `${lines.slice(0, max).join('\n')}\n…(대시보드에서 보기)` : text
 }
 
 function inlineButtons(message: OutMessage): InlineButton[][] | undefined {

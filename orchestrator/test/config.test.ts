@@ -62,4 +62,8 @@ describe('config telegram', () => {
     expect(c.telegram.quietHours).toEqual({ start: '23:00', end: '07:00' })
     expect(resolveConfig({}).telegram).toEqual(DEFAULT_CONFIG.telegram)
   })
+  it.each(['apiBase', 'dashboardUrl'])('%s는 http/https만 허용한다', key => {
+    for (const bad of ['javascript:alert(1)', 'ftp://x']) expect(() => resolveConfig({ telegram: { [key]: bad } } as any)).toThrow(/telegram/)
+    expect(resolveConfig({ telegram: { [key]: 'https://example.com' } } as any).telegram[key as 'apiBase']).toBe('https://example.com')
+  })
 })

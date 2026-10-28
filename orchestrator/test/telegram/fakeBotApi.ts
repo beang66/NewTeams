@@ -107,9 +107,9 @@ export async function startFakeBotApi(): Promise<FakeBotApi> {
     },
     replyToLast(text) {
       if (!lastMessage) throw new Error('no message sent')
-      push({ message: { message_id: nextMessageId++, chat: { id: Number(chatId) }, text, reply_to_message: lastMessage } })
+      push({ message: { message_id: nextMessageId++, chat: { id: Number(chatId) }, from, text, reply_to_message: lastMessage } })
     },
-    send(text) { push({ message: { message_id: nextMessageId++, chat: { id: Number(chatId) }, text } }) },
+    send(text) { push({ message: { message_id: nextMessageId++, chat: { id: Number(chatId) }, from, text } }) },
     close: () => new Promise<void>(r => { server.closeAllConnections(); server.close(() => r()) }),
   }
 }

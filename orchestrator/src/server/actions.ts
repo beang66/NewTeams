@@ -49,7 +49,8 @@ export function createWorkflowActions(wf: Workflow, onDriveError: (e: unknown) =
     chat: (message) => serialized(() => wf.chat(message)),
     approveSpec: () => serialized(async () => { await wf.approveSpec(); drive() }),
     answer: (eventId, a) => serialized(async () => { await wf.answerHuman(eventId, a); drive() }),
-    resume: () => serialized(async () => { await wf.gate.resumeByHuman(); drive() }),
+    // 직렬화하지 않는다: 게이트 대기 중인 chat/answer가 큐를 잡고 있어도 사람 재개는 통과해야 한다.
+    resume: async () => { await wf.gate.resumeByHuman(); drive() },
     ask: (question) => wf.askLog(question),
     drive,
   }

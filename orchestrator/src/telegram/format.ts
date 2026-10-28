@@ -157,7 +157,8 @@ export function messageForEvent(e: Envelope, ctx: FormatContext): OutMessage | n
       const issue = keyIssue(lastReject(e.task, ctx.events, e)) ?? (detail ? sanitize(detail).replace(/\s+/g, ' ').trim() : undefined)
       return {
         kind: 'human', silent: false, eventId: e.id,
-        buttons: [[btn('지침 쓰기', { kind: 'guide', eventId: e.id }), btn('건너뛰기', { kind: 'skip', eventId: e.id }), btn('자세히', { kind: 'detail', eventId: e.id })]],
+        // plan 태스크의 건너뛰기는 Workflow가 지침으로 취급하므로 제공하지 않는다.
+        buttons: [[btn('지침 쓰기', { kind: 'guide', eventId: e.id }), ...(e.task === 'plan' ? [] : [btn('건너뛰기', { kind: 'skip', eventId: e.id })]), btn('자세히', { kind: 'detail', eventId: e.id })]],
         text: clip(`🔴 ${who} 사람 필요 — ${reasonOf(reason)}${issue ? `: ${issue}` : ''}`),
       }
     }

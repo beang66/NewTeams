@@ -196,3 +196,10 @@ describe('statusText / tasksText / reportSummary', () => {
   })
   it('stageLabel', () => { expect(stageLabel('FINAL_QA')).toBe('최종 QA') })
 })
+
+describe('plan 태스크 사람 필요', () => {
+  it('plan은 건너뛰기 버튼을 제공하지 않는다', () => {
+    const m = messageForEvent(human('msg-0070', 'plan', 'repeat_finding'), ctx)!
+    expect(m.buttons!.flat().map((b) => b.callback?.kind)).toEqual(['guide', 'detail'])
+  })
+})
