@@ -92,4 +92,27 @@ describe('Outbox', () => {
     expect(sent).toHaveLength(1); expect(sent[0]!.kind).toBe('digest'); expect(o.size()).toBe(0)
     o.stop(); o.push(stageMsg('b')); await clock.advance(60_000); expect(sent).toHaveLength(1)
   })
+  it('끝나지 않는 send: 시간 초과 후 재시도되고 flush도 끝난다', async () => {
+    setup(); vi.spyOn(console, 'warn').mockImplementation(() => {})
+    let n = 0; const o = outbox({}, {}, (x) => { if (++n === 1) return new Promise<void>(() => {}); sent.push(x); return Promise.resolve() })
+    o.push(humanMsg()); o.push(m('error', false, '두번째'))
+    await clock.advance(14_000); expect(sent).toHaveLength(0)
+    await clock.advance(5_000); expect(sent.map(x => x.kind)).toEqual(['human', 'error'])
+  })
+  it('항상 멈추는 send에서도 flush는 시간 제한 안에 끝난다', async () => {
+    setup(); vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const o = outbox({}, {}, () => new Promise<void>(() => {}))
+    o.push(humanMsg()); o.push(stageMsg('a'))
+    let done = false; const p = o.flush().then(() => { done = true })
+    await clock.advance(15_000); await clock.advance(15_000); await p; expect(done).toBe(true)
+  })
+  it('stop 이후 push는 무시', async () => {
+    setup(); const o = outbox(); o.stop(); o.push(humanMsg()); await clock.advance(60_000); expect(sent).toHaveLength(0)
+  })
+  it('새 소리 알림 push가 실패한 항목의 시도 횟수를 올리지 않는다', async () => {
+    setup(); vi.spyOn(console, 'warn').mockImplementation(() => {})
+    let calls = 0; const o = outbox({}, {}, async () => { calls++; throw new Error('x') })
+    o.push(humanMsg()); await clock.advance(0); for (let i = 0; i < 10; i++) o.push(m('error', false, String(i)))
+    await clock.advance(0); expect(calls).toBe(1)
+  })
 })

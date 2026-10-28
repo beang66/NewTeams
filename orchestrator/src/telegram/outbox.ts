@@ -4,6 +4,7 @@ import type { OutMessage } from './format.js'
 
 const TICK_MS = 1000
 const MAX_ATTEMPTS = 5
+const SEND_TIMEOUT_MS = 15_000
 
 const firstLine = (t: string): string => t.split('\n', 1)[0] ?? ''
 const toMinutes = (hhmm: string): number => { const [h, m] = hhmm.split(':').map(Number); return h! * 60 + m! }
@@ -40,6 +41,7 @@ export class Outbox {
   pendingLoud(): number { return this.loudQ.length }
 
   push(m: OutMessage): void {
+    if (this.stopped) return
     try {
       if (m.kind === 'stage') {
         const i = m.text.lastIndexOf('→ ')
@@ -53,7 +55,7 @@ export class Outbox {
           this.silentNow({ ...m, silent: true })
         } else {
           this.loudQ.push({ m, tries: 0 })
-          void this.drain()
+          void this.drain(false)
         }
       } else {
         if (this.silentQ.length === 0) this.batchSince = this.clock.now().getTime()
@@ -63,8 +65,9 @@ export class Outbox {
     } catch { /* 알림 때문에 워크플로가 멈추면 안 된다 */ }
   }
 
+  /** 종료용. 조용한 시간 중이면 밤사이 요약은 보내지 않고 버려진다. */
   async flush(): Promise<void> {
-    await this.drain()
+    await this.drain(true)
     await this.flushBatch()
   }
 
@@ -93,16 +96,23 @@ export class Outbox {
   }
 
   private async trySend(m: OutMessage): Promise<boolean> {
-    try { await this.send(m); return true } catch { return false }
+    // 전송이 끝나지 않아도 대기열이 막히지 않도록 시간 제한을 둔다(시간 초과 = 실패)
+    let timedOut = false
+    const timeout = this.clock.sleep(SEND_TIMEOUT_MS).then(() => { timedOut = true })
+    try {
+      await Promise.race([Promise.resolve().then(() => this.send(m)), timeout])
+      return !timedOut
+    } catch { return false }
   }
 
   /** 소리 알림을 순서대로 보낸다. 실패하면 앞에 둔 채 멈추고 다음 주기에 재시도한다. */
-  private async drain(): Promise<void> {
+  private async drain(retry: boolean): Promise<void> {
     if (this.draining) return
     this.draining = true
     try {
       while (this.loudQ.length > 0) {
         const item = this.loudQ[0]!
+        if (item.tries > 0 && !retry) break // 실패한 항목은 다음 주기(tick)에만 재시도
         if (await this.trySend(item.m)) { this.loudQ.shift(); continue }
         item.tries += 1
         if (item.tries >= MAX_ATTEMPTS) {
@@ -144,7 +154,7 @@ export class Outbox {
       this.loudQ.push({ m: { kind: 'digest', silent: false, text }, tries: 0 })
     }
     this.wasQuiet = quiet
-    if (this.loudQ.length > 0) void this.drain()
+    if (this.loudQ.length > 0) void this.drain(true)
     if (this.silentQ.length > 0 && now - this.batchSince >= this.cfg.batchSeconds * 1000) void this.flushBatch()
     if (this.cfg.heartbeatMinutes > 0 && now >= this.nextHeartbeat) {
       this.nextHeartbeat = now + this.cfg.heartbeatMinutes * 60_000
