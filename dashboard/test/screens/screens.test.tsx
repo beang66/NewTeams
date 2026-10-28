@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Envelope } from '@orch/protocol/messages'
 import { initialState } from '@orch/store/state'
-import { api } from '../../src/api/client'
+import { api, ApiError } from '../../src/api/client'
 import type { RunView } from '../../src/api/useRun'
 import { App } from '../../src/App'
 import { AskBar } from '../../src/components/AskBar'
@@ -149,7 +149,65 @@ it('paper 토큰은 와이어프레임 값 그대로', () => {
   for (const [k, v] of Object.entries({ '--p-bg': '#f3f0e8', '--p-sheet': '#fbf9f4', '--p-ink': '#141414', '--p-ink2': '#3d3a35', '--p-ink3': '#6b665d', '--p-hair': '#cfc9bd', '--p-ok': '#1f6f3a', '--p-bad': '#a8281e', '--p-warn': '#8a6100', '--p-now': '#4b55c0' }))
     expect(css).toMatch(new RegExp(`${k}:\\s*${v}\\s*;`, 'i'))
 })
-it('@media print에서 상단 바와 묻기 바를 숨긴다', () => {
+it('@media print에서 상단 바·묻기·SinceBar·패널·보드를 숨긴다', () => {
   const css = readFileSync('src/styles/screens.css', 'utf8')
-  expect(css).toMatch(/@media print[\s\S]*\.topbar[\s\S]*\.askbar[\s\S]*display:\s*none/)
+  const block = css.slice(css.indexOf('@media print'))
+  const rule = block.split('\n').find((l) => /display:\s*none/.test(l)) ?? ''
+  for (const sel of ['.topbar', '.askbar', '.since-bar', '.panel', '.board']) expect(rule).toContain(sel)
+})
+
+describe('수정 라운드', () => {
+  const splitRun = mk('DONE', [
+    ev('msg-0001', 'REJECT', {}, { task: 't1', from: 'harness' }), ev('msg-0002', 'REJECT', {}, { task: 't1', from: 'reviewer' }),
+    ev('msg-0003', 'REJECT', {}, { task: 't1', from: 'reviewer' }),
+  ], { state: { ...initialState, stage: 'DONE', tasks: { t1: { status: 'merged', round: 3 } } } })
+  it('반려를 하네스/리뷰어로 나눠 센다', async () => {
+    vi.spyOn(api, 'human').mockResolvedValue('# 보고')
+    render(<DoneScreen run={splitRun} />)
+    await screen.findByRole('heading', { name: '보고' })
+    expect(screen.getByRole('row', { name: /하네스 반려 1/ })).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: /리뷰어 반려 2/ })).toBeInTheDocument()
+    expect(screen.getByText(/하네스 1 · 리뷰어 2/)).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: '캐시 토큰' })).toBeInTheDocument()
+  })
+  it('문서 링크는 있는 파일만, 없으면 없음', async () => {
+    vi.spyOn(api, 'human').mockImplementation(async (p) => (p === 'spec.md' || p === 'report.md' ? '# x' : null))
+    render(<DoneScreen run={doneRun} />)
+    expect(await screen.findByRole('link', { name: 'spec.md' })).toHaveAttribute('href', '/api/human/spec.md')
+    expect(await screen.findByText('plan.md 없음')).toBeInTheDocument()
+    expect(screen.getByText('wiki/backlog.md 없음')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'wiki/backlog.md' })).toBeNull()
+  })
+  it('IME 조합 중 Enter는 전송하지 않는다', () => {
+    const chat = vi.spyOn(api, 'chat').mockResolvedValue({ reply: 'ok' })
+    render(<IntakeScreen run={intakeRun([])} draft={null} />)
+    const box = screen.getByRole('textbox', { name: '마스터에게 보내기' })
+    fireEvent.change(box, { target: { value: '안녕' } })
+    fireEvent.keyDown(box, { key: 'Enter', isComposing: true })
+    fireEvent.keyDown(box, { key: 'Enter', keyCode: 229 })
+    expect(chat).not.toHaveBeenCalled()
+  })
+  it('승인 409는 서버 메시지를 보여 준다', async () => {
+    vi.spyOn(api, 'approveSpec').mockRejectedValue(new ApiError(409, '이미 승인된 스펙입니다'))
+    render(<IntakeScreen run={intakeRun([])} draft={'# 스펙'} />)
+    await userEvent.click(screen.getByRole('button', { name: '스펙 승인' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('이미 승인된 스펙입니다')
+  })
+  it('전송 후에도 입력창에 포커스가 남는다', async () => {
+    vi.spyOn(api, 'chat').mockResolvedValue({ reply: 'ok' })
+    render(<IntakeScreen run={intakeRun([])} draft={null} />)
+    const box = screen.getByRole('textbox', { name: '마스터에게 보내기' })
+    await userEvent.type(box, '안녕{Enter}')
+    await waitFor(() => expect(box).toHaveValue(''))
+    expect(box).toHaveFocus()
+  })
+  it('stage가 바뀌면 INTAKE에서 관제 화면으로 넘어간다', async () => {
+    vi.spyOn(api, 'human').mockResolvedValue(null)
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
+    const { rerender } = render(<App runOverride={intakeRun([])} />)
+    expect(screen.getByRole('button', { name: '스펙 승인' })).toBeInTheDocument()
+    rerender(<App runOverride={mk('BUILD')} />)
+    expect(await screen.findByRole('region', { name: '레인' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '스펙 승인' })).toBeNull()
+  })
 })

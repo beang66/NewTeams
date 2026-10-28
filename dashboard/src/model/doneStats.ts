@@ -4,6 +4,8 @@ import type { RunState } from '@orch/store/state'
 export interface DoneStats {
   tasks: number
   rejects: number
+  harnessRejects: number
+  reviewerRejects: number
   approves: number
   humanCalls: number
   firstId?: string
@@ -22,6 +24,8 @@ export function doneStats(events: Envelope[], state: RunState): DoneStats {
   return {
     tasks: Object.keys(state.tasks).length,
     rejects: count('REJECT'),
+    harnessRejects: events.filter((e) => e.type === 'REJECT' && e.from === 'harness').length,
+    reviewerRejects: events.filter((e) => e.type === 'REJECT' && e.from === 'reviewer').length,
     approves: count('APPROVE'),
     humanCalls: count('HUMAN_REQUIRED'),
     firstId: first?.id,

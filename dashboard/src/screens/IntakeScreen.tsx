@@ -45,7 +45,7 @@ export function IntakeScreen({ run, draft: draftProp, onDraft }: Props) {
     try { await api.approveSpec() } catch (e) { setError(errText(e)) } finally { setApproving(false) }
   }
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return
+    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing || e.keyCode === 229) return
     e.preventDefault()
     void send()
   }
@@ -67,7 +67,7 @@ export function IntakeScreen({ run, draft: draftProp, onDraft }: Props) {
           {error && <p className="acard-error" role="alert">{error}</p>}
           <label className="field">
             <span className="field-label">마스터에게 보내기 (Enter 전송 · Shift+Enter 줄바꿈)</span>
-            <textarea rows={3} aria-label="마스터에게 보내기" value={message} disabled={sending}
+            <textarea rows={3} aria-label="마스터에게 보내기" value={message} readOnly={sending} aria-busy={sending}
               onChange={(e) => setMessage(e.target.value)} onKeyDown={onKey} />
           </label>
         </section>

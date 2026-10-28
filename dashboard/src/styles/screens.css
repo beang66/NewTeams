@@ -49,3 +49,5 @@
   .done-paper { display: block; overflow: visible; padding: 0; background: #fff; }
   .done-article { max-width: none; }
 }
+.muted { color: var(--ink-subtle); }
+.paper .muted { color: var(--p-ink3); }
