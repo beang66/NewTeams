@@ -13,8 +13,29 @@ const profileSchema = z.object({
 }).strict()
 const settingsSchema = z.object({ master: profileSchema.optional(), worker: profileSchema.optional() }).strict()
 
+export interface TelegramConfig {
+  apiBase: string
+  quietHours: { start: string; end: string } | null
+  heartbeatMinutes: number
+  batchSeconds: number
+  notifyTaskApprovals: boolean
+  dashboardUrl: string | null
+  pollTimeoutSec: number
+}
+const hhmm = z.string().regex(/^\d{2}:\d{2}$/).refine(v => { const [h, m] = v.split(':').map(Number); return h! <= 23 && m! <= 59 }, 'HH:mm')
+const telegramSchema = z.object({
+  apiBase: z.string().min(1).optional(),
+  quietHours: z.object({ start: hhmm, end: hhmm }).strict().refine(q => q.start !== q.end, 'start와 end가 같음').nullable().optional(),
+  heartbeatMinutes: z.number().int().refine(n => n === 0 || (n >= 5 && n <= 1440), '0 또는 5~1440').optional(),
+  batchSeconds: z.number().min(0).optional(),
+  notifyTaskApprovals: z.boolean().optional(),
+  dashboardUrl: z.string().min(1).nullable().optional(),
+  pollTimeoutSec: z.number().min(0).optional(),
+}).strict()
+
 export interface Config {
   agents: AgentSettings
+  telegram: TelegramConfig
   projectsDir: string; maxParallel: number; rejectLimit: number; repeatFindingLimit: number
   timeoutsMs: Record<Role, number>; cliRetry: number; formatRepairRetry: number
   mergeConflictRetry: number; openaiCapUsd: number; openaiModel: string
@@ -24,6 +45,7 @@ export interface Config {
 
 export const DEFAULT_CONFIG: Config = {
   agents: { master: { provider: 'claude' }, worker: { provider: 'claude' } },
+  telegram: { apiBase: 'https://api.telegram.org', quietHours: null, heartbeatMinutes: 0, batchSeconds: 30, notifyTaskApprovals: false, dashboardUrl: null, pollTimeoutSec: 30 },
   projectsDir: './projects',
   maxParallel: 3,
   rejectLimit: 5,
@@ -63,11 +85,18 @@ export function loadConfig(path?: string): Config {
 export function resolveConfig(over: Partial<Config>): Config {
   let profiles
   try { profiles = settingsSchema.parse(over.agents ?? {}) } catch (error) { throw new Error(`agents 설정 오류: ${String(error)}`) }
+  let tg
+  try { tg = telegramSchema.parse(over.telegram ?? {}) } catch (error) { throw new Error(`telegram 설정 오류: ${String(error)}`) }
   return {
     ...structuredClone(DEFAULT_CONFIG),
     ...over,
     agents: { master: { ...DEFAULT_CONFIG.agents.master, ...profiles.master }, worker: { ...DEFAULT_CONFIG.agents.worker, ...profiles.worker } },
+    telegram: { ...DEFAULT_CONFIG.telegram, ...stripUndefined(tg) } as TelegramConfig,
     timeoutsMs: { ...DEFAULT_CONFIG.timeoutsMs, ...over.timeoutsMs },
     openaiPricePerMTok: { ...DEFAULT_CONFIG.openaiPricePerMTok, ...over.openaiPricePerMTok },
   }
+}
+
+function stripUndefined<T extends object>(o: T): Partial<T> {
+  return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as Partial<T>
 }

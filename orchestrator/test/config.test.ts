@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { DEFAULT_CONFIG, loadConfig } from '../src/config.js'
+import { DEFAULT_CONFIG, loadConfig, resolveConfig } from '../src/config.js'
 
 describe('config', () => {
   it('스펙 기본값', () => {
@@ -38,5 +38,23 @@ describe('config', () => {
   })
   it('없는 파일은 경로를 담아 던진다', () => {
     expect(() => loadConfig('/nope/missing.json')).toThrow(/missing\.json/)
+  })
+})
+
+describe('config telegram', () => {
+  it('telegram 기본값', () => {
+    expect(DEFAULT_CONFIG.telegram).toEqual({ apiBase: 'https://api.telegram.org', quietHours: null, heartbeatMinutes: 0, batchSeconds: 30, notifyTaskApprovals: false, dashboardUrl: null, pollTimeoutSec: 30 })
+  })
+  it('잘못된 조용한 시간은 거부', () => {
+    expect(() => resolveConfig({ telegram: { quietHours: { start: '25:00', end: '07:00' } } } as any)).toThrow(/telegram/)
+    expect(() => resolveConfig({ telegram: { quietHours: { start: '22:00', end: '22:00' } } } as any)).toThrow(/telegram/)
+    expect(() => resolveConfig({ telegram: { heartbeatMinutes: 3 } } as any)).toThrow(/telegram/)
+  })
+  it('telegram은 깊게 병합되고 telegram 없는 설정도 로드', () => {
+    const c = resolveConfig({ telegram: { batchSeconds: 10, quietHours: { start: '23:00', end: '07:00' }, heartbeatMinutes: 60 } } as any)
+    expect(c.telegram.batchSeconds).toBe(10)
+    expect(c.telegram.pollTimeoutSec).toBe(30)
+    expect(c.telegram.quietHours).toEqual({ start: '23:00', end: '07:00' })
+    expect(resolveConfig({}).telegram).toEqual(DEFAULT_CONFIG.telegram)
   })
 })
