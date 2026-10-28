@@ -3,7 +3,7 @@ import type { TaskStatus } from '@orch/store/state'
 import type { RunView } from '../api/useRun'
 import { doneStats, formatDuration } from '../model/doneStats'
 import { stageLabel } from '../model/labels'
-import { PIPELINE_DEFAULTS as D, pipelineView, type StepState } from '../model/pipeline'
+import { PIPELINE_DEFAULTS as D, pipelineView, WHOLE_RUN, type StepState } from '../model/pipeline'
 
 interface Props {
   run: RunView
@@ -53,13 +53,19 @@ export function PipelineOverview({ run, onOpenTask = () => undefined, onShowRaw 
   const inLoop = stage === 'BUILD'
   const loopState: StepState = inLoop ? 'now' : ['INTAKE', 'SPEC_APPROVED', 'SEED', 'PLAN'].includes(stage) ? 'future' : 'done'
   const reviewing = v.loop.reviewingTask
-  const at = (s: StepState, active: boolean): StepState => (s === 'now' && !active ? 'done' : s)
+  const st = v.tasks.map((t) => t.status)
+  const allApproved = st.length > 0 && st.every((x) => x === 'approved' || x === 'merged')
+  const anyMerged = st.some((x) => x === 'merged')
+  const allMerged = st.length > 0 && st.every((x) => x === 'merged')
+  // During BUILD each box reflects task statuses; outside BUILD the whole loop is done or not yet reached.
+  const pick = (now: boolean, done: boolean): StepState => (loopState !== 'now' ? loopState : now ? 'now' : done ? 'done' : 'future')
+  const anyReview = st.includes('review')
   const loopSteps: { key: string; tag: string; title: string; note: ReactNode; state: StepState }[] = [
-    { key: 'dev', tag: '개발', title: '할 일만 받고 구현', note: '시드 포크 · 자기 소유 파일만', state: at(loopState, !reviewing) },
-    { key: 'harness', tag: '하네스 · 코드', title: '테스트 재실행', note: '소유 범위·증거 확인 · 토큰 0', state: loopState === 'now' ? 'done' : loopState },
-    { key: 'qa', tag: 'QA', title: '브라우저로 직접 조작', note: '시나리오별 캡처 + manifest', state: loopState === 'now' ? 'done' : loopState },
-    { key: 'review', tag: '검수 · GPT 읽기 전용', title: 'diff + 증거만 보고 판정', note: reviewing ? link(`지금 ${reviewing} 검수 중`, () => onOpenTask(reviewing)) : '', state: at(loopState, !!reviewing) },
-    { key: 'merge', tag: '승인 → 병합', title: 'main에 바로 병합', note: '의존 태스크가 풀림', state: loopState === 'now' ? 'future' : loopState },
+    { key: 'dev', tag: '개발', title: '할 일만 받고 구현', note: '시드 포크 · 자기 소유 파일만', state: pick(st.includes('running'), allApproved) },
+    { key: 'harness', tag: '하네스 · 코드', title: '테스트 재실행', note: '소유 범위·증거 확인 · 토큰 0', state: pick(anyReview, allApproved) },
+    { key: 'qa', tag: 'QA', title: '브라우저로 직접 조작', note: '시나리오별 캡처 + manifest', state: pick(anyReview, allApproved) },
+    { key: 'review', tag: '검수 · GPT 읽기 전용', title: 'diff + 증거만 보고 판정', note: reviewing ? link(`지금 ${reviewing} 검수 중`, () => onOpenTask(reviewing)) : '', state: pick(!!reviewing, allApproved) },
+    { key: 'merge', tag: '승인 → 병합', title: 'main에 바로 병합', note: '의존 태스크가 풀림', state: pick(anyMerged && !allMerged, allMerged) },
   ]
   const finishText: Record<string, [string, string, string]> = {
     INTEGRATE: ['통합', '남은 승인 태스크 병합', '충돌은 해당 개발 세션이 해결'],
@@ -110,7 +116,7 @@ export function PipelineOverview({ run, onOpenTask = () => undefined, onShowRaw 
               <span className="tag">사람</span>
               <h4>마스터로도 안 풀리면 주의 카드</h4>
               <p>{v.loop.humanOpen.length > 0
-                ? <>지금 {v.loop.humanOpen.map((t) => <span key={t}>{link(t, () => onOpenTask(t))} </span>)}대기 중</>
+                ? <>지금 {v.loop.humanOpen.map((t) => <span key={t}>{t === WHOLE_RUN ? t : link(t, () => onOpenTask(t))} </span>)}대기 중</>
                 : '지금 기다리는 태스크 없음'}</p>
             </div>
           </div>

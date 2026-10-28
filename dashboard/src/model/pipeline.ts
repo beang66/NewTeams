@@ -20,6 +20,8 @@ export interface PipelineView {
   tokens: { role: string; provider: 'C' | 'G'; tokens: number; cachedPct: number }[]
 }
 
+/** humanOpen entry for a HUMAN_REQUIRED event that has no task. */
+export const WHOLE_RUN = '전체'
 const ROLE_ORDER = ['master', 'planner', 'dev', 'qa', 'reviewer']
 
 /** done before the current stage, now at it, future after it. */
@@ -46,7 +48,8 @@ export function pipelineView(run: RunView): PipelineView {
     { stage: 'PLAN', state: stepState('PLAN', state.stage), note: planned > 0 ? `태스크 ${planned}개` : '' },
   ]
 
-  const humanOpen = [...new Set(state.humanRequired.map((id) => events.find((e) => e.id === id)?.task).filter((t): t is string => !!t))]
+  // A HUMAN_REQUIRED event without a task concerns the whole run (shown as 전체).
+  const humanOpen = [...new Set(state.humanRequired.map((id) => events.find((e) => e.id === id)).filter((e) => e !== undefined).map((e) => e.task ?? WHOLE_RUN))]
   const reviewingTask = Object.entries(state.tasks).find(([, t]) => t.status === 'review')?.[0]
   const rejectsBy = new Map<string, number>()
   for (const e of events) if (e.type === 'REJECT' && e.task) rejectsBy.set(e.task, (rejectsBy.get(e.task) ?? 0) + 1)

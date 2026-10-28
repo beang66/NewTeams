@@ -58,3 +58,22 @@ describe('관제 | 개요 전환', () => {
     expect(screen.queryByRole('region', { name: '파이프라인 개요' })).toBeNull()
   })
 })
+
+describe('루프 박스 상태는 태스크 상태에서 나온다', () => {
+  const run = (tasks: Record<string, 'pending' | 'review' | 'merged'>, evs: RunView['events'] = []): RunView =>
+    ({ ...RUN, events: evs, state: stateWith(tasks, { stage: 'BUILD' }) })
+  const loopStates = () => [...document.querySelectorAll('.ov-loop .ov-row .stp')].map((e) => e.className.replace('stp ', ''))
+  it('전부 대기면 아무것도 done이 아니다', () => {
+    render(<PipelineOverview run={run({ t1: 'pending', t2: 'pending' })} />)
+    expect(loopStates()).toEqual(['muted', 'muted', 'muted', 'muted', 'muted'])
+  })
+  it('검수 중 태스크가 있으면 하네스·QA·검수가 now', () => {
+    render(<PipelineOverview run={run({ t1: 'review', t2: 'pending' })} />)
+    expect(loopStates()).toEqual(['muted', 'now', 'now', 'now', 'muted'])
+  })
+  it('task 없는 HUMAN_REQUIRED는 전체로 표시', () => {
+    const h = human('msg-9200', undefined, 'auth')
+    render(<PipelineOverview run={{ ...run({ t1: 'pending' }, [h]), state: stateWith({ t1: 'pending' }, { stage: 'BUILD', humanRequired: ['msg-9200'] }) }} />)
+    expect(screen.getByText('전체')).toBeInTheDocument()
+  })
+})
