@@ -74,8 +74,12 @@ function HomeTop({ project, onProject }: { project: string; onProject: (p: strin
       <span className="ht-sample" title="오케스트레이터 홈 API 연결 전 예시 값">목업 데이터</span>
       <div className="ht-right">
         <div className="usage" aria-label="사용량">
-          <span className="usage-item"><span className="usage-name">Claude</span><span className="mono">{nf.format(usage.claudeTokens)}</span></span>
-          <span className="usage-item"><span className="usage-name">GPT</span><span className="mono">{nf.format(usage.gptTokens)}</span></span>
+          <span className="usage-item" title={`Claude 토큰 ${nf.format(usage.claudeTokens)} · 한도의 ${usage.claudeUsedPct}% · ${usage.claudeResetAt} 리셋`}>
+            <span className="usage-name">Claude</span><span className="mono">{usage.claudeUsedPct}%</span><span className="usage-reset">↻{usage.claudeResetAt}</span>
+          </span>
+          <span className="usage-item" title={`GPT 토큰 ${nf.format(usage.gptTokens)} · 한도의 ${usage.gptUsedPct}% · ${usage.gptResetAt} 리셋`}>
+            <span className="usage-name">GPT</span><span className="mono">{usage.gptUsedPct}%</span><span className="usage-reset">↻{usage.gptResetAt}</span>
+          </span>
           <span className="usage-item" title="API 예비 지출 / 상한">
             <span className="usage-name">API</span>
             <span className="mono">{`$${usage.apiSpendUsd.toFixed(2)} / $${usage.apiCapUsd}`}</span>
@@ -228,7 +232,7 @@ function Boards() {
     <Fold area="boards" title="다른 대시보드" meta={`${boards.filter((b) => b.href).length}개 사용 가능 · ${boards.filter((b) => !b.href).length}개 준비 중`}>
       <ul className="hs-boards">
         {boards.map((b) => {
-          const body = (<><span className="hs-tile" aria-hidden="true">{b.icon}</span><span className="hs-grow"><strong>{b.title}</strong><small>{b.count !== null ? `${b.count}개 · ` : ''}{b.desc}{b.href ? '' : ' · 준비 중'}</small></span><span className="hs-arrow" aria-hidden="true">›</span></>)
+          const body = (<><span className="hs-tile" aria-hidden="true"><SectionIcon name={b.icon} size={18} /></span><span className="hs-grow"><strong>{b.title}</strong><small>{b.count !== null ? `${b.count}개 · ` : ''}{b.desc}{b.href ? '' : ' · 준비 중'}</small></span><span className="hs-arrow" aria-hidden="true">›</span></>)
           return <li key={b.id}>{b.href ? <a href={b.href} className="hs-board">{body}</a> : <span className="hs-board is-disabled" aria-disabled="true">{body}</span>}</li>
         })}
       </ul>
@@ -443,7 +447,30 @@ const TURN_LABEL: Record<MyTurn['kind'], string> = { spec: '스펙 승인', dead
 // 교착이 가장 드물고 무겁다. 시간보다 긴급도 순으로 놓는다.
 const TURN_ORDER: Record<MyTurn['kind'], number> = { deadlock: 0, spec: 1, publish: 2 }
 
+/** 단축키: i = 내 차례로, j/k(또는 ↓/↑) = 항목 이동, Enter = 열기. 입력 중일 때는 동작하지 않는다. */
+function useTurnKeys() {
+  useEffect(() => {
+    const typing = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || typing(e.target)) return
+      const links = [...document.querySelectorAll<HTMLAnchorElement>('#my-turn .hs-mail a')]
+      if (!links.length) return
+      const at = links.indexOf(document.activeElement as HTMLAnchorElement)
+      let next = -1
+      if (e.key === 'i') next = 0
+      else if (at >= 0 && (e.key === 'j' || e.key === 'ArrowDown')) next = Math.min(links.length - 1, at + 1)
+      else if (at >= 0 && (e.key === 'k' || e.key === 'ArrowUp')) next = Math.max(0, at - 1)
+      if (next < 0) return
+      e.preventDefault()
+      links[next]!.focus()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
+}
+
 function MyTurnInbox({ project }: { project: string }) {
+  useTurnKeys()
   const items = myTurn.filter((t) => !project || t.project === project).sort((x, y) => TURN_ORDER[x.kind] - TURN_ORDER[y.kind])
   return (
     <Section id="my-turn" area="turn" title="내 차례" meta={<><b className="hs-count">{items.length}</b> 승인·교착·게시</>}>
@@ -462,6 +489,7 @@ function MyTurnInbox({ project }: { project: string }) {
           ))}
         </ul>
       )}
+      <p className="hs-meta hs-keys"><kbd>i</kbd> 내 차례 · <kbd>j</kbd>/<kbd>k</kbd> 이동 · <kbd>Enter</kbd> 열기</p>
     </Section>
   )
 }
@@ -539,6 +567,7 @@ function RoutineList() {
             <span className="hs-row"><strong>{r.name}</strong><span className="hs-badge">{r.platform}</span></span>
             <small>{r.schedule}</small>
             <small className="hs-last">{r.last} · {r.result === '실패' ? <b>✕ 실패</b> : r.result}</small>
+            {r.result === '실패' && <small className="hs-recover">다음 시도 {r.next ?? '예약 없음'} · 원인은 PC의 작업 스케줄러 기록(NEWTEAM 폴더)에서 확인</small>}
           </li>
         ))}
       </ul>

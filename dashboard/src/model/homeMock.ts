@@ -98,7 +98,8 @@ export const brain: BrainCluster[] = [
 ]
 
 // 구독 CLI 토큰과 API 예비 지출(상한 $8, PRODUCT.md)
-export const usage = { claudeTokens: 182410, gptTokens: 41006, apiSpendUsd: 0.42, apiCapUsd: 8 }
+/** 구독 CLI 한도는 사용량 비율과 다음 리셋 시각으로 보인다(예시 값). */
+export const usage = { claudeTokens: 182410, claudeUsedPct: 46, claudeResetAt: '15:00', gptTokens: 41006, gptUsedPct: 18, gptResetAt: '11.03 09:00', apiSpendUsd: 0.42, apiCapUsd: 8 }
 export const obsidianLastSync = '07:52'
 
 /* ---------- 참고 이미지 레이아웃용 추가 데이터 ---------- */
@@ -126,21 +127,22 @@ export const skills: Skill[] = [
 ]
 export const skillTotal = skills.length
 
-export interface RoutineRun { id: string; name: string; platform: 'Windows'; schedule: string; last: string; result: '완료' | '실패' | '기록 없음' }
+export interface RoutineRun { id: string; name: string; platform: 'Windows'; schedule: string; last: string; result: '완료' | '실패' | '기록 없음'; next?: string }
 export const routineRuns: RoutineRun[] = [
   { id: 'rr1', name: '아침 채널 지표 수집', platform: 'Windows', schedule: '매일 07:30 · Windows 예약', last: '최근 11.01 07:30 · 예약', result: '완료' },
   { id: 'rr2', name: '오늘 작업 브리핑 → Telegram', platform: 'Windows', schedule: '매일 08:00 · Windows 예약', last: '최근 11.01 08:00 · 예약', result: '완료' },
-  { id: 'rr3', name: '주간 콘텐츠 제안', platform: 'Windows', schedule: '매주 월 07:00 · Windows 예약', last: '최근 10.27 07:00 · 예약', result: '실패' },
+  { id: 'rr3', name: '주간 콘텐츠 제안', platform: 'Windows', schedule: '매주 월 07:00 · Windows 예약', last: '최근 10.27 07:00 · 예약', result: '실패', next: '11.03 07:00' },
   { id: 'rr4', name: '세컨드 브레인 색인 갱신', platform: 'Windows', schedule: '매일 09:00·13:00·18:00', last: '최근 11.01 09:00 · 예약', result: '완료' },
 ]
 
 /** 다른 대시보드: 에셋 라이브러리와 다른 화면. count가 있으면 'N개 · 설명'으로 보인다. href가 없으면 준비 중. */
+/** icon은 SectionIcon 이름이다. */
 export interface Board { id: string; icon: string; title: string; count: number | null; desc: string; href: string | null }
 export const boards: Board[] = [
-  { id: 'brand', icon: '◆', title: '브랜드 라이브러리', count: 12, desc: '로고 · 팔레트 · 글꼴 · 톤 가이드', href: null },
-  { id: 'content', icon: '▣', title: '콘텐츠 라이브러리', count: 28, desc: '레퍼런스 · 영상 소스 · 효과음 · 게시물', href: null },
-  { id: 'ideas', icon: '✎', title: '아이디어 패드', count: 6, desc: '대본 · 기획 메모 · 글감', href: null },
-  { id: 'run', icon: '▶', title: '실행 관제', count: null, desc: '요구사항 · 스펙 승인 · 관제 · 완료 보고', href: '#/run' },
-  { id: 'calendar', icon: '◷', title: '콘텐츠·캘린더', count: null, desc: '기획→게시 상태와 일정', href: null },
-  { id: 'settings', icon: '⚙', title: '작업 팩·루틴·설정', count: null, desc: '역할 · 모델 · Telegram', href: null },
+  { id: 'brand', icon: 'brand', title: '브랜드 라이브러리', count: 12, desc: '로고 · 팔레트 · 글꼴 · 톤 가이드', href: null },
+  { id: 'content', icon: 'library', title: '콘텐츠 라이브러리', count: 28, desc: '레퍼런스 · 영상 소스 · 효과음 · 게시물', href: null },
+  { id: 'ideas', icon: 'ideas', title: '아이디어 패드', count: 6, desc: '대본 · 기획 메모 · 글감', href: null },
+  { id: 'run', icon: 'runs', title: '실행 관제', count: null, desc: '요구사항 · 스펙 승인 · 관제 · 완료 보고', href: '#/run' },
+  { id: 'calendar', icon: 'calendar', title: '콘텐츠·캘린더', count: null, desc: '기획→게시 상태와 일정', href: null },
+  { id: 'settings', icon: 'settings', title: '작업 팩·루틴·설정', count: null, desc: '역할 · 모델 · Telegram', href: null },
 ]
