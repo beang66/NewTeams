@@ -1,19 +1,28 @@
 :root {
-  /* 팔레트는 세 가지뿐이다: #000000(바탕), #2779a7(포인트), #ffffff(글자·면). 단계는 흰색/검정의 투명도로만 만든다.
-     #2779a7은 검정 위 작은 글자 대비가 4.5:1에 못 미치므로(약 4.4:1) 면·테두리·굵은 표시에만 쓰고 본문 글자에는 쓰지 않는다. */
+  /* 팔레트: 기본 세 색(#000000 바탕, #2779a7 포인트, #ffffff 글자)에 무채색 회색 단계를 더한다. 유채색은 #2779a7 하나뿐이다.
+     #2779a7은 검정 위 작은 글자 대비가 약 4.4:1이라 면·테두리·굵은 표시에만 쓰고 본문 글자에는 쓰지 않는다. */
   --c-black: #000000;
   --c-accent: #2779a7;
   --c-white: #ffffff;
+  --c-gray-950: #0d0d0d;
+  --c-gray-900: #161616;
+  --c-gray-850: #1f1f1f;
+  --c-gray-800: #2a2a2a;
+  --c-gray-700: #3d3d3d;
+  --c-gray-500: #8a8a8a;
+  --c-gray-400: #a3a3a3;
+  --c-gray-200: #d4d4d4;
+  --c-gray-100: #ededed;
   --bg: var(--c-black);
-  --surface-1: rgba(255, 255, 255, 0.05);
-  --surface-2: rgba(255, 255, 255, 0.08);
-  --surface-3: rgba(255, 255, 255, 0.12);
-  --line: rgba(255, 255, 255, 0.14);
-  --line-strong: rgba(255, 255, 255, 0.28);
+  --surface-1: var(--c-gray-950);
+  --surface-2: var(--c-gray-900);
+  --surface-3: var(--c-gray-850);
+  --line: var(--c-gray-800);
+  --line-strong: var(--c-gray-700);
   --ink: var(--c-white);
-  --ink-muted: rgba(255, 255, 255, 0.82);
-  --ink-subtle: rgba(255, 255, 255, 0.64);
-  --ink-faint: rgba(255, 255, 255, 0.5);
+  --ink-muted: var(--c-gray-200);
+  --ink-subtle: var(--c-gray-400);
+  --ink-faint: var(--c-gray-500);
   --accent: var(--c-accent);
   --accent-hover: color-mix(in srgb, var(--c-accent) 80%, var(--c-white));
   --accent-soft: rgba(39, 121, 167, 0.22);

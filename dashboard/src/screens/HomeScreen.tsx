@@ -1,4 +1,5 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { api, type VaultHit, type VaultSummary } from '../api/client'
 import { StageRail } from '../components/StageRail'
 import { TelegramChip } from '../components/TelegramChip'
 import {
@@ -203,25 +204,57 @@ function BrainGraph({ data, selected, onSelect }: { data: BrainCluster[]; select
   )
 }
 
+/** Obsidian 연결 상태를 읽는다. 연결 전이면 목업 분류를 보여주고 그렇다고 표시한다. */
+function useVault(): VaultSummary | null {
+  const [v, setV] = useState<VaultSummary | null>(null)
+  useEffect(() => {
+    let off = false
+    const read = () => { void api.vault().then((r) => { if (!off) setV(r) }) }
+    read()
+    const id = setInterval(read, 60_000)
+    return () => { off = true; clearInterval(id) }
+  }, [])
+  return v
+}
+
+const timeOf = (iso: string) => new Date(iso).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
+
 function SecondBrain() {
+  const vault = useVault()
+  const live = vault?.state === 'connected' ? vault : null
+  // 가장 큰 분류가 가운데 오도록 많은 순으로 놓는다
+  const data: BrainCluster[] = [...(live ? live.groups : brain)].sort((x, y) => y.count - x.count)
   const [view, setView] = useState<'graph' | 'list'>('graph')
   const [selected, setSelected] = useState<string | null>(null)
+  const [q, setQ] = useState('')
+  const [hits, setHits] = useState<VaultHit[] | null>(null)
+  const [err, setErr] = useState<string | null>(null)
   const toggle = (k: string) => setSelected((s) => (s === k ? null : k))
-  const total = brain.reduce((a, c) => a + c.count, 0)
+  const total = data.reduce((a, c) => a + c.count, 0)
+  const status = live
+    ? `Obsidian · ${live.readFolders.join(' + ')} · 노트 ${nf.format(total)}${live.truncated ? '+' : ''} · AI Inbox ${live.inboxCount} · ${timeOf(live.scannedAt)} 확인`
+    : vault?.state === 'error' ? `Obsidian 연결 오류 · 예시 값 표시 중` : `Obsidian 연결 안 됨 · 예시 값 · 동기화 ${obsidianLastSync}`
+  const search = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!q.trim()) return
+    if (!live) { setErr('Obsidian이 연결되면 검색할 수 있습니다'); setHits(null); return }
+    try { setErr(null); setHits(await api.vaultSearch(q.trim(), selected ?? undefined)) } catch (e2) { setErr(e2 instanceof Error ? e2.message : String(e2)); setHits(null) }
+  }
   return (
     <section className="home-panel home-brain home-a-brain" aria-label="세컨드 브레인">
       <header className="home-panel-head">
         <h2>세컨드 브레인</h2>
-        <span className="home-meta">Obsidian · 01 Projects/ + wiki/ · 노트 {nf.format(total)} · 동기화 {obsidianLastSync}</span>
+        <span className="home-meta">{status}</span>
         <div className="seg" role="group" aria-label="보기 방식">
           <button type="button" aria-pressed={view === 'graph'} onClick={() => setView('graph')}>그래프</button>
           <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')}>목록</button>
         </div>
       </header>
       <div className="home-brain-body">
-        {view === 'graph' ? <BrainGraph data={brain} selected={selected} onSelect={toggle} /> : (
+        {data.length === 0 ? <p className="home-meta">허용 폴더에 노트가 없습니다</p>
+          : view === 'graph' ? <BrainGraph data={data} selected={selected} onSelect={toggle} /> : (
           <ul className="home-list home-brain-list">
-            {brain.map((c) => (
+            {data.map((c) => (
               <li key={c.key}>
                 <button type="button" aria-pressed={selected === c.key} className="home-brain-item" onClick={() => toggle(c.key)}>
                   <span>{c.label}</span><span className="mono">{nf.format(c.count)}</span>
@@ -231,10 +264,24 @@ function SecondBrain() {
           </ul>
         )}
       </div>
-      <form className="ask-bar home-ask" onSubmit={(e) => e.preventDefault()}>
-        <input aria-label="세컨드 브레인 검색" placeholder={selected ? `${brain.find((b) => b.key === selected)?.label}에서 검색하거나 질문하기` : '노트를 검색하거나 마스터에게 질문하기'} />
+      <form className="ask-bar home-ask" onSubmit={search}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} aria-label="세컨드 브레인 검색"
+          placeholder={selected ? `${data.find((b) => b.key === selected)?.label}에서 검색` : '노트 검색'} />
         <button type="submit" className="btn is-primary">검색</button>
       </form>
+      {err && <p className="home-meta" role="status">{err}</p>}
+      {hits && (
+        <ul className="home-list home-hits" aria-label="검색 결과">
+          {hits.length === 0 && <li className="home-meta">결과 없음</li>}
+          {hits.map((h) => (
+            <li key={h.path}>
+              <a href={`obsidian://open?vault=${encodeURIComponent(live?.name ?? '')}&file=${encodeURIComponent(h.path.replace(/\.md$/, ''))}`}>
+                <strong>{h.title}</strong><small>{h.path}</small><span>{h.snippet}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   )
 }

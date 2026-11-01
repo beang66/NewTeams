@@ -17,6 +17,7 @@ import { OpenAIRunner } from './runners/openaiRunner.js'
 import { ReviewerRunner } from './runners/reviewerRunner.js'
 import { createWorkflowActions } from './server/actions.js'
 import { buildServer, listenLocal } from './server/http.js'
+import { Vault } from './vault/vault.js'
 import { attachNotifier, consoleNotifier, NOTIFY_TYPES } from './server/notifier.js'
 import { TelegramBot } from './telegram/bot.js'
 import { BotApi } from './telegram/botApi.js'
@@ -93,7 +94,8 @@ export function assembleServe(cfg: Config, wf: Workflow, env: NodeJS.ProcessEnv,
   const bot = secrets ? new TelegramBot({ secrets, cfg: cfg.telegram, wf, actions, clock: options.clock ?? systemClock, api: options.api }) : undefined
   const detachConsole = attachNotifier(wf.bus, consoleNotifier)
   const detachTelegram = bot ? attachNotifier(wf.bus, bot, [...NOTIFY_TYPES, 'RESUMED', 'APPROVE']) : undefined
-  const app = buildServer(wf, { resume: true, actions, dashboardDir: options.dashboardDir, telegramStatus: () => bot?.status() ?? { state: 'off' } })
+  const vault = openVault(cfg, env, log)
+  const app = buildServer(wf, { resume: true, actions, dashboardDir: options.dashboardDir, telegramStatus: () => bot?.status() ?? { state: 'off' }, vault })
   app.addHook('onListen', async () => {
     if (!bot) { log('텔레그램: 꺼짐 (환경 변수 없음)'); return }
     // Telegram 장애나 getMe 지연이 HTTP listen 및 workflow drive를 기다리게 하지 않는다.
@@ -224,4 +226,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     console.error(error instanceof Error ? error.message : error)
     process.exitCode = 1
   })
+}
+
+/** ORCH_VAULT_DIR 또는 설정의 vault.path로 Obsidian Vault를 연다. 없으면 연결하지 않는다. */
+export function openVault(cfg: Config, env: NodeJS.ProcessEnv, log: (message: string) => void = console.log): Vault | undefined {
+  const path = env.ORCH_VAULT_DIR?.trim() || cfg.vault.path
+  if (!path) { log('Obsidian: 꺼짐 (ORCH_VAULT_DIR 또는 vault.path 없음)'); return undefined }
+  const vault = new Vault({ root: path, read: cfg.vault.read, inbox: cfg.vault.inbox })
+  void vault.check().then(() => log(`Obsidian: ${vault.root} (읽기 ${cfg.vault.read.join(', ')})`), (error) => log(`Obsidian: ${String(error instanceof Error ? error.message : error)}`))
+  return vault
 }

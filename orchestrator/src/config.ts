@@ -34,7 +34,22 @@ const telegramSchema = z.object({
   pollTimeoutSec: z.number().int().min(1).optional(),
 }).strict()
 
+export interface VaultConfig {
+  /** Obsidian Vault 절대 경로. null이면 연결하지 않는다. 환경 변수 ORCH_VAULT_DIR가 우선한다. */
+  path: string | null
+  /** 검색·참조를 허용하는 Vault 안 폴더 */
+  read: string[]
+  /** AI 결과를 새 파일로 저장하는 Vault 안 폴더 */
+  inbox: string
+}
+const vaultSchema = z.object({
+  path: z.string().min(1).nullable().optional(),
+  read: z.array(z.string().min(1)).min(1).optional(),
+  inbox: z.string().min(1).optional(),
+}).strict()
+
 export interface Config {
+  vault: VaultConfig
   agents: AgentSettings
   telegram: TelegramConfig
   projectsDir: string; maxParallel: number; rejectLimit: number; repeatFindingLimit: number
@@ -45,6 +60,7 @@ export interface Config {
 }
 
 export const DEFAULT_CONFIG: Config = {
+  vault: { path: null, read: ['01 Projects', 'wiki'], inbox: '01 Projects/[진행] NEWTEAMs AI Agent Studio/AI Inbox' },
   agents: { master: { provider: 'claude' }, worker: { provider: 'claude' } },
   telegram: { apiBase: 'https://api.telegram.org', quietHours: null, heartbeatMinutes: 0, batchSeconds: 30, notifyTaskApprovals: false, dashboardUrl: null, pollTimeoutSec: 30 },
   projectsDir: './projects',
@@ -88,11 +104,14 @@ export function resolveConfig(over: Partial<Config>): Config {
   try { profiles = settingsSchema.parse(over.agents ?? {}) } catch (error) { throw new Error(`agents 설정 오류: ${String(error)}`) }
   let tg
   try { tg = telegramSchema.parse(over.telegram ?? {}) } catch (error) { throw new Error(`telegram 설정 오류: ${String(error)}`) }
+  let vault
+  try { vault = vaultSchema.parse(over.vault ?? {}) } catch (error) { throw new Error(`vault 설정 오류: ${String(error)}`) }
   return {
     ...structuredClone(DEFAULT_CONFIG),
     ...over,
     agents: { master: { ...DEFAULT_CONFIG.agents.master, ...profiles.master }, worker: { ...DEFAULT_CONFIG.agents.worker, ...profiles.worker } },
     telegram: { ...DEFAULT_CONFIG.telegram, ...stripUndefined(tg) } as TelegramConfig,
+    vault: { ...DEFAULT_CONFIG.vault, ...stripUndefined(vault) } as VaultConfig,
     timeoutsMs: { ...DEFAULT_CONFIG.timeoutsMs, ...over.timeoutsMs },
     openaiPricePerMTok: { ...DEFAULT_CONFIG.openaiPricePerMTok, ...over.openaiPricePerMTok },
   }

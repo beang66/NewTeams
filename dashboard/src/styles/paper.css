@@ -1,8 +1,8 @@
 /* Document ("paper") area: reading screens only. The control screen keeps the dark tokens. */
 .paper {
   --p-bg: #ffffff; --p-sheet: #ffffff;
-  --p-ink: #000000; --p-ink2: rgba(0, 0, 0, 0.78); --p-ink3: rgba(0, 0, 0, 0.62);
-  --p-rule: #000000; --p-hair: rgba(0, 0, 0, 0.18); --p-tint: rgba(39, 121, 167, 0.08);
+  --p-ink: #000000; --p-ink2: #333333; --p-ink3: #595959;
+  --p-rule: #000000; --p-hair: #d4d4d4; --p-tint: #ededed;
   --p-ok: #2779a7; --p-bad: #000000; --p-warn: #000000; --p-now: #2779a7;
   --serif: 'Noto Serif KR', 'Nanum Myeongjo', 'Source Han Serif K', Georgia, serif;
   background: var(--p-bg); color: var(--p-ink);

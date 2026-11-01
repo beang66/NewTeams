@@ -6,6 +6,12 @@ export interface AgentConfig { roles: Record<string, { provider: 'claude' | 'cod
 
 export interface TelegramStatus { state: 'off' | 'connecting' | 'connected' | 'error'; botUsername?: string; lastError?: string }
 
+export type VaultSummary =
+  | { state: 'off' }
+  | { state: 'error'; error: string }
+  | { state: 'connected'; name: string; readFolders: string[]; inbox: string; total: number; groups: { key: string; label: string; count: number }[]; inboxCount: number; scannedAt: string; truncated: boolean }
+export interface VaultHit { path: string; title: string; group: string; snippet: string; mtimeMs: number }
+
 export class ApiError extends Error {
   status: number
   constructor(status: number, message: string) {
@@ -47,6 +53,11 @@ export const api = {
     try { return await getJson<TelegramStatus>('/api/telegram') } catch { return { state: 'off' } }
   },
   agents: () => getJson<AgentConfig>('/api/agents'),
+  async vault(): Promise<VaultSummary> {
+    try { return await getJson<VaultSummary>('/api/vault') } catch (e) { return { state: 'error', error: e instanceof Error ? e.message : String(e) } }
+  },
+  vaultSearch: (q: string, group?: string) =>
+    getJson<VaultHit[]>(`/api/vault/search?q=${encodeURIComponent(q)}${group ? `&group=${encodeURIComponent(group)}` : ''}`),
   events: (after?: string) => getJson<Envelope[]>(after ? `/api/events?after=${encodeURIComponent(after)}` : '/api/events'),
   prompt: async (id: string) => (await request(`/api/prompts/${encodeURIComponent(id)}`)).text(),
   async human(path: string): Promise<string | null> {

@@ -6,6 +6,7 @@ import type { Workflow } from '../engine/workflow.js'
 import type { Envelope } from '../protocol/messages.js'
 import { PlanSchema } from '../protocol/plan.js'
 import fastifyStatic from '@fastify/static'
+import { Vault, VaultError } from '../vault/vault.js'
 import { ActionConflict, createWorkflowActions, createWorkflowDriver, type TelegramStatus, type WorkflowActions } from './actions.js'
 
 const ID_PATTERN = '^msg-[0-9]+$'
@@ -28,6 +29,7 @@ export interface ServerOptions {
   dashboardDir?: string
   actions?: WorkflowActions
   telegramStatus?: () => TelegramStatus
+  vault?: Vault
 }
 
 export function buildServer(wf: Workflow, options: ServerOptions = {}): FastifyInstance {
@@ -45,6 +47,7 @@ export function buildServer(wf: Workflow, options: ServerOptions = {}): FastifyI
   registerReadRoutes(app, wf, streams)
   app.get('/api/telegram', async () => options.telegramStatus?.() ?? { state: 'off' })
   registerActionRoutes(app, actions)
+  registerVaultRoutes(app, options.vault)
   if (options.dashboardDir) registerDashboard(app, options.dashboardDir)
   return app
 }
@@ -198,4 +201,43 @@ async function sendFile(reply: FastifyReply, root: string, path: string, content
     if (['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '')) return reply.code(404).send({ error: '파일 없음' })
     throw error
   }
+}
+
+/** Obsidian Vault: 허용 폴더 읽기·검색과 AI Inbox 쓰기. 연결하지 않았으면 state: off. */
+function registerVaultRoutes(app: FastifyInstance, vault: Vault | undefined): void {
+  const fail = (reply: FastifyReply, error: unknown) => {
+    if (error instanceof VaultError) return reply.code(error.status).send({ error: error.message })
+    throw error
+  }
+  app.get('/api/vault', async (_request, reply) => {
+    if (!vault) return { state: 'off' }
+    try { return await vault.summary() } catch (error) {
+      return reply.code(503).send({ state: 'error', error: error instanceof Error ? error.message : String(error) })
+    }
+  })
+  app.get<{ Querystring: { q: string; group?: string; limit?: number } }>('/api/vault/search', {
+    schema: { querystring: { type: 'object', required: ['q'], properties: {
+      q: { type: 'string', minLength: 1, maxLength: 200 }, group: { type: 'string', pattern: '^[a-z]+$' },
+      limit: { type: 'integer', minimum: 1, maximum: 50 },
+    } } },
+  }, async (request, reply) => {
+    if (!vault) return reply.code(404).send({ error: 'Vault 연결 안 됨' })
+    try { return await vault.search(request.query.q, request.query.limit ?? 20, request.query.group) } catch (error) { return fail(reply, error) }
+  })
+  app.get<{ Querystring: { path: string } }>('/api/vault/note', {
+    schema: { querystring: { type: 'object', required: ['path'], properties: { path: { type: 'string', minLength: 1, maxLength: 500 } } } },
+  }, async (request, reply) => {
+    if (!vault) return reply.code(404).send({ error: 'Vault 연결 안 됨' })
+    try { return await vault.note(request.query.path) } catch (error) { return fail(reply, error) }
+  })
+  app.post<{ Body: { title: string; body: string; project?: string; runId?: string; sources?: string[] } }>('/api/vault/inbox', {
+    schema: { body: { type: 'object', required: ['title', 'body'], additionalProperties: false, properties: {
+      title: { type: 'string', minLength: 1, maxLength: 200 }, body: { type: 'string', minLength: 1, maxLength: 200_000 },
+      project: { type: 'string', maxLength: 200 }, runId: { type: 'string', maxLength: 100 },
+      sources: { type: 'array', maxItems: 50, items: { type: 'string', maxLength: 500 } },
+    } } },
+  }, async (request, reply) => {
+    if (!vault) return reply.code(404).send({ error: 'Vault 연결 안 됨' })
+    try { return reply.code(201).send(await vault.writeInbox(request.body)) } catch (error) { return fail(reply, error) }
+  })
 }

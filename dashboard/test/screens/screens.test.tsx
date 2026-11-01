@@ -144,7 +144,7 @@ describe('AskBar', () => {
   })
 })
 
-it('paper 토큰도 세 가지 팔레트(흰 종이 · 검정 글자 · #2779a7)만 쓴다', () => {
+it('paper 토큰은 흰 종이 · 검정 글자 · 회색 · #2779a7만 쓴다', () => {
   const css = readFileSync('src/styles/paper.css', 'utf8')
   for (const [k, v] of Object.entries({ '--p-bg': '#ffffff', '--p-sheet': '#ffffff', '--p-ink': '#000000', '--p-rule': '#000000', '--p-ok': '#2779a7', '--p-bad': '#000000', '--p-warn': '#000000', '--p-now': '#2779a7' }))
     expect(css).toMatch(new RegExp(`${k}:\\s*${v}\\s*;`, 'i'))
