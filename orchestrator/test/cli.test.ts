@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable, Writable } from 'node:stream'
 import { afterEach, beforeEach, expect, it } from 'vitest'
-import { createProgram, resolveDashboardDir, runTerminalChat } from '../src/cli.js'
+import { createProgram, openVault, resolveDashboardDir, runTerminalChat } from '../src/cli.js'
+import { DEFAULT_CONFIG } from '../src/config.js'
 import { Workflow } from '../src/engine/workflow.js'
 import { fakeDeps, makeScript } from './fixtures/scripts/common.js'
 
@@ -52,4 +53,20 @@ it('resolveDashboardDir uses an explicit dir, else the repo dashboard/dist only 
   const real = join(process.cwd(), '..', 'dashboard', 'dist')
   const exists = await fs.stat(join(real, 'index.html')).then(() => true, () => false)
   expect(fallback).toBe(exists ? real : undefined)
+})
+
+it('openVault는 로컬 Vault가 있으면 그것을 쓰고 git을 부르지 않는다', () => {
+  const calls: string[][] = []
+  const vault = openVault({ ...DEFAULT_CONFIG, vault: { ...DEFAULT_CONFIG.vault, path: root } }, {}, () => {}, async (args) => { calls.push(args) })
+  expect(vault?.root).toBe(root)
+  expect(calls).toEqual([])
+})
+
+it('openVault는 로컬 Vault가 없으면 GitHub 저장소를 clone해서 읽는다', () => {
+  const calls: string[][] = []
+  const vault = openVault({ ...DEFAULT_CONFIG, vault: { ...DEFAULT_CONFIG.vault, path: join(root, 'missing') } }, {}, () => {}, async (args) => { calls.push(args) })
+  expect(vault?.root).not.toBe(join(root, 'missing'))
+  // 캐시에 이미 clone이 있으면 pull, 없으면 clone
+  expect(calls).toHaveLength(1)
+  expect(calls[0]!.includes('pull') || calls[0]!.includes('https://github.com/beang66/Vault')).toBe(true)
 })

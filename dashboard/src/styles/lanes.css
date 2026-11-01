@@ -22,7 +22,7 @@
 .lane-status.is-accent { fill: var(--accent-hover); }
 .lane-status.is-bad { fill: var(--bad); }
 .lane-status.is-warn { fill: var(--warn); }
-.lane-status.is-ok { fill: var(--ok); }
+.lane-status.is-ok { fill: var(--accent-hover); }
 .lane-badge rect { fill: var(--surface-3); stroke: var(--line-strong); }
 .lane-badge text { fill: var(--ink-muted); font-family: var(--font-mono); font-weight: 600; }
 .lane-guides line { stroke: var(--line); }

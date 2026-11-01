@@ -1,0 +1,23 @@
+import type { ReactNode } from 'react'
+
+/* 홈 섹션 제목 아이콘. 상단 도구 아이콘과 같은 24px 그리드, 선 1.8. 문자 기호 대신 쓴다. */
+
+const paths: Record<string, ReactNode> = {
+  turn: <path d="M4 6h16v12H4zM4 7l8 6 8-6" />,
+  runs: <path d="M8 5v14l11-7z" />,
+  routines: <path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v4h-4" />,
+  calendar: <path d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4" />,
+  skills: <path d="M12 3l2.2 5.8L20 11l-5.8 2.2L12 19l-2.2-5.8L4 11l5.8-2.2z" />,
+  brain: <><circle cx="6" cy="7" r="2" /><circle cx="18" cy="6" r="2" /><circle cx="12" cy="17" r="2" /><path d="M7.8 7.6l2.9 7.7M16.6 7.4l-3.5 7.9M8 7h8" /></>,
+  goals: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="4" /><circle cx="12" cy="12" r="0.6" /></>,
+  outputs: <path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5" />,
+  boards: <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" />,
+}
+
+export function SectionIcon({ name }: { name: keyof typeof paths | string }) {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      {paths[name]}
+    </svg>
+  )
+}

@@ -3,6 +3,8 @@ import { Command } from 'commander'
 import { promises as fs } from 'node:fs'
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { homedir } from 'node:os'
+import { execFile } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createInterface } from 'node:readline'
 import type { Readable, Writable } from 'node:stream'
@@ -228,11 +230,26 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   })
 }
 
-/** ORCH_VAULT_DIR 또는 설정의 vault.path로 Obsidian Vault를 연다. 없으면 연결하지 않는다. */
-export function openVault(cfg: Config, env: NodeJS.ProcessEnv, log: (message: string) => void = console.log): Vault | undefined {
-  const path = env.ORCH_VAULT_DIR?.trim() || cfg.vault.path
-  if (!path) { log('Obsidian: 꺼짐 (ORCH_VAULT_DIR 또는 vault.path 없음)'); return undefined }
-  const vault = new Vault({ root: path, read: cfg.vault.read, inbox: cfg.vault.inbox })
-  void vault.check().then(() => log(`Obsidian: ${vault.root} (읽기 ${cfg.vault.read.join(', ')})`), (error) => log(`Obsidian: ${String(error instanceof Error ? error.message : error)}`))
+/**
+ * ORCH_VAULT_DIR 또는 설정의 vault.path로 Obsidian Vault를 연다(로컬 우선).
+ * 로컬 폴더가 없고 vault.github가 있으면 ~/.cache/newteams/vault에 얕은 clone(이미 있으면 pull)해서 읽는다.
+ */
+export function openVault(cfg: Config, env: NodeJS.ProcessEnv, log: (message: string) => void = console.log, run: typeof gitRun = gitRun): Vault | undefined {
+  const local = env.ORCH_VAULT_DIR?.trim() || cfg.vault.path
+  const remote = local && existsSync(local) ? null : cfg.vault.github
+  if (!local && !remote) { log('Obsidian: 꺼짐 (ORCH_VAULT_DIR 또는 vault.path 없음)'); return undefined }
+  const root = remote ? join(homedir(), '.cache', 'newteams', 'vault') : local!
+  const vault = new Vault({ root, read: cfg.vault.read, inbox: cfg.vault.inbox })
+  // shortcut: GitHub 사본은 시작 시 한 번만 동기화하고 AI Inbox 쓰기는 push하지 않음. 계속 쓰려면 주기 pull과 push가 필요
+  const ready = remote
+    ? run(existsSync(join(root, '.git')) ? ['-C', root, 'pull', '--ff-only'] : ['clone', '--depth', '1', remote, root])
+    : Promise.resolve()
+  void ready.then(() => vault.check()).then(
+    () => log(`Obsidian: ${remote ? `${remote} → ` : ''}${vault.root} (읽기 ${cfg.vault.read.join(', ')})`),
+    (error) => log(`Obsidian: ${String(error instanceof Error ? error.message : error)}`))
   return vault
+}
+
+function gitRun(args: string[]): Promise<void> {
+  return new Promise((ok, fail) => { execFile('git', args, (error) => error ? fail(error) : ok()) })
 }

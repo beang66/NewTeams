@@ -37,6 +37,8 @@ const telegramSchema = z.object({
 export interface VaultConfig {
   /** Obsidian Vault 절대 경로. null이면 연결하지 않는다. 환경 변수 ORCH_VAULT_DIR가 우선한다. */
   path: string | null
+  /** path 폴더가 없을 때 대신 읽을 Git 저장소 URL(얕은 clone). null이면 대체 없음. */
+  github: string | null
   /** 검색·참조를 허용하는 Vault 안 폴더 */
   read: string[]
   /** AI 결과를 새 파일로 저장하는 Vault 안 폴더 */
@@ -44,6 +46,7 @@ export interface VaultConfig {
 }
 const vaultSchema = z.object({
   path: z.string().min(1).nullable().optional(),
+  github: httpUrl.nullable().optional(),
   read: z.array(z.string().min(1)).min(1).optional(),
   inbox: z.string().min(1).optional(),
 }).strict()
@@ -60,7 +63,7 @@ export interface Config {
 }
 
 export const DEFAULT_CONFIG: Config = {
-  vault: { path: null, read: ['01 Projects', 'wiki'], inbox: '01 Projects/[진행] NEWTEAMs AI Agent Studio/AI Inbox' },
+  vault: { path: 'C:\Users\JB\Documents\Obsidian Vault', github: 'https://github.com/beang66/Vault', read: ['01 Projects', 'wiki'], inbox: '01 Projects/[진행] NEWTEAMs AI Agent Studio/AI Inbox' },
   agents: { master: { provider: 'claude' }, worker: { provider: 'claude' } },
   telegram: { apiBase: 'https://api.telegram.org', quietHours: null, heartbeatMinutes: 0, batchSeconds: 30, notifyTaskApprovals: false, dashboardUrl: null, pollTimeoutSec: 30 },
   projectsDir: './projects',

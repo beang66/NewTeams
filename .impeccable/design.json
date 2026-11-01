@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-01T23:00:00+09:00",
+  "title": "Design System: NEWTEAM Agent Studio",
+  "extensions": {
+    "colorMeta": {
+      "accent": { "role": "primary", "displayName": "관제 블루", "canonical": "#2779a7", "tonalRamp": ["#19252c", "#1c3949", "#20516d", "#24658a", "#2779a7", "#5294b9", "#a9c9dc", "#dfebf2"] },
+      "accent-hover": { "role": "primary", "displayName": "밝은 관제 블루", "canonical": "color-mix(in srgb, #2779a7 80%, #ffffff)", "tonalRamp": ["#19252c", "#1c3949", "#20516d", "#24658a", "#2779a7", "#5294b9", "#a9c9dc", "#dfebf2"] },
+      "black": { "role": "neutral", "displayName": "완전 검정", "canonical": "#000000" },
+      "white": { "role": "neutral", "displayName": "흰 글자", "canonical": "#ffffff" },
+      "gray-950": { "role": "neutral", "displayName": "표면 1", "canonical": "#0d0d0d", "tonalRamp": ["#0d0d0d", "#161616", "#1f1f1f", "#2a2a2a", "#3d3d3d", "#8a8a8a", "#d4d4d4", "#ededed"] },
+      "gray-900": { "role": "neutral", "displayName": "표면 2", "canonical": "#161616" },
+      "gray-850": { "role": "neutral", "displayName": "표면 3", "canonical": "#1f1f1f" },
+      "gray-800": { "role": "neutral", "displayName": "선", "canonical": "#2a2a2a" },
+      "gray-700": { "role": "neutral", "displayName": "강한 선", "canonical": "#3d3d3d" },
+      "gray-500": { "role": "neutral", "displayName": "흐린 글자", "canonical": "#8a8a8a" },
+      "gray-400": { "role": "neutral", "displayName": "보조 글자", "canonical": "#a3a3a3" },
+      "gray-200": { "role": "neutral", "displayName": "약한 글자", "canonical": "#d4d4d4" },
+      "gray-100": { "role": "neutral", "displayName": "종이 회색", "canonical": "#ededed" },
+      "paper-ink-2": { "role": "neutral", "displayName": "종이 글자 2", "canonical": "#333333" },
+      "paper-ink-3": { "role": "neutral", "displayName": "종이 글자 3", "canonical": "#595959" }
+    },
+    "typographyMeta": {
+      "brand": { "displayName": "Brand", "purpose": "상단 바의 NEWTEAM 워드마크." },
+      "figure": { "displayName": "Figure", "purpose": "채널 지표 카드의 큰 숫자." },
+      "title": { "displayName": "Title", "purpose": "홈 섹션 제목, 팝오버 제목, 교착 카드 제목." },
+      "body": { "displayName": "Body", "purpose": "기본 본문, 내 차례 항목 제목." },
+      "body-dense": { "displayName": "Body dense", "purpose": "목록 상세, 버튼, 입력, 팝오버 본문." },
+      "label": { "displayName": "Label", "purpose": "메타, 칩, 단계 레일, 표 머리, 힌트." },
+      "mono": { "displayName": "Mono", "purpose": "수치, ID, 원본 로그, 티커." },
+      "paper-heading": { "displayName": "Paper heading", "purpose": "문서 화면 제목(h1 20px, h2·h3 16px)." },
+      "paper-body": { "displayName": "Paper body", "purpose": "문서 화면 본문." }
+    },
+    "shadows": [
+      { "name": "popover", "value": "0 12px 32px rgba(0, 0, 0, 0.6)", "purpose": "상단 도구 패널과 스킬 옵션 팝오버. 떠 있는 요소 전용." },
+      { "name": "waiting-ring", "value": "inset 0 0 0 1px var(--ink)", "purpose": "단계 레일의 내 차례(is-waiting) 표시. 그림자가 아니라 형태 표시." },
+      { "name": "selected-bar", "value": "inset 2px 0 0 var(--accent)", "purpose": "타임라인 선택 행." },
+      { "name": "option-ring", "value": "0 0 0 4px var(--accent)", "purpose": "스킬 옵션 격자의 선택 칸." }
+    ],
+    "motion": [
+      { "name": "dur", "value": "200ms", "purpose": "색, 면, 테두리, 불투명도, 서랍 이동 전환. prefers-reduced-motion에서는 모두 끈다." }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "768px" },
+      { "name": "tablet", "value": "1024px" },
+      { "name": "control-drawer", "value": "1279px" },
+      { "name": "home-two-column", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "기본 도구 버튼.",
+      "html": "<button class=\"ds-btn\">다시 시도</button>",
+      "css": ".ds-btn { font: inherit; font-size: var(--fs-13); color: var(--ink-muted); background: var(--surface-3); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); padding: var(--space-1) var(--space-3); cursor: pointer; } .ds-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; } .ds-btn:disabled { opacity: 0.5; cursor: default; }"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "영역당 하나의 주 행동.",
+      "html": "<button class=\"ds-btn-primary\">승인</button>",
+      "css": ".ds-btn-primary { font: inherit; font-size: var(--fs-13); color: var(--ink); background: var(--accent); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: var(--space-1) var(--space-3); cursor: pointer; } .ds-btn-primary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "되돌리기 어려운 행동. 빨강 대신 흰 테두리.",
+      "html": "<button class=\"ds-btn-danger\">중단</button>",
+      "css": ".ds-btn-danger { font: inherit; font-size: var(--fs-13); color: var(--bad); background: var(--surface-3); border: 1px solid var(--bad); border-radius: var(--radius-sm); padding: var(--space-1) var(--space-3); cursor: pointer; } .ds-btn-danger:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "세컨드 브레인 검색 입력.",
+      "html": "<input class=\"ds-input\" placeholder=\"노트 검색\">",
+      "css": ".ds-input { font: inherit; font-size: var(--fs-13); color: var(--ink); background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); min-height: 40px; } .ds-input::placeholder { color: var(--ink-faint); } .ds-input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "태스크 상태 칩. 강조는 accent 테두리 + accent-hover 글자, 실패는 흰색.",
+      "html": "<span class=\"ds-chip\">대기</span> <span class=\"ds-chip ds-chip-accent\">검수</span> <span class=\"ds-chip ds-chip-bad\">r3/5</span>",
+      "css": ".ds-chip { font-size: var(--fs-12); color: var(--ink-subtle); border: 1px solid var(--line-strong); border-radius: var(--radius-lg); padding: 0 var(--space-2); white-space: nowrap; } .ds-chip-accent { color: var(--accent-hover); border-color: var(--accent); } .ds-chip-bad { color: var(--bad); border-color: var(--bad); }"
+    },
+    {
+      "name": "Stage Rail",
+      "kind": "nav",
+      "refersTo": "stage-rail-step",
+      "description": "파이프라인 단계 칩. 현재는 accent 면, 내 차례는 흰 고리 + 문구.",
+      "html": "<ol class=\"ds-rail\"><li class=\"is-done\">요구사항</li><li class=\"is-current\">기획</li><li class=\"is-waiting\">스펙 승인 · 내 차례</li><li>개발</li></ol>",
+      "css": ".ds-rail { display: flex; gap: var(--space-1); margin: 0; padding: 0; list-style: none; font-size: var(--fs-12); } .ds-rail li { padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); color: var(--ink-faint); transition: color var(--dur), background var(--dur); } .ds-rail li.is-done { color: var(--ink-subtle); } .ds-rail li.is-current { color: var(--ink); background: var(--accent); } .ds-rail li.is-waiting { color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); font-weight: 600; }"
+    },
+    {
+      "name": "Section",
+      "kind": "custom",
+      "description": "홈 블록 틀. 상자 없이 위쪽 2px accent 선 + 제목 줄.",
+      "html": "<section class=\"ds-hs\"><header class=\"ds-hs-head\"><h2>진행 중 실행</h2><span class=\"ds-hs-meta\">2개</span></header><p class=\"ds-hs-body\">● 정상 · ○ 꺼짐 · ✕ 실패</p></section>",
+      "css": ".ds-hs { border-top: 2px solid var(--accent); padding-top: var(--space-4); } .ds-hs-head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); } .ds-hs-head h2 { margin: 0; font-size: var(--fs-16); font-weight: 700; color: var(--ink); } .ds-hs-meta { color: var(--ink-subtle); font-size: var(--fs-12); } .ds-hs-body { margin: 0; color: var(--ink-muted); font-size: var(--fs-13); }"
+    },
+    {
+      "name": "Deadlock Row",
+      "kind": "card",
+      "description": "내 차례 받은편지함의 교착 항목. 면과 흰 테두리로 따로 세운다.",
+      "html": "<div class=\"ds-deadlock\"><span class=\"ds-deadlock-kind\">✕ 교착</span><strong>T3 로그인 폼 검수 반려 5회</strong><span class=\"ds-deadlock-detail\">같은 지적 F-2 반복</span></div>",
+      "css": ".ds-deadlock { display: flex; flex-direction: column; gap: 2px; padding: var(--space-3) var(--space-4); border: 1px solid var(--ink); border-radius: var(--radius-md); background: var(--surface-2); color: var(--ink); } .ds-deadlock-kind { font-size: var(--fs-12); font-weight: 600; } .ds-deadlock strong { font-size: var(--fs-16); font-weight: 600; } .ds-deadlock-detail { font-size: var(--fs-13); }"
+    },
+    {
+      "name": "Header Popover",
+      "kind": "card",
+      "refersTo": "popover",
+      "description": "상단 도구 패널(메시지·알림·설정). 그림자를 갖는 유일한 계층.",
+      "html": "<div class=\"ds-pop\"><header><strong>알림</strong><small>모두 읽음</small></header><p>새 알림이 없습니다.</p></div>",
+      "css": ".ds-pop { width: 340px; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius-lg); padding: var(--space-4); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6); color: var(--ink); } .ds-pop header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: var(--space-3); } .ds-pop strong { font-size: var(--fs-14); } .ds-pop small { color: var(--ink-subtle); font-size: var(--fs-12); } .ds-pop p { margin: 0; color: var(--ink-subtle); font-size: var(--fs-13); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "야간 관제실의 상황판",
+    "overview": "NEWTEAM 대시보드는 오래 띄워 두고 몇 초씩 훑어보는 관제 화면이다. 바탕은 완전한 검정(`black`)이고 그 위에 회색 단계로 면을 아주 조금씩 올린다. 유채색은 포인트색(`accent`) 하나뿐이며, 진행 중인 단계, 섹션의 시작선, 선택된 항목, 활동량 히트맵처럼 \"지금 여기\"를 가리키는 자리에만 쓴다. 나머지는 흰 글자와 회색 위계로 조용히 흐른다.\n\n상태는 색이 아니라 기호와 글로 전달한다. 정상은 ●, 꺼짐은 ○, 실패는 ✕이고 항상 옆에 문구가 붙는다. 실패를 빨간색으로 칠하지 않고, 흰 글자와 굵기, 흰 테두리 같은 형태로 세운다. 사람이 개입해야 하는 순간(스펙 승인, 교착)만 흰 테두리와 굵은 글씨로 눈에 띄게 하고, 나머지는 평평하게 둔다.\n\n읽기 화면은 다른 재료를 쓴다. 완료 보고서와 파이프라인 개요는 흰 종이(`.paper`) 위의 검은 글자와 명조 제목으로 바뀐다. 어두운 관제와 밝은 문서라는 두 재료가 같은 포인트색 하나로 이어진다.",
+    "keyCharacteristics": [
+      "검정 바탕, 포인트색 하나(`accent`), 나머지는 무채색 9단계.",
+      "상태는 ●/○/✕ 기호 + 문구. 색만으로 상태를 말하지 않는다.",
+      "섹션은 상자 없이 위쪽 2px 포인트색 선과 제목 줄로 나눈다.",
+      "그림자는 떠 있는 팝오버에만. 나머지는 테두리와 면 단계로 깊이를 만든다.",
+      "조밀한 글자 단계(12/13/14/16/20px)와 4px 간격 단위.",
+      "문서 화면은 흰 종이, 검은 글자, 명조 제목."
+    ],
+    "rules": [
+      { "name": "The One Hue Rule", "body": "유채색은 `accent` 하나뿐이다. 상태, 카테고리, 장식을 위해 다른 색상을 추가하지 않는다. 히트맵 단계도 `accent`를 `surface-2`에 35/60/80/100%로 섞어 만든다.", "section": "colors" },
+      { "name": "The Accent Is Not Ink Rule", "body": "`accent`는 검정 위 작은 글자 대비가 약 4.4:1이라 본문 글자색으로 쓰지 않는다. 포인트색 글자가 필요하면 `accent-hover`를 쓴다. `accent` 면 위의 글자는 `white`다.", "section": "colors" },
+      { "name": "The Glyph-and-Word Rule", "body": "상태는 ● 정상, ○ 꺼짐, ✕ 실패 기호와 문구로 전달한다. 성공만 포인트색 계열이고, 실패와 주의는 흰색 + 형태(굵기, 흰 테두리, ✕)로 구분한다(`--ok`, `--bad`, `--warn`).", "section": "colors" },
+      { "name": "The Five Steps Rule", "body": "글자 크기는 `--fs-12`, `--fs-13`, `--fs-14`, `--fs-16`, `--fs-20` 다섯 단계 안에서 고른다. 예외는 지표 숫자(32px) 하나다.", "section": "typography" },
+      { "name": "The Mono Is Evidence Rule", "body": "모노는 수치, ID, 원본처럼 기계가 낸 값에만 쓴다. 제목이나 문장에 모노를 쓰지 않는다.", "section": "typography" },
+      { "name": "The My-Turn-First Rule", "body": "화면이 좁아질수록 \"내 차례\"와 \"진행 중 실행\"이 위로 온다. 레이아웃을 바꿀 때 이 순서를 지킨다.", "section": "layout" },
+      { "name": "The Shadow Only Floats Rule", "body": "카드, 섹션, 버튼에는 그림자를 주지 않는다. 다른 내용 위에 떠 있는 요소만 그림자를 갖는다.", "section": "elevation" }
+    ],
+    "dos": [
+      "**Do** 유채색이 필요하면 `accent` 하나로 해결하고, 단계가 필요하면 `surface-2`와 섞는다.",
+      "**Do** 포인트색 글자는 `accent-hover`로, `accent` 면 위 글자는 `white`로 쓴다.",
+      "**Do** 상태마다 ●/○/✕ 기호와 문구를 함께 붙인다.",
+      "**Do** 홈 블록은 Section 틀(위쪽 2px `accent` 선 + 제목 줄)로 시작한다.",
+      "**Do** 사람이 처리할 일은 흰 테두리·굵은 글씨로 세우고(교착 카드, 단계 레일 `is-waiting`), 진행 중인 일은 `accent` 면으로 표시한다.",
+      "**Do** 아이콘은 `currentColor` 선 SVG(18px, `stroke-width 1.8`)로 그린다.",
+      "**Do** 전환은 `--dur`(200ms)로 색·면·테두리에만 주고, `prefers-reduced-motion`에서는 모두 끈다."
+    ],
+    "donts": [
+      "**Don't** 두 번째 유채색(빨강, 초록, 노랑 등)을 상태 표시용으로 들이지 않는다.",
+      "**Don't** `accent`(#2779a7)를 12~14px 본문 글자색으로 쓰지 않는다.",
+      "**Don't** 색만으로 상태를 구분하지 않는다.",
+      "**Don't** 섹션을 테두리 상자나 그림자 카드로 감싸지 않는다.",
+      "**Don't** 팝오버가 아닌 요소에 드롭 그림자를 주지 않는다.",
+      "**Don't** 관제 화면에 종이 재료(흰 면, 명조 제목)를 섞지 않는다. 종이는 읽기 화면 전용이다."
+    ]
+  }
+}

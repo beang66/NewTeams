@@ -40,12 +40,14 @@ export function optionSummary(v: SkillOption): string {
 
 interface Props {
   skill: { id: string; name: string; maker: string; placeholder?: string }
+  /** 팝오버를 붙일 '옵션' 버튼 */
+  anchor: HTMLElement
   onClose: () => void
   onSaved: (v: SkillOption) => void
 }
 
-export function SkillOptionsDialog({ skill, onClose, onSaved }: Props) {
-  const ref = useRef<HTMLDialogElement>(null)
+export function SkillOptionsDialog({ skill, anchor, onClose, onSaved }: Props) {
+  const ref = useRef<HTMLDivElement>(null)
   const models = skill.maker === 'Claude' ? CLAUDE_MODELS : CODEX_MODELS
   const initial = loadOption(skill.id)
   const [model, setModel] = useState(models.includes(initial.model as never) ? initial.model : '기본 모델')
@@ -55,8 +57,16 @@ export function SkillOptionsDialog({ skill, onClose, onSaved }: Props) {
   const draftKey = `${key(skill.id)}.draft`
   useEffect(() => {
     try { const d = localStorage.getItem(draftKey); if (d !== null) setPrompt(d.slice(0, PROMPT_MAX)) } catch { /* 없음 */ }
-    ref.current?.showModal()
-  }, [draftKey])
+    const el = ref.current
+    if (!el) return
+    // 옵션 버튼 아래(공간이 모자라면 위)에 붙이고, 화면 밖으로 나가지 않게 가로 위치를 자른다.
+    el.showPopover()
+    const a = anchor.getBoundingClientRect()
+    const w = el.offsetWidth, h = el.offsetHeight, gap = 8
+    const below = a.bottom + gap + h <= window.innerHeight
+    el.style.top = `${Math.max(gap, below ? a.bottom + gap : a.top - gap - h)}px`
+    el.style.left = `${Math.min(Math.max(gap, a.right - w), window.innerWidth - w - gap)}px`
+  }, [draftKey, anchor])
   useEffect(() => { try { localStorage.setItem(draftKey, prompt) } catch { /* 없음 */ } }, [draftKey, prompt])
 
   const save = () => {
@@ -64,16 +74,17 @@ export function SkillOptionsDialog({ skill, onClose, onSaved }: Props) {
     saveOption(skill.id, v)
     try { localStorage.removeItem(draftKey) } catch { /* 없음 */ }
     onSaved(v)
-    ref.current?.close()
+    ref.current?.hidePopover()
   }
   const cancel = () => {
     try { localStorage.removeItem(draftKey) } catch { /* 없음 */ }
-    ref.current?.close()
+    ref.current?.hidePopover()
   }
 
   return (
-    <dialog ref={ref} className="so" aria-labelledby="so-title" onClose={onClose} onCancel={() => { try { localStorage.removeItem(draftKey) } catch { /* 없음 */ } }}>
-      <form method="dialog" className="so-body" onSubmit={(e) => { e.preventDefault(); save() }}>
+    <div ref={ref} popover="auto" role="dialog" className="so" aria-labelledby="so-title"
+      onToggle={(e) => { if ((e as unknown as ToggleEvent).newState === 'closed') { anchor.focus(); onClose() } }}>
+      <form className="so-body" onSubmit={(e) => { e.preventDefault(); save() }}>
         <header className="so-head">
           <h2 id="so-title">프롬프트 · 실행 설정</h2>
           <span className="mono so-skill">{skill.name}</span>
@@ -121,7 +132,7 @@ export function SkillOptionsDialog({ skill, onClose, onSaved }: Props) {
           <button type="submit" className="btn is-primary so-save">저장</button>
         </footer>
       </form>
-    </dialog>
+    </div>
   )
 }
 

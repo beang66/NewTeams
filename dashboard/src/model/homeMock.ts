@@ -9,12 +9,15 @@ export interface MyTurn {
   detail: string
   at: string
   href: string
+  project: string
 }
 export interface ActiveRun {
   id: string
   project: string
   title: string
   stage: Stage
+  /** 사람이 처리해야 다음으로 넘어가는 단계. 있으면 단계 표시줄에 '내 차례'로 표시한다. */
+  waitingFor?: Stage
   note: string
 }
 export interface Goal { id: string; title: string; metric: string; current: number | null; target: number; unit: string; due: string }
@@ -29,14 +32,14 @@ export interface BrainCluster { key: string; label: string; count: number }
 export const projects = ['NEWTEAMs 대시보드', 'WordPress 사이트', 'SQLD']
 
 export const myTurn: MyTurn[] = [
-  { id: 'm1', kind: 'spec', title: 'WordPress 소개 페이지 스펙 승인', detail: '수용 기준 4개 · 초안 준비됨', at: '09:05', href: '#/run' },
-  { id: 'm2', kind: 'deadlock', title: '홈 대시보드 t3 교착', detail: '같은 지적 2회 반복 · 마스터 해결 실패', at: '08:52', href: '#/run' },
-  { id: 'm3', kind: 'publish', title: '블로그 글: AI 에이전트로 1인 업무 자동화', detail: 'WordPress · 게시 승인', at: '08:40', href: '#/run' },
+  { id: 'm1', kind: 'spec', title: 'WordPress 소개 페이지 스펙 승인', detail: '수용 기준 4개 · 초안 준비됨', at: '09:05', href: '#/run', project: 'WordPress 사이트' },
+  { id: 'm2', kind: 'deadlock', title: '홈 대시보드 t3 교착', detail: '같은 지적 2회 반복 · 마스터 해결 실패', at: '08:52', href: '#/run', project: 'NEWTEAMs 대시보드' },
+  { id: 'm3', kind: 'publish', title: '블로그 글: AI 에이전트로 1인 업무 자동화', detail: 'WordPress 사이트에 올릴 글', at: '08:40', href: '#/run', project: 'WordPress 사이트' },
 ]
 
 export const activeRuns: ActiveRun[] = [
   { id: 'r1', project: 'NEWTEAMs 대시보드', title: '홈 화면 통합', stage: 'BUILD', note: '태스크 5개 중 2개 승인 · 병렬 3' },
-  { id: 'r2', project: 'WordPress 사이트', title: '소개 페이지 작성', stage: 'INTAKE', note: '요구사항 정리 끝 · 스펙 승인 대기' },
+  { id: 'r2', project: 'WordPress 사이트', title: '소개 페이지 작성', stage: 'INTAKE', waitingFor: 'SPEC_APPROVED', note: '요구사항 정리 끝 · 스펙 승인 대기' },
 ]
 
 export const quickStarts: QuickStart[] = [
@@ -53,9 +56,7 @@ export const goals: Goal[] = [
 ]
 
 export const todayTasks: TodayTask[] = [
-  { id: 't1', title: '소개 페이지 스펙 검토', project: 'WordPress', due: '10:00', done: true },
   { id: 't2', title: 'SQLD 2과목 오답 정리', project: 'SQLD', due: '14:00', done: false },
-  { id: 't3', title: '주간 콘텐츠 제안 승인', project: '콘텐츠', due: '18:00', done: false },
 ]
 
 export const week: WeekDay[] = [

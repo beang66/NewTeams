@@ -10,11 +10,13 @@ test('홈: 내 차례와 진행 중 실행에서 관제로 이동하고 돌아�
   await expect(page.getByRole('region', { name: '세컨드 브레인' })).toBeVisible()
   await expect(page.getByText('목업 데이터')).toBeVisible()
 
-  await page.getByRole('group', { name: '분류로 강조' }).getByRole('button', { name: /프로젝트 184/ }).click()
-  await expect(page.getByRole('button', { name: '프로젝트 184개' })).toHaveAttribute('aria-pressed', 'true')
+  const groups = page.getByRole('group', { name: '분류로 강조' })
+  await groups.getByRole('button', { name: /프로젝트 184/ }).click()
+  await expect(groups.getByRole('button', { name: /프로젝트 184/ })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByRole('region', { name: '스킬' }).getByRole('listitem')).toHaveCount(4) // 한 쪽에 4개
   await page.getByRole('button', { name: '2쪽' }).click()
   await expect(page.getByRole('region', { name: '스킬' }).getByRole('listitem')).toHaveCount(2)
+  await page.getByRole('button', { name: /다른 대시보드/ }).click()
   await expect(page.getByRole('region', { name: '다른 대시보드' })).toContainText('아이디어 패드')
 
   await page.getByRole('region', { name: '진행 중 실행' }).getByRole('link').first().click()
@@ -22,6 +24,17 @@ test('홈: 내 차례와 진행 중 실행에서 관제로 이동하고 돌아�
   await expect(page.getByRole('heading', { name: '에이전트 관제' })).toBeVisible()
   await page.getByRole('link', { name: '홈으로' }).click()
   await expect(page.getByRole('region', { name: '내 차례' })).toBeVisible()
+})
+
+test('홈: 교착이 맨 위에 오고, 프로젝트를 고르면 내 차례·실행이 걸러진다', async ({ page }) => {
+  await mockApi(page, 'build')
+  await page.goto('/')
+  const turn = page.getByRole('region', { name: '내 차례' })
+  await expect(turn.getByRole('listitem').first()).toContainText('교착')
+  await page.getByLabel('현재 프로젝트').selectOption('WordPress 사이트')
+  await expect(turn.getByRole('listitem')).toHaveCount(2)
+  await expect(turn.getByRole('listitem').filter({ hasText: '교착 · 해결 필요' })).toHaveCount(0)
+  await expect(page.getByRole('region', { name: '진행 중 실행' }).getByRole('link')).toHaveCount(1)
 })
 
 test('홈(모바일): 내 차례가 맨 위, 가로 스크롤 없음', async ({ page }) => {

@@ -1,4 +1,5 @@
-import { promises as fs } from 'node:fs'
+// 네임스페이스 import: 대시보드가 이 파일을 브라우저에서 불러도 로드 시점에 node:fs에 접근하지 않게
+import * as fs from 'node:fs/promises'
 import type { Envelope, Verdict } from '../protocol/messages.js'
 import { PlanSchema, type Plan } from '../protocol/plan.js'
 import type { ProjectStore } from '../store/projectStore.js'

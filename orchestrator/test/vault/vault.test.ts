@@ -122,7 +122,7 @@ describe('Vault HTTP', { timeout: 30_000 }, () => {
 })
 
 it('vault 설정 기본값과 검증', () => {
-  expect(resolveConfig({}).vault).toEqual({ path: null, read: ['01 Projects', 'wiki'], inbox: '01 Projects/[진행] NEWTEAMs AI Agent Studio/AI Inbox' })
+  expect(resolveConfig({}).vault).toEqual({ path: 'C:\Users\JB\Documents\Obsidian Vault', github: 'https://github.com/beang66/Vault', read: ['01 Projects', 'wiki'], inbox: '01 Projects/[진행] NEWTEAMs AI Agent Studio/AI Inbox' })
   expect(resolveConfig({ vault: { path: 'C:/V' } as never }).vault.path).toBe('C:/V')
   expect(() => resolveConfig({ vault: { read: [] } as never })).toThrow(/vault 설정 오류/)
 })

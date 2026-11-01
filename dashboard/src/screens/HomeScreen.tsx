@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, type VaultGraph, type VaultHit, type VaultSummary } from '../api/client'
 import { forceLayout } from '../model/forceLayout'
 import { StageRail } from '../components/StageRail'
+import { SectionIcon } from '../components/SectionIcons'
 import { TelegramChip } from '../components/TelegramChip'
 import { Clock, MessagePanel, NotificationPanel, SettingsPanel } from '../components/HeaderTools'
 import { SkillOptionsDialog, loadOption, optionSummary, type SkillOption } from '../components/SkillOptions'
@@ -11,21 +12,21 @@ import {
 } from '../model/homeMock'
 
 /*
- * 통합 홈. 참고 이미지(CHATdaeri)와 같은 기능은 같은 배치로 둔다.
- *   왼쪽: 채널 지표 카드 → 목표(접힘) → 캘린더(주간 막대 + 선택일 일정) → 최근 산출물(접힘) → 다른 대시보드
- *   가운데: 세컨드 브레인(빛나는 군집 그래프 + 열기 링크)
- *   오른쪽: 내 차례(받은편지함 형식) → 진행 중 실행 → 스킬(검색 + 2열 카드) → 루틴(Windows 예약)
+ * 통합 홈. 관제가 먼저다(PRODUCT.md 원칙 1): 사람이 할 일과 진행 상태를 첫 열에 둔다.
+ *   첫 열(관제): 내 차례 → 진행 중 실행 → 루틴
+ *   가운데: 캘린더 → 스킬 → 세컨드 브레인(작게)
+ *   오른쪽: 채널 지표 → 목표(접힘) → 최근 산출물(접힘) → 다른 대시보드(접힘)
  */
 
 const nf = new Intl.NumberFormat('ko-KR')
 const fmt = (n: number | null) => (n === null ? '—' : nf.format(n))
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 
-function Section({ title, icon, meta, area, action, children }: { title: string; icon: string; meta?: ReactNode; area: string; action?: ReactNode; children?: ReactNode }) {
+function Section({ id, title, meta, area, action, children }: { id?: string; title: string; meta?: ReactNode; area: string; action?: ReactNode; children?: ReactNode }) {
   return (
-    <section className={`hs ha-${area}`} aria-label={title}>
+    <section id={id} tabIndex={id ? -1 : undefined} className={`hs ha-${area}`} aria-label={title}>
       <header className="hs-head">
-        <span className="hs-icon" aria-hidden="true">{icon}</span>
+        <span className="hs-icon" aria-hidden="true"><SectionIcon name={area} /></span>
         <h2>{title}</h2>
         {meta !== undefined && <span className="hs-meta">{meta}</span>}
         {action}
@@ -36,12 +37,12 @@ function Section({ title, icon, meta, area, action, children }: { title: string;
 }
 
 /** 접히는 한 줄 섹션(참고 이미지의 '목표 ›', '최근 파일 ›'). */
-function Fold({ title, icon, meta, area, children }: { title: string; icon: string; meta?: ReactNode; area: string; children: ReactNode }) {
+function Fold({ title, meta, area, children }: { title: string; meta?: ReactNode; area: string; children: ReactNode }) {
   const [open, setOpen] = useState(false)
   return (
     <section className={`hs ha-${area} hs-fold`} aria-label={title}>
       <button type="button" className="hs-head hs-fold-btn" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <span className="hs-icon" aria-hidden="true">{icon}</span>
+        <span className="hs-icon" aria-hidden="true"><SectionIcon name={area} /></span>
         <h2>{title}</h2>
         {meta !== undefined && <span className="hs-meta">{meta}</span>}
         <span className="hs-chev" aria-hidden="true">{open ? '⌄' : '›'}</span>
@@ -96,7 +97,7 @@ function HomeTop({ project, onProject }: { project: string; onProject: (p: strin
 
 function channelState(c: Channel) {
   if (c.status === 'connected') return <Dot tone="ok">갱신 · {c.updatedAt} 기준</Dot>
-  if (c.status === 'error') return <Dot tone="bad">연결 오류 · 재연결 필요</Dot>
+  if (c.status === 'error') return <Dot tone="bad">연결 오류 · 키 확인 필요</Dot>
   return <Dot tone="off">미연결</Dot>
 }
 
@@ -121,7 +122,7 @@ function Stats() {
 
 function GoalsFold() {
   return (
-    <Fold area="goals" icon="▥" title="목표" meta="11/1 ~ 12/31 · D-60">
+    <Fold area="goals" title="목표" meta="11/1 ~ 12/31 · D-60">
       <ul className="hs-list">
         {goals.map((g) => {
           const pct = g.current === null ? null : Math.min(100, Math.round((g.current / g.target) * 100))
@@ -155,13 +156,9 @@ function Calendar() {
   const dow = WEEKDAYS[new Date(year, month - 1, selected).getDay()]
   const count = dayEvents.length + (isToday ? todayTasks.length : 0)
   return (
-    <Section area="calendar" icon="▦" title="캘린더" meta="일정·실행·게시"
+    <Section area="calendar" title="캘린더" meta="일정·실행·게시"
       action={
-        <span className="hs-month">
-          <button type="button" className="hs-nav" aria-label="이전 달" disabled>‹</button>
-          <span className="mono">{year}.{String(month).padStart(2, '0')}</span>
-          <button type="button" className="hs-nav" aria-label="다음 달" disabled>›</button>
-        </span>
+        <span className="hs-month mono">{year}.{String(month).padStart(2, '0')}</span>
       }>
       <table className="hs-cal">
         <thead>
@@ -176,7 +173,7 @@ function Calendar() {
                   {d && (
                     <button type="button" className={`hs-day lv-${level(counts[d] ?? 0)}${d === selected ? ' is-sel' : ''}${d === today ? ' is-today' : ''}`}
                       aria-pressed={d === selected} aria-label={`${month}월 ${d}일 일정 ${counts[d] ?? 0}건`} onClick={() => setSelected(d)}>
-                      {d === today && <i aria-hidden="true" />}
+                      <span aria-hidden="true">{d}</span>
                     </button>
                   )}
                 </td>
@@ -216,7 +213,7 @@ function Calendar() {
 
 function OutputsFold() {
   return (
-    <Fold area="outputs" icon="↺" title="최근 산출물" meta={`${outputs.length}건 · 근거와 함께`}>
+    <Fold area="outputs" title="최근 산출물" meta={`${outputs.length}건 · 근거와 함께`}>
       <ul className="hs-list">
         {outputs.map((o) => (
           <li key={o.id} className="hs-row"><span className="hs-grow">{o.title}<small>{o.kind} · {o.evidence}</small></span><span className="hs-meta">{o.at}</span></li>
@@ -228,14 +225,14 @@ function OutputsFold() {
 
 function Boards() {
   return (
-    <Section area="boards" icon="▤" title="다른 대시보드">
+    <Fold area="boards" title="다른 대시보드" meta={`${boards.filter((b) => b.href).length}개 사용 가능 · ${boards.filter((b) => !b.href).length}개 준비 중`}>
       <ul className="hs-boards">
         {boards.map((b) => {
-          const body = (<><span className="hs-tile" aria-hidden="true">{b.icon}</span><span className="hs-grow"><strong>{b.title}</strong><small>{b.count !== null ? `${b.count}개 · ` : ''}{b.desc}{b.href ? '' : ' · 준비 중'}</small></span><span className="hs-arrow" aria-hidden="true">↗</span></>)
+          const body = (<><span className="hs-tile" aria-hidden="true">{b.icon}</span><span className="hs-grow"><strong>{b.title}</strong><small>{b.count !== null ? `${b.count}개 · ` : ''}{b.desc}{b.href ? '' : ' · 준비 중'}</small></span><span className="hs-arrow" aria-hidden="true">›</span></>)
           return <li key={b.id}>{b.href ? <a href={b.href} className="hs-board">{body}</a> : <span className="hs-board is-disabled" aria-disabled="true">{body}</span>}</li>
         })}
       </ul>
-    </Section>
+    </Fold>
   )
 }
 
@@ -293,9 +290,9 @@ function BrainGraph({ data, selected, onSelect }: { data: BrainCluster[]; select
         <filter id="hb-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
       </defs>
       {nodes.map((n) => (
-        <g key={n.key} role="button" tabIndex={0} aria-label={`${n.label} ${n.count}개`} aria-pressed={selected === n.key}
-          className={`hb-cluster${selected === n.key ? ' is-on' : ''}${selected && selected !== n.key ? ' is-dim' : ''}`}
-          onClick={() => onSelect(n.key)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(n.key) } }}>
+        // 키보드·스크린리더는 위 분류 버튼으로 같은 일을 한다. 그림 속 군집은 마우스용 지름길이다.
+        <g key={n.key} className={`hb-cluster${selected === n.key ? ' is-on' : ''}${selected && selected !== n.key ? ' is-dim' : ''}`}
+          onClick={() => onSelect(n.key)}>
           <circle cx={n.x} cy={n.y} r={n.r * 1.08} fill="url(#hb-fill)" />
           <g filter="url(#hb-glow)">
             {n.dots.map(([x, y, s, o], j) => <circle key={j} cx={x} cy={y} r={s} className="hb-dot" opacity={o} />)}
@@ -320,7 +317,9 @@ function NoteGraph({ graph, vaultName, group }: { graph: VaultGraph; vaultName: 
     const kept = [...graph.nodes].sort((a, b) => b.degree - a.degree).slice(0, MAX_GRAPH_NODES)
     const ids = new Set(kept.map((n) => n.id))
     const ls = graph.links.filter((l) => ids.has(l.source) && ids.has(l.target))
-    const laid = forceLayout(kept, ls, { width: W, height: H })
+    // 쌍 계산 수가 약 1,000만 번을 넘지 않게 반복 횟수를 줄인다(600노드면 60회). 메인 스레드가 오래 멈추지 않게.
+    const pairs = Math.max(1, (kept.length * (kept.length - 1)) / 2)
+    const laid = forceLayout(kept, ls, { width: W, height: H, iterations: Math.max(60, Math.min(260, Math.round(1e7 / pairs))) })
     const meta = new Map(kept.map((n) => [n.id, n]))
     return { nodes: laid, links: ls, meta }
   }, [graph])
@@ -398,7 +397,7 @@ function SecondBrain() {
   return (
     <section className="hs hb ha-brain" aria-label="세컨드 브레인">
       <header className="hs-head">
-        <span className="hs-icon" aria-hidden="true">◎</span>
+        <span className="hs-icon" aria-hidden="true"><SectionIcon name="brain" /></span>
         <h2>세컨드 브레인</h2>
         <span className="hs-meta">
           {live ? `Obsidian 기준 · 노트 ${nf.format(total)}${live.truncated ? '+' : ''}` : vault?.state === 'error' ? 'Obsidian 연결 오류 · 예시 값' : `Obsidian 연결 안 됨 · 예시 값 · ${obsidianLastSync}`}
@@ -415,11 +414,10 @@ function SecondBrain() {
         {live && graph ? (graph.nodes.length === 0 ? <p className="hs-meta">허용 폴더에 노트가 없습니다</p> : <NoteGraph graph={graph} vaultName={live.name} group={selected} />)
           : data.length === 0 ? <p className="hs-meta">허용 폴더에 노트가 없습니다</p> : <BrainGraph data={data} selected={selected} onSelect={toggle} />}
       </div>
-      <ul className="sr-only" aria-label="분류별 노트 수">{data.map((c) => <li key={c.key}>{c.label} {c.count}</li>)}</ul>
       <form className="hb-search" onSubmit={search}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} aria-label="세컨드 브레인 검색"
-          placeholder={selected ? `${data.find((b) => b.key === selected)?.label}에서 검색` : '노트 검색'} />
-        <button type="submit" className="btn">검색</button>
+        <input value={q} onChange={(e) => setQ(e.target.value)} aria-label="세컨드 브레인 검색" disabled={!live}
+          placeholder={!live ? 'Obsidian 연결 후 검색할 수 있습니다' : selected ? `${data.find((b) => b.key === selected)?.label}에서 검색` : '노트 검색'} />
+        <button type="submit" className="btn" disabled={!live}>검색</button>
       </form>
       {err && <p className="hs-meta hb-msg" role="status">{err}</p>}
       {hits && (
@@ -434,7 +432,7 @@ function SecondBrain() {
           ))}
         </ul>
       )}
-      {openHref ? <a className="hb-open" href={openHref}>눌러서 세컨드 브레인 열기 ↗</a> : <span className="hb-open is-disabled">Obsidian 연결 후 열 수 있습니다</span>}
+      {openHref ? <a className="hb-open" href={openHref}>Obsidian에서 열기 ↗</a> : <span className="hb-open is-disabled">Obsidian 연결 후 열 수 있습니다</span>}
     </section>
   )
 }
@@ -442,39 +440,43 @@ function SecondBrain() {
 /* ---------- 오른쪽 ---------- */
 
 const TURN_LABEL: Record<MyTurn['kind'], string> = { spec: '스펙 승인', deadlock: '교착 · 해결 필요', publish: '게시 승인' }
+// 교착이 가장 드물고 무겁다. 시간보다 긴급도 순으로 놓는다.
+const TURN_ORDER: Record<MyTurn['kind'], number> = { deadlock: 0, spec: 1, publish: 2 }
 
-function MyTurnInbox() {
-  const [checked, setChecked] = useState<Set<string>>(new Set())
+function MyTurnInbox({ project }: { project: string }) {
+  const items = myTurn.filter((t) => !project || t.project === project).sort((x, y) => TURN_ORDER[x.kind] - TURN_ORDER[y.kind])
   return (
-    <Section area="turn" icon="✉" title="내 차례" meta={<><b className="hs-count">{myTurn.length}</b> 승인·교착·게시</>}>
-      <ul className="hs-inbox" id="my-turn">
-        {myTurn.map((t) => (
-          <li key={t.id} className={`hs-mail is-${t.kind}`}>
-            <input type="checkbox" aria-label={`${t.title} 선택`} checked={checked.has(t.id)}
-              onChange={() => setChecked((s) => { const n = new Set(s); if (n.has(t.id)) n.delete(t.id); else n.add(t.id); return n })} />
-            <i className="hs-unread" aria-label={t.kind === 'deadlock' ? '긴급' : '새 항목'} />
-            <a href={t.href} className="hs-grow">
-              <strong>{t.title}</strong>
-              <span className="hs-mail-kind">{TURN_LABEL[t.kind]} · {t.detail}</span>
-            </a>
-            <span className="hs-meta">{t.at}</span>
-          </li>
-        ))}
-      </ul>
-      <p className="hs-meta hs-foot">09:05 확인 · 최근 {myTurn.length}건</p>
+    <Section id="my-turn" area="turn" title="내 차례" meta={<><b className="hs-count">{items.length}</b> 승인·교착·게시</>}>
+      {items.length === 0 ? <p className="hs-meta">지금은 할 일이 없습니다. 에이전트가 계속 진행합니다.</p> : (
+        <ul className="hs-inbox">
+          {items.map((t) => (
+            <li key={t.id} className={`hs-mail is-${t.kind}`}>
+              <a href={t.href} className="hs-grow">
+                <span className="hs-mail-kind">{TURN_LABEL[t.kind]}</span>
+                <strong>{t.title}</strong>
+                <span className="hs-mail-detail">{t.detail}</span>
+                {t.kind === 'deadlock' && <span className="hs-mail-rule">반려 5회 또는 같은 지적 2회면 교착입니다. 마스터가 풀지 못해 사람에게 넘어왔고, 이 태스크는 멈춰 있습니다.</span>}
+              </a>
+              <span className="hs-meta">{t.at}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </Section>
   )
 }
 
-function Runs() {
+function Runs({ project }: { project: string }) {
+  const runs = activeRuns.filter((r) => !project || r.project === project)
   return (
-    <Section area="runs" icon="▶" title="진행 중 실행" meta={`${activeRuns.length}개`}>
+    <Section area="runs" title="진행 중 실행" meta={`${runs.length}개`}>
       <ul className="hs-list">
-        {activeRuns.map((r) => (
+        {runs.length === 0 && <li className="hs-meta">이 프로젝트에서 진행 중인 실행이 없습니다</li>}
+        {runs.map((r) => (
           <li key={r.id}>
             <a href="#/run" className="hs-run">
               <span className="hs-row"><strong>{r.title}</strong><small>{r.project}</small></span>
-              <StageRail stage={r.stage} />
+              <StageRail stage={r.stage} waitingFor={r.waitingFor} />
               <small>{r.note}</small>
             </a>
           </li>
@@ -489,15 +491,15 @@ const SKILLS_PER_PAGE = 4
 function Skills() {
   const [q, setQ] = useState('')
   const [page, setPage] = useState(0)
-  const [editing, setEditing] = useState<string | null>(null)
+  const [editing, setEditing] = useState<{ id: string; anchor: HTMLElement } | null>(null)
   const [opts, setOpts] = useState<Record<string, SkillOption>>(() => Object.fromEntries(skills.map((sk) => [sk.id, loadOption(sk.id)])))
   const shown = skills.filter((sk) => `${sk.name} ${sk.desc}`.toLowerCase().includes(q.trim().toLowerCase()))
   const pages = Math.max(1, Math.ceil(shown.length / SKILLS_PER_PAGE))
   const cur = Math.min(page, pages - 1)
   const slice = shown.slice(cur * SKILLS_PER_PAGE, cur * SKILLS_PER_PAGE + SKILLS_PER_PAGE)
-  const target = skills.find((sk) => sk.id === editing)
+  const target = skills.find((sk) => sk.id === editing?.id)
   return (
-    <Section area="skills" icon="✦" title="스킬" meta={skills.length}
+    <Section area="skills" title="스킬" meta={skills.length}
       action={<input className="hs-skill-search" value={q} onChange={(e) => { setQ(e.target.value); setPage(0) }} placeholder="⌕ 스킬 검색" aria-label="스킬 검색" />}>
       <ul className="hs-skills">
         {slice.map((sk) => (
@@ -505,8 +507,8 @@ function Skills() {
             <span className="hs-skill-name"><span className="hs-meta">{sk.maker} · </span><strong>{sk.name}</strong></span>
             <small>{sk.desc}</small>
             <span className="hs-skill-actions">
-              <a className="hs-play" href="#/run"><span aria-hidden="true">▶</span>{sk.state === 'input' ? '입력 화면' : '준비됨'}</a>
-              <button type="button" className="hs-opt" onClick={() => setEditing(sk.id)} aria-label={`${sk.name} 옵션: ${optionSummary(opts[sk.id]!)}`}>
+              <a className="hs-play" href="#/run"><span aria-hidden="true">▶</span>{sk.state === 'input' ? '입력하고 실행' : '실행'}</a>
+              <button type="button" className="hs-opt" onClick={(e) => setEditing({ id: sk.id, anchor: e.currentTarget })} aria-expanded={editing?.id === sk.id} aria-label={`${sk.name} 옵션: ${optionSummary(opts[sk.id]!)}`}>
                 옵션<small>{optionSummary(opts[sk.id]!)}</small>
               </button>
             </span>
@@ -522,7 +524,7 @@ function Skills() {
         </div>
       )}
       {target && (
-        <SkillOptionsDialog skill={target} onClose={() => setEditing(null)} onSaved={(v) => setOpts((o) => ({ ...o, [target.id]: v }))} />
+        <SkillOptionsDialog skill={target} anchor={editing!.anchor} onClose={() => setEditing(null)} onSaved={(v) => setOpts((o) => ({ ...o, [target.id]: v }))} />
       )}
     </Section>
   )
@@ -530,7 +532,7 @@ function Skills() {
 
 function RoutineList() {
   return (
-    <Section area="routines" icon="⟳" title="루틴" meta="Windows · PC 켜져 있을 때">
+    <Section area="routines" title="루틴" meta="Windows · PC 켜져 있을 때">
       <ul className="hs-list">
         {routineRuns.map((r) => (
           <li key={r.id} className="hs-routine">
@@ -546,27 +548,37 @@ function RoutineList() {
 
 /* ---------- 화면 ---------- */
 
+// 해시 라우터라 기본 앵커 이동 대신 직접 포커스를 옮긴다.
+function skipToTurn(e: React.MouseEvent) {
+  e.preventDefault()
+  const el = document.getElementById('my-turn')
+  el?.focus()
+  el?.scrollIntoView({ block: 'start' })
+}
+
 export function HomeScreen() {
   const [project, setProject] = useState('')
   return (
     <div className="home">
+      <a className="skip-link" href="#my-turn" onClick={skipToTurn}>내 차례로 건너뛰기</a>
       <HomeTop project={project} onProject={setProject} />
       <main className="hg">
-        <div className="hg-col hg-left">
-          <Stats />
-          <GoalsFold />
-          <Calendar />
-          <OutputsFold />
-          <Boards />
+        <h1 className="sr-only">홈 · 관제</h1>
+        <div className="hg-col hg-ops">
+          <MyTurnInbox project={project} />
+          <Runs project={project} />
+          <RoutineList />
         </div>
         <div className="hg-col hg-center">
+          <Calendar />
+          <Skills />
           <SecondBrain />
         </div>
-        <div className="hg-col hg-right">
-          <MyTurnInbox />
-          <Runs />
-          <Skills />
-          <RoutineList />
+        <div className="hg-col hg-side">
+          <Stats />
+          <GoalsFold />
+          <OutputsFold />
+          <Boards />
         </div>
       </main>
     </div>

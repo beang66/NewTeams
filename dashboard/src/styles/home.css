@@ -1,5 +1,9 @@
-/* 통합 홈. 참고 이미지 배치: 상단 바 + 3열(약 24 / 50 / 26). 섹션은 상자 없이 위쪽 포인트색 선으로 나눈다. */
+/* 통합 홈. 상단 바 + 3열(관제 / 일정·스킬·브레인 / 채널·기록). 섹션은 상자 없이 위쪽 포인트색 선으로 나눈다. */
 .home { display: flex; flex-direction: column; min-height: 100%; background: var(--bg); }
+
+/* 건너뛰기 링크: 포커스를 받을 때만 보인다. */
+.skip-link { position: absolute; left: var(--space-3); top: -48px; z-index: 20; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--ink); color: var(--bg); font-weight: 600; text-decoration: none; }
+.skip-link:focus { top: var(--space-2); }
 
 /* ---------- 상단 바 ---------- */
 .ht {
@@ -22,15 +26,14 @@
 
 /* ---------- 3열 ---------- */
 .hg { display: grid; gap: var(--space-6); align-items: start; padding: var(--space-5) var(--space-5) var(--space-6);
-  grid-template-columns: minmax(300px, 24fr) minmax(420px, 50fr) minmax(300px, 26fr); }
+  grid-template-columns: minmax(340px, 36fr) minmax(360px, 36fr) minmax(280px, 28fr); }
 .hg-col { display: flex; flex-direction: column; gap: var(--space-5); min-width: 0; }
-.hg-center { position: sticky; top: 72px; }
 
 /* 섹션: 위쪽 포인트색 선 + 제목 줄 */
 .hs { border-top: 2px solid var(--accent); padding-top: var(--space-4); }
 .hs-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-3); }
 .hs-head h2 { margin: 0; font-size: var(--fs-16); font-weight: 700; }
-.hs-icon { color: var(--ink-subtle); font-size: var(--fs-14); width: 18px; text-align: center; }
+.hs-icon { display: inline-grid; place-items: center; color: var(--ink-subtle); width: 18px; }
 .hs-meta, .hs small { color: var(--ink-subtle); font-size: var(--fs-12); }
 .hs small { display: block; }
 .hs-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
@@ -46,7 +49,7 @@
 .hs-fold-body { padding-bottom: var(--space-3); }
 
 .hs-dot { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-12); color: var(--ink-subtle); }
-.hs-dot i { font-style: normal; font-size: 9px; }
+.hs-dot i { font-style: normal; font-size: var(--fs-12); }
 .hs-dot.is-ok i { color: var(--accent-hover); }
 .hs-dot.is-bad { color: var(--ink); font-weight: 600; }
 .hs-dot.is-bad i { font-size: 11px; }
@@ -70,8 +73,6 @@
 
 /* 캘린더 */
 .hs-month { margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--fs-14); }
-.hs-nav { background: none; border: 0; color: var(--ink-subtle); font-size: 18px; cursor: pointer; padding: 0 4px; }
-.hs-nav:disabled { cursor: default; color: var(--ink-faint); }
 .hs-cal { width: 100%; border-collapse: separate; border-spacing: 4px; font-size: var(--fs-12); margin: 0 -4px; }
 .hs-cal th { font-weight: 400; color: var(--ink-subtle); text-align: center; white-space: nowrap; }
 .hs-cal tbody th { text-align: left; padding-right: var(--space-1); }
@@ -85,7 +86,10 @@
 .hs-day.lv-3 { background: color-mix(in srgb, var(--accent) 80%, var(--surface-2)); }
 .hs-day.lv-4 { background: var(--accent); }
 .hs-day.is-sel { outline: 2px solid var(--ink); outline-offset: 1px; }
-.hs-day.is-today i { position: absolute; inset: 0; margin: auto; width: 5px; height: 5px; border-radius: 50%; background: var(--ink); }
+/* 날짜 숫자를 칸 안에 둔다. 오늘은 흰 글자 굵게. */
+.hs-day { display: grid; place-items: center; font: inherit; font-size: var(--fs-12); color: var(--ink-subtle); font-variant-numeric: tabular-nums; }
+.hs-day.lv-3, .hs-day.lv-4 { color: var(--ink); }
+.hs-day.is-today { color: var(--ink); font-weight: 700; box-shadow: inset 0 0 0 1px var(--ink); }
 .hs-wbar { display: inline-block; width: calc(100% - 24px); height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden; margin-right: var(--space-2); }
 .hs-wbar i { display: block; height: 100%; background: var(--accent); }
 .hs-cal-foot { margin: var(--space-3) 0 var(--space-2); justify-content: flex-start; flex-wrap: wrap; }
@@ -112,17 +116,16 @@ a.hs-board:hover { border-color: var(--accent); }
 .hs-arrow { color: var(--ink-subtle); }
 
 /* ---------- 세컨드 브레인 ---------- */
-.hb { display: flex; flex-direction: column; min-height: calc(100vh - 140px); }
+.hb { display: flex; flex-direction: column; }
 .hb .hs-meta { line-height: 1.6; }
 .hb-groups { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-bottom: var(--space-2); }
 .hb-groups button { font: inherit; font-size: var(--fs-12); color: var(--ink-muted); background: var(--surface-2); border: 1px solid transparent; border-radius: 999px; padding: 2px 10px; cursor: pointer; }
 .hb-groups button[aria-pressed='true'] { border-color: var(--accent); color: var(--ink); background: var(--surface-3); }
-.hb-body { flex: 1; display: grid; place-items: center; min-height: 420px; }
-.hb-svg { width: 100%; height: auto; max-height: 640px; }
+.hb-body { display: grid; place-items: center; min-height: 240px; }
+.hb-svg { width: 100%; height: auto; max-height: 340px; }
 .hb-cluster { cursor: pointer; transition: opacity var(--dur); }
-.hb-cluster:focus-visible { outline: none; }
 .hb-cluster.is-dim { opacity: 0.25; }
-.hb-cluster.is-on .hb-hub, .hb-cluster:focus-visible .hb-hub { stroke: var(--ink); stroke-width: 2; }
+.hb-cluster.is-on .hb-hub { stroke: var(--ink); stroke-width: 2; }
 .hb-dot { fill: var(--accent-hover); }
 .hb-hub { fill: var(--accent); stroke: var(--accent-hover); stroke-width: 1.5; }
 .hb-hub-core { fill: var(--ink); }
@@ -134,11 +137,14 @@ a.hs-board:hover { border-color: var(--accent); }
 .hb-links line.is-on { stroke: var(--accent-hover); stroke-width: 1.6; }
 .hb-node circle { fill: var(--accent-hover); stroke: var(--bg); stroke-width: 1; transition: opacity var(--dur), fill var(--dur); cursor: pointer; }
 .hb-node.is-on circle, .hb-node:focus-visible circle { fill: var(--ink); }
-.hb-node:focus-visible { outline: none; }
+/* SVG 안에서는 윤곽선이 안 그려진다. 흰 고리로 포커스를 보인다. */
+.hb-node:focus { outline: none; }
+.hb-node:focus-visible circle { stroke: var(--ink); stroke-width: 3; paint-order: stroke; }
 .hb-node.is-dim circle { opacity: 0.2; }
 .hb-search { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
 .hb-search input { flex: 1; font: inherit; font-size: var(--fs-13); color: var(--ink); background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); min-height: 40px; }
 .hb-search input::placeholder { color: var(--ink-faint); }
+.hb-search input:disabled, .hb-search .btn:disabled { cursor: not-allowed; opacity: 0.6; }
 .hb-search .btn { padding: 0 var(--space-4); text-align: center; }
 .hb-msg { margin: var(--space-2) 0 0; }
 .hb-hits { margin-top: var(--space-3); max-height: 280px; overflow: auto; }
@@ -150,14 +156,22 @@ a.hb-open:hover { color: var(--ink); border-color: var(--line-strong); }
 
 /* ---------- 오른쪽 ---------- */
 /* 내 차례: 받은편지함 형식(참고 이미지의 이메일) */
-.hs-inbox { list-style: none; margin: 0; padding: 0; }
-.hs-mail { display: grid; grid-template-columns: 16px 8px 1fr auto; align-items: start; gap: var(--space-2) var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--line); }
-.hs-mail input { accent-color: var(--accent); width: 16px; height: 16px; margin: 2px 0 0; }
-.hs-unread { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-hover); margin-top: 6px; }
-.hs-mail.is-deadlock .hs-unread { background: var(--ink); box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--ink); }
-.hs-mail strong { display: block; font-size: var(--fs-14); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hs-mail-kind { display: block; font-size: var(--fs-13); color: var(--accent-hover); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hs-mail.is-deadlock .hs-mail-kind { color: var(--ink); font-weight: 600; }
+.hs-inbox { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.hs-mail { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--line); }
+.hs-mail .hs-grow { display: flex; flex-direction: column; gap: 2px; }
+.hs-mail strong { font-size: var(--fs-14); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hs-mail-kind { font-size: var(--fs-12); font-weight: 600; color: var(--accent-hover); }
+.hs-mail-detail { font-size: var(--fs-13); color: var(--ink-muted); }
+.hs-mail .hs-grow:hover strong { text-decoration: underline; text-underline-offset: 3px; }
+/* 교착: 목록의 한 줄이 아니라 멈춘 일. 면과 흰 테두리로 따로 세우고, 사유를 자르지 않는다. */
+.hs-mail.is-deadlock { margin-bottom: var(--space-2); padding: var(--space-3) var(--space-4); border: 1px solid var(--ink); border-radius: var(--radius-md); background: var(--surface-2); }
+.hs-mail.is-deadlock strong { white-space: normal; font-size: var(--fs-16); }
+.hs-mail.is-deadlock .hs-mail-kind { color: var(--ink); }
+.hs-mail.is-deadlock .hs-mail-kind::before { content: '✕ '; }
+.hs-mail.is-deadlock .hs-mail-detail { color: var(--ink); }
+.hs-mail-rule { margin-top: var(--space-1); font-size: var(--fs-12); color: var(--ink-subtle); line-height: 1.5; }
+.ha-turn:focus { outline: none; }
+.ha-turn:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
 
 .hs-run { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); color: inherit; text-decoration: none; }
 .hs-run:hover { border-color: var(--accent); }
@@ -170,7 +184,7 @@ a.hb-open:hover { color: var(--ink); border-color: var(--line-strong); }
 .hs-skill { display: flex; flex-direction: column; gap: 2px; padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-1); min-width: 0; }
 .hs-skill-name { font-size: var(--fs-13); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hs-play { display: inline-flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); font-size: var(--fs-12); color: var(--ink-muted); text-decoration: none; }
-.hs-play span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: var(--bg); font-size: 10px; }
+.hs-play span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: var(--bg); font-size: var(--fs-12); }
 .hs-play:hover span { background: var(--accent); color: var(--ink); }
 
 /* 루틴 */
@@ -181,16 +195,16 @@ a.hb-open:hover { color: var(--ink); border-color: var(--line-strong); }
 
 /* ---------- 좁은 화면 ---------- */
 @media (max-width: 1280px) {
-  .hg { grid-template-columns: minmax(280px, 1fr) minmax(380px, 1.5fr); }
-  .hg-right { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  /* 관제 열은 왼쪽 위에 그대로 두고, 채널·기록 열만 아래로 내린다. */
+  .hg { grid-template-columns: minmax(320px, 1fr) minmax(340px, 1fr); }
+  .hg-side { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; }
 }
 /* 모바일: 내 차례 → 진행 중 실행 → 캘린더 → 채널 → 목표 → 세컨드 브레인 순 */
 @media (max-width: 768px) {
   .ht { padding: var(--space-2) var(--space-3); }
   .ht .usage, .ht-sub, .ht-clock { display: none; }
   .hg { grid-template-columns: minmax(0, 1fr); padding: var(--space-3); gap: var(--space-5); }
-  .hg-col, .hg-right { display: contents; }
-  .hg-center { position: static; }
+  .hg-col, .hg-side { display: contents; }
   .hg > .hg-col > * { order: 20; }
   .ha-turn { order: 1 !important; }
   .ha-runs { order: 2 !important; }
@@ -252,15 +266,17 @@ button.ht-ico { background: none; border: 0; cursor: pointer; font: inherit; }
 .hs-skill-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-top: var(--space-2); }
 .hs-skill-actions .hs-play { margin-top: 0; }
 .hs-opt { display: flex; flex-direction: column; align-items: flex-end; background: none; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); color: var(--ink-muted); font: inherit; font-size: var(--fs-12); padding: 2px 8px; cursor: pointer; max-width: 50%; }
-.hs-opt small { font-size: 10px; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.hs-opt small { font-size: var(--fs-12); color: var(--ink-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .hs-opt:hover { border-color: var(--accent); color: var(--ink); }
 .hs-pager { display: flex; justify-content: center; gap: var(--space-2); margin-top: var(--space-3); }
-.hs-pager button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 4px; background: var(--line-strong); cursor: pointer; transition: width var(--dur); }
-.hs-pager button[aria-current='true'] { width: 24px; background: var(--ink); }
+/* 점은 8px로 보이되 누르는 영역은 24px(WCAG 2.5.8). */
+.hs-pager button { position: relative; width: 24px; height: 24px; padding: 0; border: 0; background: none; cursor: pointer; }
+.hs-pager button::before { content: ''; position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; border-radius: 4px; background: var(--line-strong); transform: translate(-50%, -50%); transition: width var(--dur); }
+.hs-pager button[aria-current='true']::before { width: 24px; background: var(--ink); }
+.hs-pager { gap: 0; }
 
-/* ---------- 스킬 옵션 창 ---------- */
-.so { padding: 0; border: 1px solid var(--line-strong); border-radius: var(--radius-lg); background: var(--surface-2); color: var(--ink); width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); }
-.so::backdrop { background: rgba(0, 0, 0, 0.6); }
+/* ---------- 스킬 옵션 팝오버 ---------- */
+.so { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--radius-lg); background: var(--surface-2); color: var(--ink); width: min(520px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: auto; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6); }
 .so-body { padding: var(--space-5); display: flex; flex-direction: column; }
 .so-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
 .so-head h2 { margin: 0; font-size: var(--fs-16); }

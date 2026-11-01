@@ -13,6 +13,7 @@
 .stage-rail li { padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); color: var(--ink-faint); transition: color var(--dur), background var(--dur); }
 .stage-rail li.is-done { color: var(--ink-subtle); }
 .stage-rail li.is-current { color: var(--ink); background: var(--accent); }
+.stage-rail li.is-waiting { color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); font-weight: 600; }
 .usage { display: flex; gap: var(--space-3); font-size: var(--fs-12); color: var(--ink-subtle); }
 .usage-item { display: inline-flex; align-items: center; gap: var(--space-1); }
 .usage-name { color: var(--ink-faint); }
@@ -68,7 +69,7 @@
 }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .chip.is-accent { color: var(--accent-hover); border-color: var(--accent); }
-.chip.is-ok { color: var(--ok); border-color: var(--ok); }
+.chip.is-ok { color: var(--accent-hover); border-color: var(--ok); }
 .chip.is-bad { color: var(--bad); border-color: var(--bad); }
 .board { overflow-y: auto; min-width: 0; }
 .board-empty { margin: 0; font-size: var(--fs-13); color: var(--ink-subtle); }
