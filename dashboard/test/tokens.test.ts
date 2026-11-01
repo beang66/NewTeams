@@ -1,10 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { it, expect } from 'vitest'
 
-it('스펙 §7.6 색 토큰', () => {
+it('팔레트는 #000000 · #2779a7 · #ffffff 세 가지뿐이다', () => {
   const css = readFileSync('src/styles/tokens.css', 'utf8')
-  for (const [k, v] of Object.entries({ '--bg': '#010102', '--accent': '#5e6ad2', '--ok': '#27a644', '--bad': '#eb5757', '--warn': '#f2c94c', '--ink': '#f7f8f8' }))
+  for (const [k, v] of Object.entries({ '--c-black': '#000000', '--c-accent': '#2779a7', '--c-white': '#ffffff' }))
     expect(css).toMatch(new RegExp(`${k}:\\s*${v}\\s*;`, 'i'))
+  for (const [k, v] of Object.entries({ '--bg': 'var(--c-black)', '--accent': 'var(--c-accent)', '--ink': 'var(--c-white)' }))
+    expect(css).toContain(`${k}: ${v};`)
+  const hexes = new Set((css.match(/#[0-9a-f]{6}\b/gi) ?? []).map((h) => h.toLowerCase()))
+  expect([...hexes].sort()).toEqual(['#000000', '#2779a7', '#ffffff'])
 })
 it('본문 폰트는 번들된 Pretendard Variable을 가리킨다', () => {
   expect(readFileSync('src/styles/tokens.css', 'utf8')).toMatch(/--font-body:[^;]*Pretendard Variable/)

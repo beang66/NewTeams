@@ -22,7 +22,7 @@ export default defineConfig({
     timeout: 180_000,
   },
   projects: [
-    { name: 'desktop', testMatch: 'flows.spec.ts', use: { viewport: { width: 1440, height: 900 } } },
-    { name: 'mobile', testMatch: 'mobile.spec.ts', use: { viewport: { width: 390, height: 844 }, hasTouch: true } },
+    { name: 'desktop', testMatch: ['flows.spec.ts', 'home.spec.ts'], grepInvert: /모바일\)/, use: { viewport: { width: 1440, height: 900 } } },
+    { name: 'mobile', testMatch: ['mobile.spec.ts', 'home.spec.ts'], grep: /모바일/, use: { viewport: { width: 390, height: 844 }, hasTouch: true } },
   ],
 })

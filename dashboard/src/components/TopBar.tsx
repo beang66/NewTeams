@@ -13,7 +13,7 @@ export function TopBar({ run, onOpenAttention, now = () => new Date(), hasSpecDr
   const usage = usageView(run.events, run.state, run.agents, now())
   return (
     <header className="topbar">
-      <h1 className="topbar-title">에이전트 관제</h1>
+      <h1 className="topbar-title"><a href="#/" className="topbar-home" aria-label="홈으로">←</a> 에이전트 관제</h1>
       <StageRail stage={run.state.stage} />
       {onView && (
         <div className="seg" role="group" aria-label="화면 전환">

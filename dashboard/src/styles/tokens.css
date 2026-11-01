@@ -1,19 +1,26 @@
 :root {
-  --bg: #010102;
-  --surface-1: #0f1011;
-  --surface-2: #141516;
-  --surface-3: #18191a;
-  --line: #23252a;
-  --line-strong: #34343a;
-  --ink: #f7f8f8;
-  --ink-muted: #d0d6e0;
-  --ink-subtle: #8a8f98;
-  --ink-faint: #62666d;
-  --accent: #5e6ad2;
-  --accent-hover: #828fff;
-  --ok: #27a644;
-  --bad: #eb5757;
-  --warn: #f2c94c;
+  /* 팔레트는 세 가지뿐이다: #000000(바탕), #2779a7(포인트), #ffffff(글자·면). 단계는 흰색/검정의 투명도로만 만든다.
+     #2779a7은 검정 위 작은 글자 대비가 4.5:1에 못 미치므로(약 4.4:1) 면·테두리·굵은 표시에만 쓰고 본문 글자에는 쓰지 않는다. */
+  --c-black: #000000;
+  --c-accent: #2779a7;
+  --c-white: #ffffff;
+  --bg: var(--c-black);
+  --surface-1: rgba(255, 255, 255, 0.05);
+  --surface-2: rgba(255, 255, 255, 0.08);
+  --surface-3: rgba(255, 255, 255, 0.12);
+  --line: rgba(255, 255, 255, 0.14);
+  --line-strong: rgba(255, 255, 255, 0.28);
+  --ink: var(--c-white);
+  --ink-muted: rgba(255, 255, 255, 0.82);
+  --ink-subtle: rgba(255, 255, 255, 0.64);
+  --ink-faint: rgba(255, 255, 255, 0.5);
+  --accent: var(--c-accent);
+  --accent-hover: color-mix(in srgb, var(--c-accent) 80%, var(--c-white));
+  --accent-soft: rgba(39, 121, 167, 0.22);
+  /* 상태는 색이 아니라 아이콘·문구·형태로 구분한다(통합 기준 4장). 성공만 포인트색, 실패·주의는 흰색 + 형태. */
+  --ok: var(--c-accent);
+  --bad: var(--c-white);
+  --warn: var(--c-white);
 
   --fs-12: 12px;
   --fs-13: 13px;

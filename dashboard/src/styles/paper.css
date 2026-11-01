@@ -1,14 +1,14 @@
 /* Document ("paper") area: reading screens only. The control screen keeps the dark tokens. */
 .paper {
-  --p-bg: #f3f0e8; --p-sheet: #fbf9f4;
-  --p-ink: #141414; --p-ink2: #3d3a35; --p-ink3: #6b665d;
-  --p-rule: #141414; --p-hair: #cfc9bd; --p-tint: #ebe6db;
-  --p-ok: #1f6f3a; --p-bad: #a8281e; --p-warn: #8a6100; --p-now: #4b55c0;
+  --p-bg: #ffffff; --p-sheet: #ffffff;
+  --p-ink: #000000; --p-ink2: rgba(0, 0, 0, 0.78); --p-ink3: rgba(0, 0, 0, 0.62);
+  --p-rule: #000000; --p-hair: rgba(0, 0, 0, 0.18); --p-tint: rgba(39, 121, 167, 0.08);
+  --p-ok: #2779a7; --p-bad: #000000; --p-warn: #000000; --p-now: #2779a7;
   --serif: 'Noto Serif KR', 'Nanum Myeongjo', 'Source Han Serif K', Georgia, serif;
   background: var(--p-bg); color: var(--p-ink);
   font: 400 var(--fs-14)/1.6 var(--font-body);
 }
-.paper ::selection { background: #141414; color: #fbf9f4; }
+.paper ::selection { background: #2779a7; color: #ffffff; }
 .paper a { color: var(--p-now); text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; }
 .paper h1, .paper h2, .paper h3 { font-family: var(--serif); font-weight: 700; line-height: 1.3; margin: var(--space-4) 0 var(--space-2); }
 .paper h1 { font-size: var(--fs-20); }

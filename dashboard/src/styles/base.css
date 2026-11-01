@@ -8,7 +8,7 @@ body {
   color-scheme: dark;
 }
 :focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
 .sr-only {

@@ -12,6 +12,7 @@ import './styles/lanes.css'
 import './styles/paper.css'
 import './styles/screens.css'
 import './styles/panel.css'
+import './styles/home.css'
 import { App } from './App'
 
 createRoot(document.getElementById('root')!).render(

@@ -5,7 +5,7 @@ import { mockApi } from './mockApi'
 
 test('모바일: 시간순 목록, 가로 스크롤 없음, 주의 카드까지 닿는다', async ({ page }) => {
   const mock = await mockApi(page, 'deadlock')
-  await page.goto('/')
+  await page.goto('/#/run')
 
   await expect(page.getByRole('list', { name: '이벤트 목록' })).toBeVisible()
   await expect(page.locator('.lane-svg')).toHaveCount(0) // 768px 이하는 레인 대신 목록

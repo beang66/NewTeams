@@ -1,0 +1,129 @@
+/* 통합 홈. 레이아웃은 새 대시보드(3열)를 기본으로 하고, 관제 화면의 상단 바·단계 레일·주의 버튼을 재사용한다. */
+.home { display: flex; flex-direction: column; min-height: 100%; }
+.home-top { position: sticky; top: 0; z-index: 2; background: var(--bg); flex-wrap: wrap; }
+.home-project select {
+  font: inherit; font-size: var(--fs-13); color: var(--ink);
+  background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+}
+.home-project option { background: var(--bg); }
+.home-sample { font-size: var(--fs-12); color: var(--ink-subtle); border: 1px dashed var(--line-strong); border-radius: var(--radius-lg); padding: 0 var(--space-2); }
+.home-new { text-decoration: none; font-weight: 600; }
+a.attention-btn { text-decoration: none; }
+
+.home-body { display: flex; flex: 1; min-height: 0; }
+.home-nav {
+  flex: 0 0 168px; display: flex; flex-direction: column; gap: 2px;
+  padding: var(--space-4) var(--space-2); border-right: 1px solid var(--line);
+}
+.home-nav a, .home-nav span {
+  display: block; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm);
+  color: var(--ink-muted); text-decoration: none; font-size: var(--fs-13);
+}
+.home-nav a:hover { background: var(--surface-2); color: var(--ink); }
+.home-nav a[aria-current='page'] { color: var(--ink); background: var(--surface-3); box-shadow: inset 3px 0 0 var(--accent); }
+.home-nav .is-disabled { color: var(--ink-faint); cursor: not-allowed; }
+.home-nav .is-disabled small { display: block; font-size: 11px; color: var(--ink-faint); }
+
+/* 3열: 약 26 / 46 / 28 */
+.home-grid {
+  flex: 1; min-width: 0; display: grid; gap: var(--space-4); align-items: start;
+  grid-template-columns: minmax(250px, 26fr) minmax(380px, 46fr) minmax(260px, 28fr);
+  padding: var(--space-4) var(--space-5) var(--space-6);
+}
+.home-col { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+
+.home-panel { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); }
+.home-panel-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-3); }
+.home-panel-head h2 { margin: 0; font-size: var(--fs-14); font-weight: 600; }
+.home-meta, .home small, .home-panel small { color: var(--ink-subtle); font-size: var(--fs-12); }
+.home-panel small { display: block; }
+.home-more { margin-left: auto; width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--radius-sm); color: var(--ink-subtle); text-decoration: none; font-size: 18px; }
+.home-more:hover { background: var(--surface-2); color: var(--ink); }
+.home-count { background: var(--accent); color: var(--ink); border-radius: 999px; padding: 0 7px; font-size: var(--fs-12); }
+
+.home-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.home-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.home-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+.home-state { font-size: var(--fs-12); white-space: nowrap; color: var(--ink-muted); }
+.home-state.is-ok > span { color: var(--accent-hover); }
+.home-state.is-bad { color: var(--ink); font-weight: 600; }
+.home-state.is-off { color: var(--ink-faint); }
+
+/* 내 차례: 스펙 승인·교착·게시 승인을 한 줄로 모은다. 교착은 굵은 흰 테두리로 구분한다. */
+.home-a-turn { border-color: var(--accent); box-shadow: inset 0 2px 0 var(--accent); }
+.home-turn { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-2); border-radius: var(--radius-md); border: 1px solid var(--line); }
+.home-turn.is-deadlock { border: 2px solid var(--ink); }
+.home-turn-kind { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: var(--ink-subtle); }
+.home-turn.is-deadlock .home-turn-kind { color: var(--ink); }
+.home-turn .btn { text-decoration: none; white-space: nowrap; }
+
+.home-check { display: grid; grid-template-columns: 20px 1fr; column-gap: var(--space-2); cursor: pointer; min-height: 32px; }
+.home-check input { accent-color: var(--accent); width: 16px; height: 16px; margin-top: 3px; }
+.home-check small { grid-column: 2; }
+.home-check .is-done { color: var(--ink-faint); text-decoration: line-through; }
+
+.home-bar { height: 6px; background: var(--surface-3); border-radius: 99px; margin: 6px 0 4px; overflow: hidden; }
+.home-bar i { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
+
+.home-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; }
+.home-week-bar { height: 56px; background: var(--surface-2); border-radius: var(--radius-sm); display: flex; align-items: flex-end; overflow: hidden; }
+.home-week-bar i { display: block; width: 100%; background: var(--accent); }
+.home-week span { display: block; font-size: var(--fs-12); margin-top: 4px; }
+.home-week b { color: var(--ink); }
+
+.home-run-link { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2); border-radius: var(--radius-md); border: 1px solid var(--line); color: inherit; text-decoration: none; }
+.home-run-link:hover { border-color: var(--accent); }
+.home-run .stage-rail { flex-wrap: wrap; }
+
+.home-brain { display: flex; flex-direction: column; }
+.home-brain .seg { margin-left: auto; }
+.home-brain-body { display: grid; place-items: center; min-height: 360px; }
+.home-brain-svg { width: 100%; height: auto; max-height: 460px; }
+.home-cluster { cursor: pointer; transition: opacity var(--dur); }
+.home-cluster:focus-visible { outline: none; }
+.home-cluster.is-dim { opacity: 0.3; }
+.home-halo { fill: rgba(39, 121, 167, 0.1); stroke: rgba(255, 255, 255, 0.12); }
+.home-cluster.is-on .home-halo, .home-cluster:hover .home-halo, .home-cluster:focus-visible .home-halo { fill: rgba(39, 121, 167, 0.28); stroke: var(--ink); }
+.home-dot { fill: var(--ink); opacity: 0.7; }
+.home-cluster-label { fill: var(--ink); font-size: 13px; font-weight: 600; }
+.home-brain-list { width: 100%; align-self: start; }
+.home-brain-item { width: 100%; display: flex; justify-content: space-between; font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid transparent; border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); min-height: 44px; cursor: pointer; }
+.home-brain-item[aria-pressed='true'] { border-color: var(--accent); }
+.home-ask { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+.home-ask input { flex: 1; font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); min-height: 44px; }
+.home-ask input::placeholder { color: var(--ink-faint); }
+.home-ask .btn { padding: 0 var(--space-4); text-align: center; }
+
+.home-quick { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--space-2); }
+.home-quick-card { display: flex; flex-direction: column; gap: 2px; padding: var(--space-3); border-radius: var(--radius-md); background: var(--surface-2); border: 1px solid transparent; color: inherit; text-decoration: none; }
+.home-quick-card:hover { border-color: var(--accent); }
+.home-quick-card span { font-size: var(--fs-12); color: var(--ink-subtle); }
+
+.home-channels { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.home-channel { background: var(--surface-2); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); display: flex; flex-direction: column; gap: 2px; border: 1px solid transparent; }
+.home-channel.is-error { border: 2px solid var(--ink); }
+.home-channel strong { font-size: var(--fs-20); }
+
+@media (max-width: 1280px) {
+  .home-grid { grid-template-columns: minmax(250px, 1fr) minmax(360px, 1.6fr); }
+  .home-grid > .home-col:last-child { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+}
+@media (max-width: 1024px) {
+  .home-nav { display: none; }
+}
+/* 모바일: 내 차례 → 진행 중 실행 → 오늘 작업 → 목표 → 채널 순. 그래프는 아래로. */
+@media (max-width: 768px) {
+  .home-grid { grid-template-columns: minmax(0, 1fr); padding: var(--space-3); }
+  .home-top { gap: var(--space-2); }
+  .home-col, .home-grid > .home-col:last-child { display: contents; }
+  .home-grid > .home-col > * { order: 20; }
+  .home-a-turn { order: 1 !important; }
+  .home-a-runs { order: 2 !important; }
+  .home-a-today { order: 3 !important; }
+  .home-a-goals { order: 4 !important; }
+  .home-a-channels { order: 5 !important; }
+  .home-a-quick { order: 6 !important; }
+  .home-a-brain { order: 7 !important; }
+  .home-top .usage { display: none; }
+}

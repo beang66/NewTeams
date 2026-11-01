@@ -24,7 +24,7 @@ const lastSeen = (page: Page, mock: Mock) => {
 
 /** The user leaves (tab hidden, last-seen id stored), the run moves on, and the user comes back. */
 async function awayAndBack(page: Page, mock: Mock) {
-  await page.goto('/')
+  await page.goto('/#/run')
   await expect(board(page)).toBeVisible()
   const lastBefore = mock.fixture.events.at(-1)!.id
   await setVisibility(page, 'hidden')
@@ -56,7 +56,7 @@ test('S1: 대화 → 초안 → 승인 → 관제 화면 전환', async ({ page 
     mock.push({ type: 'STATE_CHANGE', from: 'controller', to: 'all', payload: { stage: 'SPEC_APPROVED' } })
   })
 
-  await page.goto('/')
+  await page.goto('/#/run')
   await expect(page.getByText('만들고 싶은 것을 마스터에게 설명해 주세요')).toBeVisible()
   await expect(page.getByRole('button', { name: '스펙 승인' })).toBeDisabled() // 빈 초안은 승인할 수 없다
 
@@ -84,14 +84,14 @@ test('S1 예외: 이미 승인된 스펙은 서버 사유를 화면에 보여 �
   const mock = await mockApi(page, 'intake')
   mock.setHuman('spec.draft.md', DRAFT)
   mock.onPost('/api/spec/approve', () => ({ status: 409, json: { error: '이미 승인된 스펙입니다' } }))
-  await page.goto('/')
+  await page.goto('/#/run')
   await page.getByRole('button', { name: '스펙 승인' }).click()
   await expect(page.getByRole('alert')).toHaveText('이미 승인된 스펙입니다')
 })
 
 test('S2: 맡겨 두고 확인 — 주의 0은 강조 없음, 연결이 끊기면 칩, 복구 시 빠진 이벤트 보충', async ({ page }) => {
   const mock = await mockApi(page, 'build')
-  await page.goto('/')
+  await page.goto('/#/run')
 
   // 2초 안에 세 가지 답: 진행 중인가(단계 레일), 막혔나(주의 0·배너 없음), 내 차례인가(주의 0)
   await expect(page.getByRole('heading', { name: '에이전트 관제' })).toBeVisible()
@@ -145,7 +145,7 @@ test.describe('S4: 교착을 푼다', () => {
       const b = body as { action: string; text: string }
       mock.push({ type: 'GUIDANCE', from: 'user', to: 'controller', task: 't3', payload: { action: b.action, text: b.text, resolves: humanId } })
     })
-    await page.goto('/')
+    await page.goto('/#/run')
     await attentionBtn(page, 1).click()
 
     const card = page.locator('.acard')
@@ -173,7 +173,7 @@ test.describe('S4: 교착을 푼다', () => {
   test('다른 곳에서 먼저 응답했으면 409 → "이미 처리됨"', async ({ page }) => {
     const mock = await mockApi(page, 'deadlock')
     mock.onPost(`/api/human/${mock.fixture.ids.human!}`, () => ({ status: 409, json: { error: '이미 처리됨' } }))
-    await page.goto('/')
+    await page.goto('/#/run')
     await attentionBtn(page, 1).click()
     const card = page.locator('.acard')
     await card.getByLabel('지침').fill('다시 시도해 주세요')
@@ -190,7 +190,7 @@ test.describe('S4: 교착을 푼다', () => {
       mock.push({ type: 'STATE_CHANGE', from: 'controller', to: 'all', task: 't3', payload: { taskStatus: 'blocked' } })
       mock.push({ type: 'GUIDANCE', from: 'user', to: 'controller', task: 't3', payload: { action: (body as { action: string }).action, text: '', resolves: humanId } })
     })
-    await page.goto('/')
+    await page.goto('/#/run')
     await attentionBtn(page, 1).click()
     const card = page.locator('.acard')
     await card.getByRole('button', { name: '이 태스크 건너뛰기' }).click()
@@ -206,7 +206,7 @@ test.describe('S4: 교착을 푼다', () => {
 test.describe('S5: 한도·로그인으로 멈춘 것', () => {
   test('사용량 한도 일시정지는 배너만 뜨고 주의는 늘지 않으며, 재개되면 배너가 사라진다', async ({ page }) => {
     const mock = await mockApi(page, 'paused')
-    await page.goto('/')
+    await page.goto('/#/run')
     const banner = page.locator('.paused-banner')
     await expect(banner).toHaveAttribute('role', 'status')
     await expect(banner).toHaveText('일시정지 · 사용량 한도 — 14:30에 자동 재개 (1시간 12분 남음)')
@@ -229,7 +229,7 @@ test.describe('S5: 한도·로그인으로 멈춘 것', () => {
         mock.push({ type: 'HUMAN_REQUIRED', from: 'orchestrator', to: 'user', payload: { reason: 'auth', detail: 'claude 로그인이 만료됐습니다' } })
       }
     })
-    await page.goto('/')
+    await page.goto('/#/run')
     mock.push({ type: 'PAUSED', from: 'orchestrator', to: 'all', payload: { reason: 'auth' } })
     mock.push({ type: 'HUMAN_REQUIRED', from: 'orchestrator', to: 'user', payload: { reason: 'auth', detail: 'claude 로그인이 만료됐습니다' } })
 
@@ -257,7 +257,7 @@ test.describe('S5: 한도·로그인으로 멈춘 것', () => {
 
 test('S6: 보드 → 사람용 → 원본 → 프롬프트, 클릭 두 번', async ({ page }) => {
   const mock = await mockApi(page, 'deadlock')
-  await page.goto('/')
+  await page.goto('/#/run')
 
   // 1. 보드에서 t3
   await board(page).getByRole('button', { name: /^t3 / }).click()
@@ -279,7 +279,7 @@ test('S6: 마스터에게 묻기 — 답에 인용된 메시지 ID를 누르면 
   const mock = await mockApi(page, 'deadlock')
   const cited = mock.fixture.ids.t3rej3!
   mock.onPost('/api/ask', () => ({ json: { answer: `t3은 같은 지적 F-3-1이 세 번 반복돼 오래 걸렸습니다. [원본](../raw/events.jsonl#${cited})` } }))
-  await page.goto('/')
+  await page.goto('/#/run')
   await expect(page.getByText('사용량을 씁니다')).toBeVisible()
   await page.getByRole('textbox', { name: '마스터에게 묻기' }).fill('t3이 왜 세 번 걸렸어?')
   await page.getByRole('button', { name: '묻기', exact: true }).click()
@@ -292,7 +292,7 @@ test('S6: 마스터에게 묻기 — 답에 인용된 메시지 ID를 누르면 
 test.describe('S7: 완료된 결과 검토와 공유', () => {
   test('보고서 → 근거 링크 → 원본, 되돌아오기', async ({ page }) => {
     const mock = await mockApi(page, 'done')
-    await page.goto('/')
+    await page.goto('/#/run')
     await expect(page.getByRole('heading', { name: '최종 평가', level: 1 })).toBeVisible()
     await expect(page.getByRole('heading', { name: '수용 기준별 결과' })).toBeVisible()
     await expect(page.getByRole('complementary', { name: '숫자로 보기' })).toContainText('반려')
@@ -307,7 +307,7 @@ test.describe('S7: 완료된 결과 검토와 공유', () => {
 
   test('Markdown 내려받기는 report.md를 그대로 저장한다', async ({ page }) => {
     const mock = await mockApi(page, 'done')
-    await page.goto('/')
+    await page.goto('/#/run')
     const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Markdown 내려받기' }).click()])
     expect(download.suggestedFilename()).toBe('report.md')
     const chunks: Buffer[] = []
@@ -318,7 +318,7 @@ test.describe('S7: 완료된 결과 검토와 공유', () => {
 
 test('파이프라인 개요: 열고, 검수 중인 태스크 링크로 관제 화면의 상세로 돌아온다', async ({ page }) => {
   await mockApi(page, 'build')
-  await page.goto('/')
+  await page.goto('/#/run')
   await page.getByRole('button', { name: '개요' }).click()
   const overview = page.getByRole('region', { name: '파이프라인 개요' })
   await expect(overview).toBeVisible()

@@ -144,9 +144,9 @@ describe('AskBar', () => {
   })
 })
 
-it('paper 토큰은 와이어프레임 값 그대로', () => {
+it('paper 토큰도 세 가지 팔레트(흰 종이 · 검정 글자 · #2779a7)만 쓴다', () => {
   const css = readFileSync('src/styles/paper.css', 'utf8')
-  for (const [k, v] of Object.entries({ '--p-bg': '#f3f0e8', '--p-sheet': '#fbf9f4', '--p-ink': '#141414', '--p-ink2': '#3d3a35', '--p-ink3': '#6b665d', '--p-hair': '#cfc9bd', '--p-ok': '#1f6f3a', '--p-bad': '#a8281e', '--p-warn': '#8a6100', '--p-now': '#4b55c0' }))
+  for (const [k, v] of Object.entries({ '--p-bg': '#ffffff', '--p-sheet': '#ffffff', '--p-ink': '#000000', '--p-rule': '#000000', '--p-ok': '#2779a7', '--p-bad': '#000000', '--p-warn': '#000000', '--p-now': '#2779a7' }))
     expect(css).toMatch(new RegExp(`${k}:\\s*${v}\\s*;`, 'i'))
 })
 it('@media print에서 상단 바·묻기·SinceBar·패널·보드를 숨긴다', () => {

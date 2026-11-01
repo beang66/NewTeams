@@ -5,6 +5,8 @@
   padding: var(--space-2) var(--space-4);
   background: var(--surface-1); border-bottom: 1px solid var(--line);
 }
+.topbar-home { color: var(--ink-subtle); text-decoration: none; margin-right: var(--space-1); }
+.topbar-home:hover { color: var(--ink); }
 .topbar-title { margin: 0; font-size: var(--fs-14); font-weight: 600; white-space: nowrap; }
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-3); }
 .stage-rail { display: flex; gap: var(--space-1); margin: 0; padding: 0; list-style: none; font-size: var(--fs-12); }
