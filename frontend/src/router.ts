@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 export function useHashRoute(): string[] {
-  const read = () => (window.location.hash.replace(/^#\/?/, "") || "tasks").split("/").filter(Boolean);
+  const read = () => (window.location.hash.replace(/^#\/?/, "") || "dashboard").split("/").filter(Boolean);
   const [parts, setParts] = useState(read);
   useEffect(() => {
     const onChange = () => setParts(read());

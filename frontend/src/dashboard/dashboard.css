@@ -1,0 +1,478 @@
+/* 대시보드 전용 쪽빛 다크 테마. 기존 밝은 테마와 섞이지 않도록 .dash 범위 안에서만 변수를 정의한다.
+   토큰 출처: Vault 계획 4.4 (배경 #090D18, 패널 #111827, 쪽빛 #6366F1, 밝은 강조 #818CF8). */
+.dash {
+  --d-bg: #090d18;
+  --d-panel: #111827;
+  --d-panel-2: #1a2235;
+  --d-line: #1f2a40;
+  --d-text: #e5e7eb;
+  --d-muted: #9ca3af;
+  --d-accent: #6366f1;
+  --d-accent-2: #818cf8;
+  --d-ok: #34d399;
+  --d-warn: #fbbf24;
+  --d-danger: #f87171;
+  min-height: 100%;
+  background: var(--d-bg);
+  color: var(--d-text);
+  padding: 20px 24px 40px;
+  font-size: 14px;
+  color-scheme: dark;
+}
+.dash a {
+  color: inherit;
+  text-decoration: none;
+}
+.dash :focus-visible {
+  outline: 2px solid var(--d-accent-2);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.dash small {
+  display: block;
+  color: var(--d-muted);
+  font-size: 12px;
+}
+
+.dash-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.dash-top h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+.dash-top-spacer {
+  flex: 1;
+}
+.dash-sample {
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 1px dashed var(--d-muted);
+  border-radius: 999px;
+  color: var(--d-muted);
+}
+
+/* 3열: 약 24 / 48 / 28 */
+.dash-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 24fr) minmax(380px, 48fr) minmax(280px, 28fr);
+  gap: 16px;
+  align-items: start;
+}
+.dash-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.dash-col-center {
+  position: sticky;
+  top: 20px;
+}
+.dash-col-center > .dash-brain {
+  position: relative;
+}
+
+.dash-panel {
+  background: var(--d-panel);
+  border: 1px solid var(--d-line);
+  border-top: 2px solid var(--d-accent);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.dash-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.dash-panel-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+.dash-meta {
+  color: var(--d-muted);
+  font-size: 12px;
+}
+.dash-more {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--d-muted) !important;
+  font-size: 18px;
+}
+.dash-more:hover {
+  background: var(--d-panel-2);
+  color: var(--d-text) !important;
+}
+
+.dash-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dash-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.dash-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.dash-num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.dash-bar {
+  height: 6px;
+  background: var(--d-panel-2);
+  border-radius: 99px;
+  margin: 6px 0 4px;
+  overflow: hidden;
+}
+.dash-bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--d-accent), var(--d-accent-2));
+  border-radius: inherit;
+}
+
+.dash-check {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  column-gap: 8px;
+  cursor: pointer;
+  min-height: 32px;
+}
+.dash-check input {
+  accent-color: var(--d-accent);
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+}
+.dash-check small {
+  grid-column: 2;
+}
+.dash-done {
+  color: var(--d-muted);
+  text-decoration: line-through;
+}
+
+.dash-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  text-align: center;
+}
+.dash-day-bar {
+  height: 56px;
+  background: var(--d-panel-2);
+  border-radius: 6px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+.dash-day-bar i {
+  display: block;
+  width: 100%;
+  background: var(--d-accent);
+  opacity: 0.85;
+}
+.dash-day span {
+  display: block;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.dash-fail {
+  color: var(--d-danger);
+  font-weight: 600;
+}
+
+.dash-channels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.dash-channel {
+  background: var(--d-panel-2);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dash-channel-name {
+  font-size: 12px;
+  color: var(--d-muted);
+}
+.dash-channel strong {
+  font-size: 18px;
+}
+.dash-up {
+  color: var(--d-ok);
+  display: inline;
+}
+
+.dash-tag {
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.dash-tag-ok {
+  color: var(--d-ok);
+}
+.dash-tag-warn {
+  color: var(--d-warn);
+}
+.dash-tag-danger {
+  color: var(--d-danger);
+}
+.dash-tag-muted {
+  color: var(--d-muted);
+}
+
+/* 세컨드 브레인 */
+.dash-brain {
+  display: flex;
+  flex-direction: column;
+  min-height: 620px;
+}
+.dash-seg {
+  margin-left: auto;
+  display: inline-flex;
+  background: var(--d-panel-2);
+  border-radius: 8px;
+  padding: 2px;
+}
+.dash-seg button {
+  background: none;
+  border: 0;
+  color: var(--d-muted);
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.dash-seg button[aria-selected="true"] {
+  background: var(--d-accent);
+  color: #fff;
+}
+.dash-brain-body {
+  flex: 1;
+  display: grid;
+  place-items: center;
+}
+.dash-brain-svg {
+  width: 100%;
+  height: auto;
+  max-height: 560px;
+}
+.dash-cluster {
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.dash-cluster.dim {
+  opacity: 0.3;
+}
+.dash-cluster-halo {
+  fill: rgba(99, 102, 241, 0.06);
+  stroke: rgba(129, 140, 248, 0.15);
+}
+.dash-cluster.on .dash-cluster-halo,
+.dash-cluster:hover .dash-cluster-halo,
+.dash-cluster:focus-visible .dash-cluster-halo {
+  fill: rgba(99, 102, 241, 0.14);
+  stroke: var(--d-accent-2);
+}
+.dash-cluster:focus-visible {
+  outline: none;
+}
+.dash-dot {
+  fill: var(--d-accent-2);
+  opacity: 0.75;
+}
+.dash-cluster-label {
+  fill: var(--d-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.dash-brain-list {
+  width: 100%;
+  align-self: start;
+}
+.dash-brain-item {
+  width: 100%;
+  background: var(--d-panel-2);
+  border: 1px solid transparent;
+  color: var(--d-text);
+  font: inherit;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 44px;
+}
+.dash-brain-item.on {
+  border-color: var(--d-accent-2);
+}
+.dash-ask {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.dash-ask input {
+  flex: 1;
+  background: var(--d-panel-2);
+  border: 1px solid var(--d-line);
+  color: var(--d-text);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  min-height: 44px;
+}
+.dash-ask input::placeholder {
+  color: var(--d-muted);
+}
+
+.dash-btn {
+  background: var(--d-accent);
+  color: #fff !important;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dash-ask button {
+  background: var(--d-accent);
+  color: #fff;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 16px;
+  font: inherit;
+  cursor: pointer;
+}
+.dash-btn:hover,
+.dash-ask button:hover {
+  background: #4f46e5;
+}
+.dash-btn-ghost {
+  background: transparent;
+  border: 1px solid var(--d-danger);
+  color: var(--d-danger) !important;
+}
+.dash-btn-ghost:hover {
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.dash-approval {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.dash-count {
+  background: var(--d-accent);
+  color: #fff;
+  border-radius: 99px;
+  padding: 0 7px;
+  font-size: 12px;
+}
+.dash-count-danger {
+  background: var(--d-danger);
+  color: #1a0b0b;
+}
+
+.dash-skills {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dash-skill {
+  background: var(--d-panel-2);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.dash-skill:hover {
+  border-color: var(--d-accent);
+}
+
+@media (max-width: 1280px) {
+  .dash-grid {
+    grid-template-columns: minmax(260px, 1fr) minmax(360px, 1.6fr);
+  }
+  .dash-col-right {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+}
+
+/* 모바일: 승인 대기 → 오늘 작업 → 목표 순서로, 그래프는 아래로 */
+@media (max-width: 860px) {
+  .dash {
+    padding: 14px 12px 32px;
+  }
+  .dash-grid {
+    grid-template-columns: 1fr;
+  }
+  /* 열 경계를 풀고 패널 단위로 순서를 정한다 */
+  .dash-col {
+    display: contents;
+  }
+  .dash-grid > .dash-col > * {
+    order: 10;
+  }
+  .dash-grid > .dash-col > .dash-a-approvals {
+    order: 1;
+  }
+  .dash-grid > .dash-col > .dash-a-failures {
+    order: 2;
+  }
+  .dash-grid > .dash-col > .dash-a-today {
+    order: 3;
+  }
+  .dash-grid > .dash-col > .dash-a-goals {
+    order: 4;
+  }
+  .dash-grid > .dash-col > .dash-a-channels {
+    order: 5;
+  }
+  .dash-grid > .dash-col > .dash-brain {
+    order: 6;
+    position: static;
+  }
+  .dash-brain {
+    min-height: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-cluster {
+    transition: none;
+  }
+}

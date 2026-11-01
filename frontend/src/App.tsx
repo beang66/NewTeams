@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { api, UNAUTHORIZED_EVENT } from "./api";
 import { BrandMark, ToastProvider, usePolling } from "./components/ui";
 import AccountPage from "./pages/AccountPage";
+import DashboardPage from "./pages/DashboardPage";
 import KnowledgePage from "./pages/KnowledgePage";
 import HistoryPage from "./pages/HistoryPage";
 import LoginPage from "./pages/LoginPage";
@@ -52,6 +53,7 @@ export function useAuth() {
 }
 
 const NAV = [
+  { path: "dashboard", icon: "◈", label: "대시보드", hint: "목표·작업·채널·세컨드 브레인 한눈에" },
   { path: "tasks", icon: "⌂", label: "홈", hint: "목표를 주고 실행" },
   { path: "projects", icon: "▣", label: "프로젝트", hint: "캠페인·시안·결과물 관리" },
   { path: "history", icon: "↗", label: "실행 기록", hint: "결과 검색·다시 보기" },
@@ -151,7 +153,7 @@ function Shell() {
       >
       <div className="shell">
         <aside className="sidebar">
-          <a className="brand" href="#/tasks">
+          <a className="brand" href="#/dashboard">
             <BrandMark />
             <span>
               NEWTEAM
@@ -214,7 +216,9 @@ function Shell() {
           </div>
         </aside>
         <main className="main">
-          {section === "runs" && id ? (
+          {section === "dashboard" ? (
+            <DashboardPage />
+          ) : section === "runs" && id ? (
             <RunPage runId={id} key={id} />
           ) : section === "projects" ? (
             <ProjectsPage projectId={id} />
