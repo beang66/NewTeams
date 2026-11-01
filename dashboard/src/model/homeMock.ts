@@ -114,14 +114,14 @@ export const calendar = {
   } as Record<number, { time: string; title: string; kind: string }[]>,
 }
 
-export interface Skill { id: string; maker: string; name: string; desc: string; state: 'input' | 'ready' }
+export interface Skill { id: string; maker: string; name: string; desc: string; state: 'input' | 'ready'; placeholder?: string }
 export const skills: Skill[] = [
-  { id: 's1', maker: 'Claude', name: 'blog-draft', desc: '블로그 글 초안 작성', state: 'input' },
+  { id: 's1', maker: 'Claude', name: 'blog-draft', desc: '블로그 글 초안 작성', state: 'input', placeholder: 'AI 에이전트로 1인 업무 자동화하는 법, 2,000자 블로그 글로 써줘' },
   { id: 's2', maker: 'Claude', name: 'channel-convert', desc: '채널별 형식 변환', state: 'ready' },
-  { id: 's3', maker: 'Claude', name: 'shorts-video', desc: '쇼츠 대본·음성·영상 생성', state: 'input' },
+  { id: 's3', maker: 'Claude', name: 'shorts-video', desc: '쇼츠 대본·음성·영상 생성', state: 'input', placeholder: '이번 주 블로그 글을 40초 세로 쇼츠로 만들어줘' },
   { id: 's4', maker: 'Codex', name: 'brand-tone-check', desc: '브랜드 톤 검수', state: 'ready' },
-  { id: 's5', maker: 'Claude', name: 'proposal-writer', desc: '기획서 작성', state: 'input' },
-  { id: 's6', maker: 'Claude', name: 'webapp-build', desc: '웹앱 기능 개발', state: 'input' },
+  { id: 's5', maker: 'Claude', name: 'proposal-writer', desc: '기획서 작성', state: 'input', placeholder: '○○회사 AI 교육 워크숍 제안 기획서 만들어줘' },
+  { id: 's6', maker: 'Claude', name: 'webapp-build', desc: '웹앱 기능 개발', state: 'input', placeholder: '할 일 추가·완료·삭제가 되는 한 페이지 웹앱 만들어줘' },
 ]
 export const skillTotal = skills.length
 

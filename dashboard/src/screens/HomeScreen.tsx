@@ -3,6 +3,8 @@ import { api, type VaultGraph, type VaultHit, type VaultSummary } from '../api/c
 import { forceLayout } from '../model/forceLayout'
 import { StageRail } from '../components/StageRail'
 import { TelegramChip } from '../components/TelegramChip'
+import { Clock, MessagePanel, NotificationPanel, SettingsPanel } from '../components/HeaderTools'
+import { SkillOptionsDialog, loadOption, optionSummary, type SkillOption } from '../components/SkillOptions'
 import {
   activeRuns, boards, brain, calendar, channels, goals, myTurn, obsidianLastSync, outputs, projects,
   routineRuns, skills, todayTasks, usage, type BrainCluster, type Channel, type MyTurn,
@@ -55,16 +57,7 @@ function Dot({ tone, children }: { tone: 'ok' | 'bad' | 'off'; children: ReactNo
 
 /* ---------- 상단 ---------- */
 
-function useClock(): Date {
-  const [now, setNow] = useState(() => new Date())
-  useEffect(() => { const id = setInterval(() => setNow(new Date()), 30_000); return () => clearInterval(id) }, [])
-  return now
-}
-
 function HomeTop({ project, onProject }: { project: string; onProject: (p: string) => void }) {
-  const now = useClock()
-  const date = now.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })
-  const time = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
   const ratio = Math.min(1, usage.apiSpendUsd / usage.apiCapUsd)
   return (
     <header className="ht">
@@ -89,12 +82,10 @@ function HomeTop({ project, onProject }: { project: string; onProject: (p: strin
           </span>
         </div>
         <TelegramChip />
-        <span className="ht-clock mono"><i aria-hidden="true">●</i> {date} {time}</span>
-        <a className="ht-ico" href="#/run" aria-label="마스터에게 묻기" title="마스터에게 묻기">💬︎</a>
-        <a className="ht-ico" href="#my-turn" aria-label={`내 차례 ${myTurn.length}건`} title="내 차례">
-          🔔︎{myTurn.length > 0 && <b className="ht-badge">{myTurn.length}</b>}
-        </a>
-        <span className="ht-ico is-disabled" aria-disabled="true" title="설정 · 준비 중">⚙︎</span>
+        <Clock />
+        <MessagePanel />
+        <NotificationPanel myTurn={myTurn} />
+        <SettingsPanel />
         <a className="btn is-primary ht-new" href="#/run">+ 새 작업</a>
       </div>
     </header>
@@ -493,22 +484,46 @@ function Runs() {
   )
 }
 
+const SKILLS_PER_PAGE = 4
+
 function Skills() {
   const [q, setQ] = useState('')
-  const shown = skills.filter((s) => `${s.name} ${s.desc}`.toLowerCase().includes(q.trim().toLowerCase()))
+  const [page, setPage] = useState(0)
+  const [editing, setEditing] = useState<string | null>(null)
+  const [opts, setOpts] = useState<Record<string, SkillOption>>(() => Object.fromEntries(skills.map((sk) => [sk.id, loadOption(sk.id)])))
+  const shown = skills.filter((sk) => `${sk.name} ${sk.desc}`.toLowerCase().includes(q.trim().toLowerCase()))
+  const pages = Math.max(1, Math.ceil(shown.length / SKILLS_PER_PAGE))
+  const cur = Math.min(page, pages - 1)
+  const slice = shown.slice(cur * SKILLS_PER_PAGE, cur * SKILLS_PER_PAGE + SKILLS_PER_PAGE)
+  const target = skills.find((sk) => sk.id === editing)
   return (
     <Section area="skills" icon="✦" title="스킬" meta={skills.length}
-      action={<input className="hs-skill-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="⌕ 스킬 검색" aria-label="스킬 검색" />}>
+      action={<input className="hs-skill-search" value={q} onChange={(e) => { setQ(e.target.value); setPage(0) }} placeholder="⌕ 스킬 검색" aria-label="스킬 검색" />}>
       <ul className="hs-skills">
-        {shown.map((s) => (
-          <li key={s.id} className="hs-skill">
-            <span className="hs-skill-name"><span className="hs-meta">{s.maker} · </span><strong>{s.name}</strong></span>
-            <small>{s.desc}</small>
-            <a className="hs-play" href="#/run"><span aria-hidden="true">▶</span>{s.state === 'input' ? '입력 화면' : '준비됨'}</a>
+        {slice.map((sk) => (
+          <li key={sk.id} className="hs-skill">
+            <span className="hs-skill-name"><span className="hs-meta">{sk.maker} · </span><strong>{sk.name}</strong></span>
+            <small>{sk.desc}</small>
+            <span className="hs-skill-actions">
+              <a className="hs-play" href="#/run"><span aria-hidden="true">▶</span>{sk.state === 'input' ? '입력 화면' : '준비됨'}</a>
+              <button type="button" className="hs-opt" onClick={() => setEditing(sk.id)} aria-label={`${sk.name} 옵션: ${optionSummary(opts[sk.id]!)}`}>
+                옵션<small>{optionSummary(opts[sk.id]!)}</small>
+              </button>
+            </span>
           </li>
         ))}
         {shown.length === 0 && <li className="hs-meta">일치하는 스킬 없음</li>}
       </ul>
+      {pages > 1 && (
+        <div className="hs-pager" role="group" aria-label="스킬 페이지">
+          {Array.from({ length: pages }, (_, i) => (
+            <button key={i} type="button" aria-label={`${i + 1}쪽`} aria-current={i === cur ? 'true' : undefined} onClick={() => setPage(i)} />
+          ))}
+        </div>
+      )}
+      {target && (
+        <SkillOptionsDialog skill={target} onClose={() => setEditing(null)} onSaved={(v) => setOpts((o) => ({ ...o, [target.id]: v }))} />
+      )}
     </Section>
   )
 }
