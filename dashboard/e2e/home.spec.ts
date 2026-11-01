@@ -10,8 +10,10 @@ test('홈: 내 차례와 진행 중 실행에서 관제로 이동하고 돌아�
   await expect(page.getByRole('region', { name: '세컨드 브레인' })).toBeVisible()
   await expect(page.getByText('목업 데이터')).toBeVisible()
 
-  await page.getByRole('button', { name: '목록' }).click()
-  await expect(page.getByRole('button', { name: /프로젝트 184/ })).toBeVisible()
+  await page.getByRole('group', { name: '분류로 강조' }).getByRole('button', { name: /프로젝트 184/ }).click()
+  await expect(page.getByRole('button', { name: '프로젝트 184개' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('region', { name: '스킬' }).getByRole('listitem')).toHaveCount(6)
+  await expect(page.getByRole('region', { name: '다른 대시보드' })).toContainText('아이디어 패드')
 
   await page.getByRole('region', { name: '진행 중 실행' }).getByRole('link').first().click()
   await expect(page).toHaveURL(/#\/run$/)

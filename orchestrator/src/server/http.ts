@@ -215,6 +215,10 @@ function registerVaultRoutes(app: FastifyInstance, vault: Vault | undefined): vo
       return reply.code(503).send({ state: 'error', error: error instanceof Error ? error.message : String(error) })
     }
   })
+  app.get('/api/vault/graph', async (_request, reply) => {
+    if (!vault) return reply.code(404).send({ error: 'Vault 연결 안 됨' })
+    try { return await vault.graph() } catch (error) { return fail(reply, error) }
+  })
   app.get<{ Querystring: { q: string; group?: string; limit?: number } }>('/api/vault/search', {
     schema: { querystring: { type: 'object', required: ['q'], properties: {
       q: { type: 'string', minLength: 1, maxLength: 200 }, group: { type: 'string', pattern: '^[a-z]+$' },

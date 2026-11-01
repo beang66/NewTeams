@@ -10,6 +10,7 @@ export type VaultSummary =
   | { state: 'off' }
   | { state: 'error'; error: string }
   | { state: 'connected'; name: string; readFolders: string[]; inbox: string; total: number; groups: { key: string; label: string; count: number }[]; inboxCount: number; scannedAt: string; truncated: boolean }
+export interface VaultGraph { nodes: { id: string; title: string; group: string; degree: number }[]; links: { source: string; target: string }[]; truncated: boolean; scannedAt: string }
 export interface VaultHit { path: string; title: string; group: string; snippet: string; mtimeMs: number }
 
 export class ApiError extends Error {
@@ -56,6 +57,7 @@ export const api = {
   async vault(): Promise<VaultSummary> {
     try { return await getJson<VaultSummary>('/api/vault') } catch (e) { return { state: 'error', error: e instanceof Error ? e.message : String(e) } }
   },
+  vaultGraph: () => getJson<VaultGraph>('/api/vault/graph'),
   vaultSearch: (q: string, group?: string) =>
     getJson<VaultHit[]>(`/api/vault/search?q=${encodeURIComponent(q)}${group ? `&group=${encodeURIComponent(group)}` : ''}`),
   events: (after?: string) => getJson<Envelope[]>(after ? `/api/events?after=${encodeURIComponent(after)}` : '/api/events'),

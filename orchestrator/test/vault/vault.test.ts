@@ -68,6 +68,19 @@ describe('Vault', () => {
     expect((await vault.summary()).total).toBe(4)
   })
 
+  it('그래프: 노트는 점, [[링크]]와 [텍스트](경로.md)는 선. 허용 밖·없는 노트·자기 자신 링크는 뺀다', async () => {
+    await put('wiki/concepts/A.md', '[[Harness]] [[Harness|별칭]] [[wiki/sources/S1#근거]] [[About Me]] [[없음]] [[A]] [색인](../index.md)')
+    const g = await vault.graph()
+    expect(g.nodes).toHaveLength(5)
+    const pairs = g.links.map((l) => [l.source, l.target].sort().join(' — ')).sort()
+    expect(pairs).toEqual([
+      'wiki/concepts/A.md — wiki/concepts/Harness.md',
+      'wiki/concepts/A.md — wiki/index.md',
+      'wiki/concepts/A.md — wiki/sources/S1.md',
+    ])
+    expect(g.nodes.find((n) => n.id === 'wiki/concepts/A.md')!.degree).toBe(3)
+  })
+
   it('AI Inbox에 새 파일로 쓰고, 같은 이름은 덮어쓰지 않는다', async () => {
     const now = new Date('2026-11-01T01:02:03Z')
     const { path } = await vault.writeInbox({ title: '주간 회고', body: '본문', project: 'P', runId: 'run-1', sources: ['wiki/concepts/Harness.md'] }, now)
@@ -91,6 +104,7 @@ describe('Vault HTTP', { timeout: 30_000 }, () => {
 
   it('요약·검색·노트·Inbox 쓰기', async () => {
     expect((await app.inject('/api/vault')).json()).toMatchObject({ state: 'connected', total: 4 })
+    expect((await app.inject('/api/vault/graph')).json().nodes).toHaveLength(4)
     const q = encodeURIComponent('세컨드')
     expect((await app.inject(`/api/vault/search?q=${q}`)).json()).toHaveLength(1)
     expect((await app.inject(`/api/vault/note?path=${encodeURIComponent('wiki/index.md')}`)).json().content).toBe('색인')

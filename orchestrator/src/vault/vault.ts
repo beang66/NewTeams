@@ -29,6 +29,8 @@ export interface VaultSummary {
   scannedAt: string
   truncated: boolean
 }
+export interface GraphNode { id: string; title: string; group: string; degree: number }
+export interface VaultGraph { nodes: GraphNode[]; links: { source: string; target: string }[]; truncated: boolean; scannedAt: string }
 export interface SearchHit { path: string; title: string; group: string; snippet: string; mtimeMs: number }
 export interface InboxInput { title: string; body: string; project?: string; runId?: string; sources?: string[] }
 
@@ -101,6 +103,53 @@ export class Vault {
       hits.push({ path: n.path, title: n.title, group: n.group, mtimeMs: n.mtimeMs, snippet: snippet(text, at, q.length), score: (inTitle ? 2 : 0) + (at >= 0 ? 1 : 0) })
     }
     return hits.sort((a, b) => b.score - a.score || b.mtimeMs - a.mtimeMs).slice(0, limit).map(({ score: _s, ...h }) => h)
+  }
+
+  /**
+   * Obsidian 그래프 보기와 같은 데이터: 허용 폴더의 노트(점)와 노트 사이 링크(선).
+   * `[[노트]]`, `[[폴더/노트|별칭]]`, `[[노트#제목]]`, `[텍스트](경로.md)`를 읽는다.
+   * 허용 폴더 밖이나 없는 노트로 가는 링크는 그리지 않는다. 점의 위치는 Obsidian이 저장하지 않으므로 화면에서 계산한다.
+   */
+  async graph(maxNodes = 1500): Promise<VaultGraph> {
+    const { notes, truncated, at } = await this.scan()
+    const list = notes.slice(0, maxNodes)
+    const byPath = new Map(list.map((n) => [n.path.toLowerCase(), n.path]))
+    const byName = new Map<string, string>()
+    for (const n of list) { const k = n.title.toLowerCase(); if (!byName.has(k)) byName.set(k, n.path) }
+    const resolveLink = (from: string, raw: string): string | undefined => {
+      let t = raw.trim().replace(/\\/g, '/')
+      try { t = decodeURIComponent(t) } catch { /* 그대로 */ }
+      t = t.replace(/^\.\//, '')
+      if (!t || /^[a-z]+:/i.test(t)) return undefined
+      const withExt = t.toLowerCase().endsWith('.md') ? t : `${t}.md`
+      const dir = from.includes('/') ? from.slice(0, from.lastIndexOf('/')) : ''
+      const rel = normalizeRel(dir ? `${dir}/${withExt}` : withExt)
+      return byPath.get(withExt.toLowerCase()) ?? (rel ? byPath.get(rel.toLowerCase()) : undefined)
+        ?? byName.get(basename(withExt, '.md').toLowerCase())
+    }
+    const seen = new Set<string>()
+    const links: { source: string; target: string }[] = []
+    const degree = new Map<string, number>()
+    for (const n of list) {
+      const text = await fs.readFile(join(this.root, n.path), 'utf8').catch(() => '')
+      const targets: string[] = []
+      for (const m of text.matchAll(/\[\[([^\]|#^]+)(?:[#^][^\]|]*)?(?:\|[^\]]*)?\]\]/g)) targets.push(m[1]!)
+      for (const m of text.matchAll(/\]\(([^)\s]+\.md)(?:#[^)]*)?\)/gi)) targets.push(m[1]!)
+      for (const raw of targets) {
+        const to = resolveLink(n.path, raw)
+        if (!to || to === n.path) continue
+        const key = n.path < to ? `${n.path}\0${to}` : `${to}\0${n.path}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        links.push({ source: n.path, target: to })
+        degree.set(n.path, (degree.get(n.path) ?? 0) + 1)
+        degree.set(to, (degree.get(to) ?? 0) + 1)
+      }
+    }
+    return {
+      nodes: list.map((n) => ({ id: n.path, title: n.title, group: n.group, degree: degree.get(n.path) ?? 0 })),
+      links, truncated: truncated || notes.length > list.length, scannedAt: new Date(at).toISOString(),
+    }
   }
 
   async note(path: string): Promise<{ path: string; title: string; content: string }> {
@@ -212,6 +261,16 @@ export class Vault {
     if (!within(this.root, abs)) throw new VaultError(403, 'Vault 밖 경로')
     return abs
   }
+}
+
+/** `a/b/../c.md` → `a/c.md`. Vault 밖으로 나가면 undefined. */
+function normalizeRel(p: string): string | undefined {
+  const out: string[] = []
+  for (const seg of p.split('/')) {
+    if (!seg || seg === '.') continue
+    if (seg === '..') { if (!out.length) return undefined; out.pop() } else out.push(seg)
+  }
+  return out.join('/')
 }
 
 function within(root: string, target: string): boolean {
