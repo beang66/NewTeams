@@ -46,7 +46,7 @@ export function SkillsCard() {
 
   const opt = (id: string) => opts[id] ?? loadOption(id)
   const active = runs.find((r) => r.status === 'running')
-  const current = runs.find((r) => r.id === selected) ?? runs[0]
+  const current = selected ? runs.find((r) => r.id === selected) : undefined
   const act = async (fn: () => Promise<SkillRun>) => {
     try { const r = await fn(); setSelected(r.id); setRuns((rs) => [r, ...rs.filter((x) => x.id !== r.id)]); setErr(undefined) } catch (e) { setErr(errText(e)) }
   }
@@ -113,7 +113,7 @@ export function SkillsCard() {
         </div>
       )}
       {err && skills.length > 0 && <p className="acard-error" role="alert">{err}</p>}
-      {current && <RunDetail run={current} onAction={(a) => void act(() => api.skillRunAction(current.id, a))} />}
+      {current && <RunDetail run={current} onClose={() => setSelected(null)} onAction={(a) => void act(() => api.skillRunAction(current.id, a))} />}
       {runs.length > 0 && (
         <details className="hs-run-history">
           <summary>실행 기록 {runs.length}건</summary>
@@ -136,12 +136,12 @@ export function SkillsCard() {
   )
 }
 
-function RunDetail({ run, onAction }: { run: SkillRun; onAction: (a: 'approve' | 'reject' | 'cancel') => void }) {
+function RunDetail({ run, onAction, onClose }: { run: SkillRun; onAction: (a: 'approve' | 'reject' | 'cancel') => void; onClose: () => void }) {
   return (
     <div className="hs-skill-result" aria-live="polite">
       <p className="hs-row">
         <span className="hs-meta">실행 · <strong>{run.skill}</strong>{run.routine ? ` · 루틴 ${run.routine}` : ''} · {clockHM(new Date(run.startedAt))}</span>
-        <span className={`hs-run-status is-${run.status}`}>{RUN_LABEL[run.status]}</span>
+        <span className="hs-result-actions"><span className={`hs-run-status is-${run.status}`}>{RUN_LABEL[run.status]}</span><button type="button" className="btn" onClick={onClose}>닫기</button></span>
       </p>
       {run.status === 'running' && (
         <p className="hs-row"><span className="hs-meta">실행 중… 몇 분 걸릴 수 있습니다.</span><button type="button" className="btn is-danger" onClick={() => onAction('cancel')}>중단</button></p>

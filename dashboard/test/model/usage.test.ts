@@ -28,6 +28,20 @@ describe('usage', () => {
     const u = usageView([], stateWith({}, { apiSpendUsd: 1.5 }), null, NOW)
     expect(u).toMatchObject({ apiSpendUsd: 1.5, apiCapUsd: 8 }); expect(u.paused).toBeUndefined()
   })
+  it('서울 날짜별 토큰과 기록 비용을 합산한다', () => {
+    const before = withUsage(report('t1', { ts: '2026-11-01T14:59:00Z' }), 1200, 200)
+    before.usage = { ...before.usage!, costUsd: 0.12 }
+    const after = withUsage(report('t1', { ts: '2026-11-01T15:00:00Z' }), 800, 100)
+    after.usage = { ...after.usage!, costUsd: 0.08 }
+    const u = usageView([before, after], stateWith({}), A, NOW)
+    expect(u.totalTokens).toBe(2000)
+    expect(u.recordedCostUsd).toBeCloseTo(0.2)
+    expect(u.byDay).toEqual([
+      { date: '2026-11-01', tokens: 1200, cached: 200, costUsd: 0.12, hasCost: true },
+      { date: '2026-11-02', tokens: 800, cached: 100, costUsd: 0.08, hasCost: true },
+    ])
+    expect(u.hasRecordedCost).toBe(true)
+  })
   it('일시정지 뒤 열린 auth HUMAN_REQUIRED면 needsHuman', () => {
     const ev = [mk('PAUSED', 'controller', 'user', { payload: { reason: 'rate_limit' } }), human('msg-h', undefined, 'auth')]
     const s = { ...pausedState('2026-10-27T04:00:00Z'), humanRequired: ['msg-h'] }

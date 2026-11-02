@@ -11,6 +11,7 @@ import { SinceBar } from '../components/SinceBar'
 import { TaskBoard } from '../components/TaskBoard'
 import { TimelineList } from '../components/TimelineList'
 import { TopBar } from '../components/TopBar'
+import { UsageDailyStrip } from '../components/UsageGauges'
 import { PipelineOverview } from './PipelineOverview'
 
 const PANEL_TABS = ['attention', 'master', 'detail'] as const satisfies readonly PanelTab[]
@@ -55,12 +56,14 @@ export function ControlScreen({ run, hasSpecDraft = false, initialRawEvent, topB
   const openTask = (id: string) => { selectTask(id); setSub('human'); setPanelOpen(true); setView('control') }
   const openRaw = (id: string) => { showRaw(id); setView('control') }
   const narrow = useMediaQuery(NARROW)
-  const paused = usageView(run.events, run.state, run.agents, new Date()).paused
+  const usage = usageView(run.events, run.state, run.agents, new Date())
+  const paused = usage.paused
   return (
     <div className="control">
       <TopBar run={run} hasSpecDraft={hasSpecDraft} extra={topBarExtra} onOpenAttention={() => { setTab('attention'); setPanelOpen(true) }} view={view} onView={setView} />
       {paused && <PausedBanner paused={paused} />}
       <SinceBar events={run.events} onOpenTimeline={setHighlightIds} />
+      <UsageDailyStrip usage={usage} />
       {view === 'overview' ? (
         <main className="control-grid is-overview">
           <PipelineOverview run={run} onOpenTask={openTask} onShowRaw={openRaw} />

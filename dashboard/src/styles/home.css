@@ -93,12 +93,14 @@
 .hs-day.is-sel { outline: 2px solid var(--ink); outline-offset: 1px; }
 /* 날짜 숫자를 칸 안에 둔다. 오늘은 흰 글자 굵게. */
 .hs-day { display: grid; place-items: center; font: inherit; font-size: var(--fs-12); color: var(--ink-subtle); font-variant-numeric: tabular-nums; }
+.hs-day-token { position: absolute; right: 0; bottom: 0; font: var(--fs-12)/1 var(--font-mono); color: currentColor; opacity: .8; transform: scale(.65); transform-origin: right bottom; }
 .hs-day.lv-3, .hs-day.lv-4 { color: var(--ink); }
 .hs-day.is-today { color: var(--ink); font-weight: 700; box-shadow: inset 0 0 0 1px var(--ink); }
 .hs-wbar { display: inline-block; width: calc(100% - 24px); height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden; margin-right: var(--space-2); }
 .hs-wbar i { display: block; height: 100%; background: var(--accent); }
 .hs-cal-foot { margin: var(--space-3) 0 var(--space-2); justify-content: flex-start; flex-wrap: wrap; }
 .hs-cal-foot strong { font-size: var(--fs-14); }
+.hs-cal-usage { color: var(--ink-muted); font-size: var(--fs-12); }
 .hs-legend { margin-left: auto; display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-12); color: var(--ink-subtle); }
 .hs-legend i { width: 10px; height: 10px; border-radius: 2px; background: var(--surface-2); }
 .hs-legend i.lv-1 { background: color-mix(in srgb, var(--accent) 35%, var(--surface-2)); }
@@ -181,6 +183,8 @@ a.hb-open:hover { color: var(--ink); border-color: var(--line-strong); }
 .hs-run { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); color: inherit; text-decoration: none; }
 .hs-run:hover { border-color: var(--accent); }
 .hs-run .stage-rail { flex-wrap: wrap; }
+.hs-run-usage { padding-top: var(--space-2); border-top: 1px solid var(--line); color: var(--ink-muted) !important; font-variant-numeric: tabular-nums; }
+.hs-result-actions { display: inline-flex; align-items: center; gap: var(--space-2); }
 
 /* 스킬: 검색 + 2열 카드 */
 .hs-skill-search { margin-left: auto; flex: 1; min-width: 140px; max-width: 60%; font: inherit; font-size: var(--fs-13); color: var(--ink); background: var(--surface-1); border: 1px solid var(--line); border-radius: 999px; padding: var(--space-1) var(--space-3); }
@@ -216,7 +220,9 @@ button.hs-play:disabled { cursor: progress; opacity: 0.6; }
 /* 모바일: 내 차례 → 진행 중 실행 → 캘린더 → 채널 → 목표 → 세컨드 브레인 순 */
 @media (max-width: 768px) {
   .ht { padding: var(--space-2) var(--space-3); }
-  .ht .usage, .ht-sub, .ht-clock { display: none; }
+  .ht-sub, .ht-clock { display: none; }
+  .ht-right { width: 100%; margin-left: 0; gap: var(--space-2) var(--space-3); }
+  .ht .usage { width: 100%; overflow-x: auto; padding-bottom: 2px; }
   .hg { grid-template-columns: minmax(0, 1fr); padding: var(--space-3); gap: var(--space-5); }
   .hg-col, .hg-side { display: contents; }
   .hg > .hg-col > * { order: 20; }

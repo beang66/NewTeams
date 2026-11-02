@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useHashParam } from '../api/hashState'
 import { api, type VaultGraph, type VaultHit, type VaultSummary } from '../api/client'
+import type { RunView } from '../api/useRun'
 import { forceLayout } from '../model/forceLayout'
 import { PIPELINE_DEFAULTS } from '../model/pipeline'
 import { yearMonth } from '../model/time'
@@ -11,9 +12,11 @@ import { Clock, MessagePanel, NotificationPanel, SettingsPanel } from '../compon
 import { Section } from '../components/HomeSection'
 import { SkillsCard } from '../components/SkillsCard'
 import { RoutinesCard } from '../components/RoutinesCard'
+import { UsageGauges } from '../components/UsageGauges'
+import { usageView, type UsageView } from '../model/usage'
 import {
   activeRuns, boards, brain, calendar, channels, goals, myTurn, obsidianLastSync, outputs, projects,
-  todayTasks, usage, type BrainCluster, type Channel, type MyTurn,
+  todayTasks, type BrainCluster, type Channel, type MyTurn,
 } from '../model/homeMock'
 
 /*
@@ -66,8 +69,7 @@ function useStickyOffset() {
   return ref
 }
 
-function HomeTop({ project, onProject }: { project: string; onProject: (p: string) => void }) {
-  const ratio = Math.min(1, usage.apiSpendUsd / usage.apiCapUsd)
+function HomeTop({ project, onProject, usage }: { project: string; onProject: (p: string) => void; usage: UsageView }) {
   const ref = useStickyOffset()
   return (
     <header className="ht" ref={ref}>
@@ -80,21 +82,9 @@ function HomeTop({ project, onProject }: { project: string; onProject: (p: strin
           {projects.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
       </label>
-      <span className="ht-sample" title="오케스트레이터 홈 API 연결 전 예시 값">목업 데이터</span>
+      <span className="ht-sample" title="사용량은 실제 실행 기록이며, 나머지 홈 업무 데이터 일부는 예시입니다">업무 데이터 일부 목업</span>
       <div className="ht-right">
-        <div className="usage" aria-label="사용량">
-          <span className="usage-item" title={`Claude 토큰 ${nf.format(usage.claudeTokens)} · 한도의 ${usage.claudeUsedPct}% · ${usage.claudeResetAt} 리셋`}>
-            <span className="usage-name">Claude</span><span className="mono">{usage.claudeUsedPct}%</span><span className="usage-reset">↻{usage.claudeResetAt}</span>
-          </span>
-          <span className="usage-item" title={`GPT 토큰 ${nf.format(usage.gptTokens)} · 한도의 ${usage.gptUsedPct}% · ${usage.gptResetAt} 리셋`}>
-            <span className="usage-name">GPT</span><span className="mono">{usage.gptUsedPct}%</span><span className="usage-reset">↻{usage.gptResetAt}</span>
-          </span>
-          <span className="usage-item" title="API 예비 지출 / 상한">
-            <span className="usage-name">API</span>
-            <span className="mono">{`$${usage.apiSpendUsd.toFixed(2)} / $${usage.apiCapUsd}`}</span>
-            <span className="meter" aria-hidden="true"><span style={{ width: `${Math.round(ratio * 100)}%` }} /></span>
-          </span>
-        </div>
+        <UsageGauges usage={usage} />
         <TelegramChip />
         <Clock />
         <MessagePanel />
@@ -152,7 +142,7 @@ function GoalsFold() {
   )
 }
 
-function Calendar() {
+export function Calendar({ usage }: { usage: UsageView }) {
   const { year, month, today, counts, events } = calendar
   const [selected, setSelected] = useState(today)
   const [done, setDone] = useState(() => new Set(todayTasks.filter((t) => t.done).map((t) => t.id)))
@@ -168,6 +158,9 @@ function Calendar() {
   const isToday = selected === today
   const dow = WEEKDAYS[new Date(year, month - 1, selected).getDay()]
   const count = dayEvents.length + (isToday ? todayTasks.length : 0)
+  const monthKey = `${year}-${String(month).padStart(2, '0')}`
+  const usageByDay = new Map(usage.byDay.filter((d) => d.date.startsWith(monthKey)).map((d) => [Number(d.date.slice(8)), d]))
+  const selectedUsage = usageByDay.get(selected)
   return (
     <Section area="calendar" title="캘린더" meta="일정·실행·게시"
       action={
@@ -185,8 +178,9 @@ function Calendar() {
                 <td key={di}>
                   {d && (
                     <button type="button" className={`hs-day lv-${level(counts[d] ?? 0)}${d === selected ? ' is-sel' : ''}${d === today ? ' is-today' : ''}`}
-                      aria-pressed={d === selected} aria-label={`${month}월 ${d}일 일정 ${counts[d] ?? 0}건`} onClick={() => setSelected(d)}>
+                      aria-pressed={d === selected} aria-label={`${month}월 ${d}일 일정 ${counts[d] ?? 0}건, 토큰 ${nf.format(usageByDay.get(d)?.tokens ?? 0)}개`} onClick={() => setSelected(d)}>
                       <span aria-hidden="true">{d}</span>
+                      {(usageByDay.get(d)?.tokens ?? 0) > 0 && <small className="hs-day-token" aria-hidden="true">{compactTokens(usageByDay.get(d)!.tokens)}</small>}
                     </button>
                   )}
                 </td>
@@ -202,6 +196,7 @@ function Calendar() {
       <div className="hs-row hs-cal-foot">
         <strong>{month}월 {selected}일 ({dow})</strong>
         <span className="hs-meta">일정 {count}건</span>
+        <span className="hs-cal-usage mono">토큰 {nf.format(selectedUsage?.tokens ?? 0)}{selectedUsage?.hasCost ? ` · $${selectedUsage.costUsd.toFixed(2)}` : ''}</span>
         <span className="hs-legend" aria-hidden="true">일정 0 {[0, 1, 2, 3, 4].map((l) => <i key={l} className={`lv-${l}`} />)} 4+</span>
       </div>
       <ul className="hs-list hs-events">
@@ -521,7 +516,7 @@ function MyTurnInbox({ project }: { project: string }) {
   )
 }
 
-function Runs({ project }: { project: string }) {
+function Runs({ project, usage }: { project: string; usage: UsageView }) {
   const runs = activeRuns.filter((r) => !project || r.project === project)
   return (
     <Section area="runs" title="진행 중 실행" meta={`${runs.length}개`}>
@@ -533,6 +528,11 @@ function Runs({ project }: { project: string }) {
               <span className="hs-row"><strong>{r.title}</strong><small>{r.project}</small></span>
               <StageRail stage={r.stage} waitingFor={r.waitingFor} />
               <small>{r.note}</small>
+              <small className="hs-run-usage mono">
+                {r.live
+                  ? `토큰 ${nf.format(usage.totalTokens)} · API $${usage.apiSpendUsd.toFixed(2)} · 기록 비용 ${usage.hasRecordedCost ? `$${usage.recordedCostUsd.toFixed(2)}` : '—'}`
+                  : '사용량 기록 없음'}
+              </small>
             </a>
           </li>
         ))}
@@ -551,22 +551,25 @@ function skipToTurn(e: React.MouseEvent) {
   el?.scrollIntoView({ block: 'start' })
 }
 
-export function HomeScreen() {
+const compactTokens = (tokens: number) => tokens >= 1_000_000 ? `${(tokens / 1_000_000).toFixed(1)}m` : tokens >= 1_000 ? `${Math.round(tokens / 1_000)}k` : String(tokens)
+
+export function HomeScreen({ run }: { run: RunView }) {
   const [project, setProject] = useHashParam<string>('project', '')
+  const usage = usageView(run.events, run.state, run.agents, new Date())
   return (
     <div className="home">
       <a className="skip-link" href="#my-turn" onClick={skipToTurn}>내 차례로 건너뛰기</a>
-      <HomeTop project={project} onProject={setProject} />
+      <HomeTop project={project} onProject={setProject} usage={usage} />
       <main className="hg">
         <h1 className="sr-only">홈 · 관제</h1>
         <div className="hg-col hg-ops">
           <MyTurnInbox project={project} />
-          <Runs project={project} />
+          <Runs project={project} usage={usage} />
           <GoalsFold />
           <Boards />
         </div>
         <div className="hg-col hg-center">
-          <Calendar />
+          <Calendar usage={usage} />
           <SecondBrain />
         </div>
         <div className="hg-col hg-side">

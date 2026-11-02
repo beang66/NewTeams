@@ -5,7 +5,7 @@ import { api } from '../../src/api/client'
 import type { RunView } from '../../src/api/useRun'
 import { StageRail } from '../../src/components/StageRail'
 import { TopBar } from '../../src/components/TopBar'
-import { UsageGauges } from '../../src/components/UsageGauges'
+import { UsageDailyStrip, UsageGauges } from '../../src/components/UsageGauges'
 import { PausedBanner } from '../../src/components/PausedBanner'
 import { SinceBar } from '../../src/components/SinceBar'
 import { TelegramChip } from '../../src/components/TelegramChip'
@@ -41,8 +41,14 @@ describe('상단 바 뼈대', () => {
     expect(screen.getByText('연결 끊김 — 다시 연결 중')).toBeInTheDocument()
   })
   it('사용량: provider별 토큰과 API 지출/$8', () => {
-    render(<UsageGauges usage={{ byProvider: { claude: { tokens: 12345, cached: 10000 }, codex: { tokens: 500, cached: 0 } }, apiSpendUsd: 1.2, apiCapUsd: 8 }} />)
-    expect(screen.getByText('12,345')).toBeInTheDocument(); expect(screen.getByText('$1.20 / $8')).toBeInTheDocument()
+    render(<UsageGauges usage={{ byProvider: { claude: { tokens: 12345, cached: 10000 }, codex: { tokens: 500, cached: 0 } }, totalTokens: 12845, recordedCostUsd: 0.35, hasRecordedCost: true, byDay: [], apiSpendUsd: 1.2, apiCapUsd: 8 }} />)
+    expect(screen.getByText('12,345')).toBeInTheDocument(); expect(screen.getByText('$1.20 / $8')).toBeInTheDocument(); expect(screen.getByText('$0.35')).toBeInTheDocument()
+  })
+  it('관제 사용량은 전체와 최근 일별 토큰·비용을 표시한다', () => {
+    render(<UsageDailyStrip usage={{ byProvider: { claude: { tokens: 1200, cached: 0 }, codex: { tokens: 0, cached: 0 } }, totalTokens: 1200, recordedCostUsd: 0.12, hasRecordedCost: true, byDay: [{ date: '2026-11-02', tokens: 1200, cached: 0, costUsd: 0.12, hasCost: true }], apiSpendUsd: 0.04, apiCapUsd: 8 }} />)
+    expect(screen.getByRole('region', { name: '토큰 사용 요약' })).toHaveTextContent('총 1,200 토큰')
+    expect(screen.getByText('11.02')).toBeInTheDocument()
+    expect(screen.getByText('$0.12', { selector: 'small' })).toBeInTheDocument()
   })
   it('일시정지 배너: 자동 재개 시각과 남은 시간', () => {
     render(<PausedBanner now={() => Date.parse('2026-10-27T05:00:00Z')} paused={{ reason: 'rate_limit', until: new Date('2026-10-27T05:30:00Z'), remainingMs: 1_800_000, needsHuman: false }} />)

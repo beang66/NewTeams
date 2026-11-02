@@ -6,21 +6,58 @@ import { providerOf } from './provider'
 
 export interface UsageView {
   byProvider: Record<'claude' | 'codex', { tokens: number; cached: number }>
+  totalTokens: number
+  recordedCostUsd: number
+  hasRecordedCost: boolean
+  byDay: { date: string; tokens: number; cached: number; costUsd: number; hasCost: boolean }[]
   apiSpendUsd: number
   apiCapUsd: number
   paused?: { reason: string; until?: Date; remainingMs?: number; needsHuman: boolean }
 }
 
+function seoulDateKey(ts: string): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date(ts))
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ''
+  return `${part('year')}-${part('month')}-${part('day')}`
+}
+
 export function usageView(events: Envelope[], state: RunState, agents: AgentConfig | null, now: Date, apiCapUsd = 8): UsageView {
   const byProvider = { claude: { tokens: 0, cached: 0 }, codex: { tokens: 0, cached: 0 } }
+  const days = new Map<string, { date: string; tokens: number; cached: number; costUsd: number; hasCost: boolean }>()
+  let totalTokens = 0
+  let recordedCostUsd = 0
+  let hasRecordedCost = false
   for (const e of events) {
     for (const s of usageSources(e)) {
+      const tokens = s.usage.in + s.usage.out
+      const costUsd = s.usage.costUsd ?? 0
+      const hasCost = s.usage.costUsd !== undefined
       const b = byProvider[providerOf(s.role, agents)]
-      b.tokens += s.usage.in + s.usage.out
+      b.tokens += tokens
       b.cached += s.usage.cached
+      totalTokens += tokens
+      recordedCostUsd += costUsd
+      hasRecordedCost ||= hasCost
+      const date = seoulDateKey(e.ts)
+      const day = days.get(date) ?? { date, tokens: 0, cached: 0, costUsd: 0, hasCost: false }
+      day.tokens += tokens
+      day.cached += s.usage.cached
+      day.costUsd += costUsd
+      day.hasCost ||= hasCost
+      days.set(date, day)
     }
   }
-  const view: UsageView = { byProvider, apiSpendUsd: state.apiSpendUsd, apiCapUsd }
+  const view: UsageView = {
+    byProvider,
+    totalTokens,
+    recordedCostUsd,
+    hasRecordedCost,
+    byDay: [...days.values()].sort((a, b) => a.date.localeCompare(b.date)),
+    apiSpendUsd: state.apiSpendUsd,
+    apiCapUsd,
+  }
   if (state.paused) {
     const until = state.paused.until ? new Date(state.paused.until) : undefined
     const valid = until && !Number.isNaN(until.getTime()) ? until : undefined

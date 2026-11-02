@@ -21,6 +21,18 @@
 .usage-reset { color: var(--ink-faint); font-variant-numeric: tabular-nums; }
 .meter { width: 40px; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
 .meter > span { display: block; height: 100%; background: var(--ink-subtle); }
+.usage-daily {
+  display: flex; align-items: center; gap: var(--space-4); min-height: 38px;
+  padding: var(--space-1) var(--space-4); font-size: var(--fs-12);
+  background: var(--surface-1); border-bottom: 1px solid var(--line); color: var(--ink-muted);
+}
+.usage-daily strong { color: var(--ink); white-space: nowrap; }
+.usage-daily-cost { color: var(--ink-subtle); white-space: nowrap; }
+.usage-days { display: flex; align-items: center; gap: var(--space-3); margin-left: auto; overflow-x: auto; }
+.usage-day { display: inline-grid; grid-template-columns: auto auto; gap: 0 var(--space-1); white-space: nowrap; }
+.usage-day time, .usage-day small { color: var(--ink-faint); }
+.usage-day small { grid-column: 2; font-size: var(--fs-12); transform: scale(.85); transform-origin: left top; }
+.usage-empty { color: var(--ink-faint); }
 .attention-btn {
   font: inherit; font-size: var(--fs-12); color: var(--ink-muted);
   background: var(--surface-3); border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
@@ -67,6 +79,8 @@
 @media (max-width: 768px) {
   .control-grid { grid-template-columns: 1fr; grid-template-rows: auto; grid-template-areas: 'board' 'lanes' 'askbar'; }
   .topbar, .topbar-right { flex-wrap: wrap; }
+  .usage-daily { align-items: flex-start; gap: var(--space-2) var(--space-3); flex-wrap: wrap; }
+  .usage-days { width: 100%; margin-left: 0; }
 }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .chip.is-accent { color: var(--accent-hover); border-color: var(--accent); }

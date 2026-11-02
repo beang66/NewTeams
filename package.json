@@ -1,0 +1,13 @@
+{
+  "name": "newteams",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --names orchestrator,dashboard --prefix-colors blue,green \"npm --prefix orchestrator run dev\" \"npm --prefix dashboard run dev\"",
+    "build": "npm --prefix orchestrator run build && npm --prefix dashboard run build",
+    "test": "npm --prefix orchestrator test && npm --prefix dashboard test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

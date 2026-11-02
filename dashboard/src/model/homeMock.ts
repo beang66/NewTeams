@@ -19,6 +19,8 @@ export interface ActiveRun {
   /** 사람이 처리해야 다음으로 넘어가는 단계. 있으면 단계 표시줄에 '내 차례'로 표시한다. */
   waitingFor?: Stage
   note: string
+  /** 현재 오케스트레이터 실행 이벤트와 연결된 카드. */
+  live?: boolean
 }
 export interface Goal { id: string; title: string; metric: string; current: number | null; target: number; unit: string; due: string }
 export interface TodayTask { id: string; title: string; project: string; due: string; done: boolean }
@@ -38,7 +40,7 @@ export const myTurn: MyTurn[] = [
 ]
 
 export const activeRuns: ActiveRun[] = [
-  { id: 'r1', project: 'NEWTEAMs 대시보드', title: '홈 화면 통합', stage: 'BUILD', note: '태스크 5개 중 2개 승인 · 병렬 3' },
+  { id: 'r1', project: 'NEWTEAMs 대시보드', title: '홈 화면 통합', stage: 'BUILD', note: '태스크 5개 중 2개 승인 · 병렬 3', live: true },
   { id: 'r2', project: 'WordPress 사이트', title: '소개 페이지 작성', stage: 'INTAKE', waitingFor: 'SPEC_APPROVED', note: '요구사항 정리 끝 · 스펙 승인 대기' },
 ]
 
@@ -122,10 +124,10 @@ export interface Skill { id: string; maker: string; name: string; desc: string; 
 /** icon은 SectionIcon 이름이다. */
 export interface Board { id: string; icon: string; title: string; count: number | null; desc: string; href: string | null }
 export const boards: Board[] = [
-  { id: 'brand', icon: 'brand', title: '브랜드 라이브러리', count: 12, desc: '로고 · 팔레트 · 글꼴 · 톤 가이드', href: null },
-  { id: 'content', icon: 'library', title: '콘텐츠 라이브러리', count: 28, desc: '레퍼런스 · 영상 소스 · 효과음 · 게시물', href: null },
-  { id: 'ideas', icon: 'ideas', title: '아이디어 패드', count: 6, desc: '대본 · 기획 메모 · 글감', href: null },
+  { id: 'brand', icon: 'brand', title: '브랜드 라이브러리', count: 12, desc: '로고 · 팔레트 · 글꼴 · 톤 가이드', href: '#/brand' },
+  { id: 'content', icon: 'library', title: '콘텐츠 라이브러리', count: 28, desc: '레퍼런스 · 영상 소스 · 효과음 · 게시물', href: '#/content' },
+  { id: 'ideas', icon: 'ideas', title: '아이디어 패드', count: 6, desc: '대본 · 기획 메모 · 글감', href: '#/ideas' },
   { id: 'run', icon: 'runs', title: '실행 관제', count: null, desc: '요구사항 · 스펙 승인 · 관제 · 완료 보고', href: '#/run' },
-  { id: 'calendar', icon: 'calendar', title: '콘텐츠·캘린더', count: null, desc: '기획→게시 상태와 일정', href: null },
-  { id: 'settings', icon: 'settings', title: '작업 팩·루틴·설정', count: null, desc: '역할 · 모델 · Telegram', href: null },
+  { id: 'calendar', icon: 'calendar', title: '콘텐츠·캘린더', count: null, desc: '기획→게시 상태와 일정', href: '#/calendar' },
+  { id: 'settings', icon: 'settings', title: '작업 팩·루틴·설정', count: null, desc: '역할 · 모델 · Telegram', href: '#/settings' },
 ]

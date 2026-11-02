@@ -38,11 +38,17 @@ export function RoutinesCard() {
     if (!window.confirm(`루틴 ‘${r.name}’을(를) 지울까요? 실행 기록은 남습니다.`)) return
     try { await api.deleteRoutine(r.id); await load() } catch (e) { setErr(errText(e)) }
   }
+  const toggle = async (r: Routine) => {
+    try {
+      await api.saveRoutine({ name: r.name, skill: r.skill, input: r.input, model: r.model, effort: r.effort, enabled: !r.enabled, schedule: r.schedule }, r.id)
+      await load()
+    } catch (e) { setErr(errText(e)) }
+  }
 
   const now = new Date()
   return (
     <Section area="routines" title="루틴" meta="오케스트레이터가 켜져 있을 때"
-      action={!form && <button type="button" className="btn" onClick={() => setForm({ value: { ...BLANK, skill: skills[0]?.name ?? '' } })}>+ 루틴</button>}>
+      action={!form && <button type="button" className="btn" onClick={() => setForm({ value: { ...BLANK } })}>+ 루틴</button>}>
       {form && <RoutineForm skills={skills} initial={form.value} editing={!!form.id} onSave={(v) => void save(v)} onCancel={() => setForm(null)} />}
       {err && <p className="acard-error" role="alert">{err}</p>}
       <ul className="hs-list">
@@ -57,8 +63,9 @@ export function RoutinesCard() {
                 {next ? ` · 다음 ${dateTime.format(next)}` : ''}
               </small>
               <span className="hs-row">
+                <button type="button" className="btn" onClick={() => void toggle(r)}>{r.enabled ? '끄기' : '다시 켜기'}</button>
                 <button type="button" className="btn" onClick={() => setForm({ id: r.id, value: { name: r.name, skill: r.skill, input: r.input, model: r.model, effort: r.effort, enabled: r.enabled, schedule: r.schedule } })}>고치기</button>
-                <button type="button" className="btn is-danger" onClick={() => void remove(r)}>지우기</button>
+                <button type="button" className="btn is-danger" onClick={() => void remove(r)}>삭제</button>
               </span>
             </li>
           )
@@ -81,7 +88,8 @@ function RoutineForm({ skills, initial, editing, onSave, onCancel }: { skills: I
         <input name="routine-name" autoComplete="off" required maxLength={100} value={v.name} onChange={(e) => set('name', e.target.value)} placeholder="예: 아침 브리핑…" /></label>
       <label className="field"><span className="field-label">실행할 스킬</span>
         <select value={v.skill} onChange={(e) => set('skill', e.target.value)} required>
-          {!skills.some((x) => x.name === v.skill) && <option value={v.skill}>{v.skill || '스킬 선택'}</option>}
+          <option value="">선택 없음</option>
+          {v.skill && !skills.some((x) => x.name === v.skill) && <option value={v.skill}>{v.skill}</option>}
           {skills.map((x) => <option key={x.name} value={x.name}>{x.name}</option>)}
         </select></label>
       <label className="field"><span className="field-label">입력(프롬프트)</span>

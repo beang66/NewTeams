@@ -13,6 +13,7 @@ import './styles/paper.css'
 import './styles/screens.css'
 import './styles/panel.css'
 import './styles/home.css'
+import './styles/workspace.css'
 import './styles/motion.css'
 import { App } from './App'
 
