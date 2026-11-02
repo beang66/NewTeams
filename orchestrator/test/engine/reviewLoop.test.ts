@@ -134,6 +134,49 @@ describe('runTaskLoop', () => {
     expect(d.reviewer.calls[1]!.prompt).toContain('F-1')
   })
 
+  it('2회차 검수는 검수 세션을 이어 지난 검수 이후 diff만 보내고, 새로 시작할 전체 프롬프트를 함께 둔다', async () => {
+    const d = deps({ claude: [devOk(), qaOk(), devOk({ writes: ['src/t1/b.ts'] }), qaOk()], reviewer: [rejectV(['F-1']), approveV(['F-1'])] })
+    expect(await runTaskLoop(T1, d)).toEqual({ kind: 'approved' })
+    const [first, second] = d.reviewer.calls
+    expect(first!.resumeSessionId).toBeUndefined()
+    expect(first!.freshPrompt).toBeUndefined()
+    expect(second).toMatchObject({ resumeSessionId: 's-rev', outputSchema: first!.outputSchema })
+    expect(second!.images).toHaveLength(1)
+    expect(second!.prompt).toContain('diff --git a/src/t1/b.ts')
+    expect(second!.prompt).not.toContain('diff --git a/src/t1/a.ts')
+    expect(second!.prompt).toContain('F-1')
+    expect(second!.freshPrompt).toContain('diff --git a/src/t1/a.ts')
+    expect(second!.freshPrompt).toContain('diff --git a/src/t1/b.ts')
+    expect(second!.freshPrompt).toContain(T1.acceptance[0])
+  })
+
+  it('검수 세션 ID가 없으면(OpenAI 대체 등) 다음 회차도 전체 검수', async () => {
+    const d = deps({
+      claude: [devOk(), qaOk(), devOk({ writes: ['src/t1/b.ts'] }), qaOk()],
+      reviewer: [{ text: verdictText('reject', ['F-1']), usage: USAGE }, approveV(['F-1'])],
+    })
+    expect(await runTaskLoop(T1, d)).toEqual({ kind: 'approved' })
+    const second = d.reviewer.calls[1]!
+    expect(second.resumeSessionId).toBeUndefined()
+    expect(second.prompt).toContain('diff --git a/src/t1/a.ts')
+    expect(second.prompt).toContain(T1.acceptance[0])
+  })
+
+  it('하네스 반려 회차의 변경도 다음 이어가기 검수 diff에 들어간다', async () => {
+    const FIXED_CMD = `node -e "process.exit(require('fs').existsSync('fixed')?0:1)"`
+    const d = deps({
+      plan: { ...PLAN, testCommands: [FIXED_CMD] },
+      claude: [devOk({ writes: ['src/t1/a.ts', 'fixed'] }), qaOk(), devOk({ writes: ['src/t1/b.ts'], removes: ['fixed'] }), devOk({ writes: ['src/t1/c.ts', 'fixed'] }), qaOk()],
+      reviewer: [rejectV(['F-1']), approveV(['F-1'])],
+    })
+    expect(await runTaskLoop(T1, d)).toEqual({ kind: 'approved' })
+    const second = d.reviewer.calls[1]!
+    expect(second.resumeSessionId).toBe('s-rev')
+    expect(second.prompt).toContain('diff --git a/src/t1/b.ts')
+    expect(second.prompt).toContain('diff --git a/src/t1/c.ts')
+    expect(second.prompt).not.toContain('diff --git a/src/t1/a.ts')
+  })
+
   it('테스트가 실패하면 GPT를 부르지 않고 반려', async () => {
     const d = deps({
       plan: { ...PLAN, testCommands: [`node -e "process.exit(require('fs').existsSync('fixed')?0:1)"`] },
@@ -209,6 +252,20 @@ describe('runTaskLoop', () => {
     const d = deps({ claude: [...round(2)], reviewer: [ok('a'), ok('b'), approveV()], master: [{ action: 'guidance', text: 'g' }] })
     expect(await runTaskLoop(T1, d)).toEqual({ kind: 'approved' })
     expect(payload(events().find((e) => e.type === 'ESCALATE')!).reason).toBe('repeat_error')
+  })
+
+  it('에이전트 설정 파일(.claude 등) 수정은 소유 범위와 무관하게 하네스 반려', async () => {
+    const all: PlanTask = { ...T1, ownedFiles: ['**'] }
+    let leftOver: boolean | undefined
+    const round2: FakeItem = (req) => { leftOver = existsSync(join(req.cwd, '.claude', 'settings.json')); return (devOk() as (r: RunRequest) => ReturnType<typeof devOk>)(req) as never }
+    const d = deps({
+      claude: [devOk({ writes: ['src/t1/a.ts', '.claude/settings.json'] }), round2, qaOk()],
+      reviewer: [approveV()],
+    })
+    expect(await runTaskLoop(all, d)).toEqual({ kind: 'approved' })
+    expect(leftOver).toBe(false) // 다음 회차 에이전트가 시작할 때 이미 지워져 있어야 한다
+    expect(firstReject().findings[0]!.issue).toContain('.claude/settings.json')
+    expect(events().find((e) => e.type === 'REJECT')!.from).toBe('harness')
   })
 
   it('소유 범위 밖 수정은 하네스 반려', async () => {
@@ -333,7 +390,7 @@ describe('runTaskLoop', () => {
     const evDir = join(store.paths.evidence, 't1', 'r1')
     expect(qa).toMatchObject({ role: 'qa', cwd: wt, allowedTools: ['mcp__playwright', 'Bash', 'Read', 'Write'], addDirs: [evDir] })
     expect(qa.mcpConfig).toBe(join(store.paths.raw, 'playwright-mcp.json'))
-    expect(JSON.parse(readFileSync(qa.mcpConfig!, 'utf8'))).toEqual({ mcpServers: { playwright: { command: 'npx', args: ['@playwright/mcp@latest'] } } })
+    expect(JSON.parse(readFileSync(qa.mcpConfig!, 'utf8'))).toEqual({ mcpServers: { playwright: { command: 'npx', args: ['@playwright/mcp@0.0.83'] } } })
     expect(qa.prompt).toContain(evDir)
     const rv = d.reviewer.calls[0]!
     expect(rv).toMatchObject({ role: 'reviewer', model: 'codex-default', cwd: wt })

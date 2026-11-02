@@ -17,9 +17,9 @@ afterEach(cleanup)
 const S = stateWith({ a: 'running', b: 'pending' })
 
 describe('TaskBoard', () => {
-  it('그룹 머리에 개수, 반려 태스크에 회차 rN/5', () => {
+  it('그룹 머리에 개수, 반려 태스크에 회차 rN/상한', () => {
     render(<TaskBoard state={stateWith({ a: ['rejected', 3] })} plan={PLAN} onSelect={vi.fn()} />)
-    expect(screen.getByRole('heading', { name: '반려 1' })).toBeInTheDocument(); expect(screen.getByText('r3/5')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '반려 1' })).toBeInTheDocument(); expect(screen.getByText('r3/3')).toBeInTheDocument()
   })
   it('긴 한글 제목은 말줄임 + title에 전체 문구', () => {
     const long = '사용자가 할 일을 추가하고 완료 표시를 한 뒤 새로고침해도 목록이 그대로 복원되는지 확인하는 기능 구현'.repeat(2)

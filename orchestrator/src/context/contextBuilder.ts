@@ -11,6 +11,7 @@ export type PromptInput =
   | { role: 'dev'; task: PlanTask; worktree: string; findings?: Finding[]; guidance?: string; conflicts?: string[] }
   | { role: 'qa'; task: PlanTask | null; scenarios: QaScenario[]; devCommand: string; evidenceDir: string }
   | { role: 'reviewer'; acceptance: string[]; diff: string; evidenceManifest: string; previousFindings: Finding[] }
+  | { role: 'reviewer-followup'; diff: string; evidenceManifest: string; previousFindings: Finding[] }
   | { role: 'reviewer-plan'; spec: string; plan: Plan; previousFindings: Finding[] }
   | { role: 'wiki'; taskId: string; diff: string; iterationSummary: string; currentWiki: string }
   | { role: 'logQuery'; question: string; timeline: string }
@@ -68,6 +69,10 @@ export function buildPrompt(input: PromptInput): string {
         diff: input.diff,
         evidenceManifest: input.evidenceManifest,
         previousFindings: json(input.previousFindings),
+      })
+    case 'reviewer-followup':
+      return render('reviewer-followup', {
+        diff: input.diff, evidenceManifest: input.evidenceManifest, previousFindings: json(input.previousFindings),
       })
     case 'reviewer-plan':
       return render('reviewer-plan', {

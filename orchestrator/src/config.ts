@@ -1,4 +1,6 @@
 import { readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 import { z } from 'zod'
 
 export type Role = 'master' | 'planner' | 'dev' | 'qa' | 'reviewer' | 'wiki' | 'logQuery'
@@ -63,12 +65,12 @@ export interface Config {
 }
 
 export const DEFAULT_CONFIG: Config = {
-  vault: { path: 'C:\Users\JB\Documents\Obsidian Vault', github: 'https://github.com/beang66/Vault', read: ['01 Projects', 'wiki'], inbox: '01 Projects/[진행] NEWTEAMs AI Agent Studio/AI Inbox' },
+  vault: { path: join(homedir(), 'Documents', 'Obsidian Vault'), github: 'https://github.com/beang66/Vault', read: ['01 Projects', 'wiki'], inbox: '01 Projects/[진행] NEWTEAMs AI Agent Studio/AI Inbox' },
   agents: { master: { provider: 'claude' }, worker: { provider: 'claude' } },
   telegram: { apiBase: 'https://api.telegram.org', quietHours: null, heartbeatMinutes: 0, batchSeconds: 30, notifyTaskApprovals: false, dashboardUrl: null, pollTimeoutSec: 30 },
   projectsDir: './projects',
   maxParallel: 3,
-  rejectLimit: 5,
+  rejectLimit: 3,
   repeatFindingLimit: 2,
   timeoutsMs: {
     dev: 1_200_000, qa: 600_000, reviewer: 300_000, planner: 600_000,

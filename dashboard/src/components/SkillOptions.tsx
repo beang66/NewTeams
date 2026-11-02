@@ -66,6 +66,8 @@ export function SkillOptionsDialog({ skill, anchor, onClose, onSaved }: Props) {
     const below = a.bottom + gap + h <= window.innerHeight
     el.style.top = `${Math.max(gap, below ? a.bottom + gap : a.top - gap - h)}px`
     el.style.left = `${Math.min(Math.max(gap, a.right - w), window.innerWidth - w - gap)}px`
+    // 옵션 버튼이 있는 모서리에서 커지게 한다.
+    el.style.transformOrigin = below ? 'top right' : 'bottom right'
   }, [draftKey, anchor])
   useEffect(() => { try { localStorage.setItem(draftKey, prompt) } catch { /* 없음 */ } }, [draftKey, prompt])
 
@@ -124,7 +126,7 @@ export function SkillOptionsDialog({ skill, anchor, onClose, onSaved }: Props) {
           <span className="mono" aria-live="polite">{nfmt(prompt.length)} / {nfmt(PROMPT_MAX)}</span>
         </div>
         <textarea id="so-text" value={prompt} maxLength={PROMPT_MAX} rows={5}
-          placeholder={skill.placeholder ?? '이 스킬에 줄 지시를 적어 주세요'} onChange={(e) => setPrompt(e.target.value)} />
+          placeholder={`${skill.placeholder ?? '이 스킬에 줄 지시를 적어 주세요'}…`} onChange={(e) => setPrompt(e.target.value)} />
         <p className="so-hint">새 작업부터 적용됩니다. 이미 시작한 작업은 시작할 때의 설정으로 이어지고, 높은 effort는 시간과 사용량이 늘어날 수 있어요.</p>
 
         <footer className="so-foot">

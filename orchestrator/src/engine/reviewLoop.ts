@@ -7,9 +7,9 @@ import type { ProjectStore } from '../store/projectStore.js'
 import { RunnerError, type Runner, type RunRequest, type RunResult } from '../runners/types.js'
 import { buildPrompt, type PromptInput } from '../context/contextBuilder.js'
 import { pickModel } from '../router/modelRouter.js'
-import { checkOwnership, runChecks, verifyEvidence, type EvidenceManifest } from '../harness/checks.js'
+import { checkAgentConfig, checkOwnership, runChecks, verifyEvidence, type EvidenceManifest } from '../harness/checks.js'
 import { DeadlockTracker, harnessReject, normalizeVerdict, parseVerdict } from '../harness/verdict.js'
-import { changedFiles, commitAll, createWorktree, diff, headRev, lastCommitAt } from '../workspace/git.js'
+import { changedFiles, commitAll, createWorktree, diff, headRev, lastCommitAt, restoreFiles } from '../workspace/git.js'
 import { verdictJsonSchema, type Envelope, type Finding, type NewEnvelope, type Verdict } from '../protocol/messages.js'
 import type { Plan, PlanTask } from '../protocol/plan.js'
 
@@ -27,7 +27,7 @@ export interface LoopStart { round?: number; sessionId?: string; guidance?: stri
 export type LoopOutcome = { kind: 'approved' } | { kind: 'split'; subtasks: PlanTask[] } | { kind: 'human_required'; eventId: string }
 
 export const QA_ALLOWED_TOOLS = ['mcp__playwright', 'Bash', 'Read', 'Write']
-export const PLAYWRIGHT_MCP = { mcpServers: { playwright: { command: 'npx', args: ['@playwright/mcp@latest'] } } }
+export const PLAYWRIGHT_MCP = { mcpServers: { playwright: { command: 'npx', args: ['@playwright/mcp@0.0.83'] } } }
 const MAX_REVIEW_IMAGES = 6
 const TEST_OUTPUT_TAIL = 1500
 const RETRYABLE = new Set(['crash', 'timeout', 'format'])
@@ -94,6 +94,9 @@ export async function runTaskLoop(task: PlanTask, deps: LoopDeps, start: LoopSta
   let upgraded = false
   let needSeed = !sessionId
   let worktreePublished = false
+  // 검수 세션을 이어 쓰면 2회차부터 지난 검수 이후 diff만 보낸다. 세션이 없으면(OpenAI 대체 등) 다시 전체 검수.
+  let reviewSessionId: string | undefined
+  let reviewedRev: string | undefined
   const history: string[] = []
 
   const publish = (e: Omit<NewEnvelope, 'task'>): Promise<Envelope> => bus.publish({ ...e, task: task.id })
@@ -179,7 +182,7 @@ export async function runTaskLoop(task: PlanTask, deps: LoopDeps, start: LoopSta
         let repairReq: RunRequest
         if (res.sessionId) {
           const { images: _images, ...rest } = req
-          repairReq = { ...rest, prompt: fix, resumeSessionId: res.sessionId }
+          repairReq = { ...rest, prompt: fix, resumeSessionId: res.sessionId, freshPrompt: `${req.freshPrompt ?? req.prompt}\n\n## 형식 주의\n${fix}` }
         } else {
           repairReq = { ...req, prompt: `${req.prompt}\n\n## 형식 주의\n${fix}` }
         }
@@ -249,7 +252,13 @@ export async function runTaskLoop(task: PlanTask, deps: LoopDeps, start: LoopSta
     let verdict: Verdict | undefined
     let from: 'harness' | 'reviewer' = 'harness'
     let rejectMeta: Partial<Envelope> = {}
-    const problems = checkOwnership(changed, task.ownedFiles).map((f) => ({ key: `own:${f}`, issue: `소유 범위 밖 파일 수정: ${f}` }))
+    const agentConfig = checkAgentConfig(changed)
+    // 반려만 하면 파일이 남아 다음 회차 에이전트가 그 훅·권한을 불러온다. 바로 되돌린다.
+    if (agentConfig.length) await restoreFiles(worktree, base, agentConfig, `${task.id}: revert agent config`)
+    const problems = [
+      ...agentConfig.map((f) => ({ key: `cfg:${f}`, issue: `에이전트 설정 파일 수정 금지: ${f}` })),
+      ...checkOwnership(changed, task.ownedFiles).map((f) => ({ key: `own:${f}`, issue: `소유 범위 밖 파일 수정: ${f}` })),
+    ]
     const checks = await runChecks(worktree, plan.testCommands, config.timeoutsMs.qa)
     for (const r of checks.results) {
       if (r.exitCode !== 0) {
@@ -290,10 +299,17 @@ export async function runTaskLoop(task: PlanTask, deps: LoopDeps, start: LoopSta
     // ---- GPT 검수 ----
     if (!verdict) {
       const images = reviewImages(manifest, evidenceDir)
-      const rvPrompt = buildPrompt({
-        role: 'reviewer', acceptance: task.acceptance, diff: await diff(worktree, base),
-        evidenceManifest: JSON.stringify(manifest, null, 2), previousFindings: findings,
+      const evidenceManifest = JSON.stringify(manifest, null, 2)
+      const fullPrompt = buildPrompt({
+        role: 'reviewer', acceptance: task.acceptance, diff: await diff(worktree, base), evidenceManifest, previousFindings: findings,
       })
+      const followUp = reviewSessionId && reviewedRev
+        ? { resumeSessionId: reviewSessionId, freshPrompt: fullPrompt }
+        : undefined
+      const rvPrompt = followUp
+        ? buildPrompt({ role: 'reviewer-followup', diff: await diff(worktree, reviewedRev!), evidenceManifest, previousFindings: findings })
+        : fullPrompt
+      const reviewingRev = await headRev(worktree)
       const rvPromptRef = await savePrompt(`${task.id}-r${round}-review`, rvPrompt)
       await publish({
         type: 'REVIEW_REQUEST', from: 'controller', to: 'reviewer', round, promptRef: rvPromptRef,
@@ -301,15 +317,18 @@ export async function runTaskLoop(task: PlanTask, deps: LoopDeps, start: LoopSta
       })
       const r = await review({
         role: 'reviewer', prompt: rvPrompt, model: pickModel('reviewer', {}, config), cwd: worktree, timeoutMs: config.timeoutsMs.reviewer,
-        outputSchema: verdictJsonSchema, images, rawLogPath: store.sessionLogPath('reviewer', task.id),
+        outputSchema: verdictJsonSchema, images, rawLogPath: store.sessionLogPath('reviewer', task.id), ...followUp,
       })
       if (r instanceof RunnerError) {
+        reviewSessionId = undefined
         history.push(`r${round}: 검수 실패 (${r.kind})`)
         const out = await escalate('repeat_error', `reviewer ${r.kind}: ${r.message}`)
         if (out) return out
         continue
       }
       verdict = r.verdict
+      reviewSessionId = r.res.sessionId
+      reviewedRev = reviewingRev
       from = 'reviewer'
       rejectMeta = agentMeta('reviewer', r.res, rvPromptRef)
       if (verdict.verdict === 'approve') {

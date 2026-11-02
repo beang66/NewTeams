@@ -7,6 +7,10 @@ import type { Envelope } from '../protocol/messages.js'
 import { PlanSchema } from '../protocol/plan.js'
 import fastifyStatic from '@fastify/static'
 import { Vault, VaultError } from '../vault/vault.js'
+import { SKILL_EFFORTS, SKILL_MODELS, SkillNotFound, type SkillInfo } from '../skills/skills.js'
+import { RunConflict, RunNotFound, SkillBusy, type SkillRuns } from '../skills/runs.js'
+import { RoutineNotFound, type RoutineInput, type Routines } from '../skills/routines.js'
+
 import { ActionConflict, createWorkflowActions, createWorkflowDriver, type TelegramStatus, type WorkflowActions } from './actions.js'
 
 const ID_PATTERN = '^msg-[0-9]+$'
@@ -24,12 +28,15 @@ const mime: Record<string, string> = {
 
 export { createWorkflowDriver }
 
+export interface SkillServices { list(): Promise<SkillInfo[]>; runs: SkillRuns; routines: Routines }
+
 export interface ServerOptions {
   resume?: boolean
   dashboardDir?: string
   actions?: WorkflowActions
   telegramStatus?: () => TelegramStatus
   vault?: Vault
+  skills?: SkillServices
 }
 
 export function buildServer(wf: Workflow, options: ServerOptions = {}): FastifyInstance {
@@ -43,14 +50,26 @@ export function buildServer(wf: Workflow, options: ServerOptions = {}): FastifyI
   const streams = new Set<ServerResponse>()
   // preClose runs before waiting for active HTTP connections (including SSE).
   app.addHook('preClose', async () => { for (const stream of streams) stream.destroy() })
+  // 127.0.0.1에만 열어도 브라우저의 다른 사이트가 요청을 보낼 수 있다(본문 없는 POST는 CORS 사전 확인도 없음, DNS 리바인딩).
+  app.addHook('onRequest', async (request, reply) => {
+    const origin = request.headers.origin
+    if (!isLocalHost(request.headers.host) || (origin !== undefined && !isLocalHost(hostOf(origin)))) {
+      return reply.code(403).send({ error: '로컬 요청만 허용' })
+    }
+  })
   if (options.resume) app.addHook('onListen', async () => { actions.drive() })
   registerReadRoutes(app, wf, streams)
   app.get('/api/telegram', async () => options.telegramStatus?.() ?? { state: 'off' })
   registerActionRoutes(app, actions)
   registerVaultRoutes(app, options.vault)
+  registerSkillRoutes(app, options.skills)
   if (options.dashboardDir) registerDashboard(app, options.dashboardDir)
   return app
 }
+
+const LOCAL_HOST = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/i
+const isLocalHost = (host: string | undefined): boolean => host !== undefined && LOCAL_HOST.test(host)
+const hostOf = (url: string): string | undefined => { try { return new URL(url).host } catch { return undefined } }
 
 export function listenLocal(app: FastifyInstance, port: number): Promise<string> {
   return app.listen({ host: '127.0.0.1', port })
@@ -201,6 +220,63 @@ async function sendFile(reply: FastifyReply, root: string, path: string, content
     if (['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '')) return reply.code(404).send({ error: '파일 없음' })
     throw error
   }
+}
+
+const RUN_FIELDS = {
+  input: { type: 'string', maxLength: 10_000 },
+  model: { type: 'string', enum: Object.keys(SKILL_MODELS) }, effort: { type: 'string', enum: [...SKILL_EFFORTS] },
+}
+const ROUTINE_BODY = { type: 'object', additionalProperties: false, required: ['name', 'skill', 'input', 'model', 'effort', 'schedule', 'enabled'], properties: {
+  name: { type: 'string', minLength: 1, maxLength: 100 }, skill: { type: 'string', minLength: 1, maxLength: 200 }, ...RUN_FIELDS, enabled: { type: 'boolean' },
+  schedule: { type: 'object', additionalProperties: false, required: ['kind', 'time'], properties: {
+    kind: { type: 'string', enum: ['daily', 'weekly'] }, time: { type: 'string', pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' },
+    days: { type: 'array', maxItems: 7, uniqueItems: true, items: { type: 'integer', minimum: 0, maximum: 6 } },
+  } },
+} }
+
+/** 설치된 스킬·고정 목록·실행(시작은 바로 응답, 상태는 조회)·승인·중단·기록과 루틴 CRUD. */
+function registerSkillRoutes(app: FastifyInstance, skills: SkillServices | undefined): void {
+  const off = (reply: FastifyReply) => reply.code(404).send({ error: '스킬 실행이 연결되지 않음' })
+  const fail = (reply: FastifyReply, error: unknown) => {
+    if (error instanceof SkillNotFound || error instanceof RunNotFound || error instanceof RoutineNotFound) return reply.code(404).send({ error: error.message })
+    if (error instanceof SkillBusy || error instanceof RunConflict) return reply.code(409).send({ error: error.message })
+    throw error
+  }
+  const idParams = { type: 'object', properties: { id: { type: 'string', pattern: '^[\\w-]{1,64}$' } } }
+  app.get('/api/skills', async () => (skills ? skills.list() : []))
+  app.get('/api/skills/pinned', async () => (skills ? skills.runs.pinned() : []))
+  app.put<{ Body: string[] }>('/api/skills/pinned', { schema: { body: { type: 'array', maxItems: 500, items: { type: 'string', minLength: 1, maxLength: 200 } } } },
+    async (request, reply) => { if (!skills) return off(reply); await skills.runs.setPinned(request.body); return reply.code(204).send() })
+  app.get('/api/skills/runs', async () => (skills ? skills.runs.recent() : []))
+  app.post<{ Body: { name: string; input?: string; model?: string; effort?: string } }>('/api/skills/run', {
+    schema: { body: { type: 'object', required: ['name'], additionalProperties: false, properties: { name: { type: 'string', minLength: 1, maxLength: 200 }, ...RUN_FIELDS } } },
+  }, async (request, reply) => {
+    if (!skills) return off(reply)
+    const { name, input = '', model = '기본 모델', effort = '기본' } = request.body
+    try { return reply.code(202).send(await skills.runs.start({ skill: name, input, model, effort })) } catch (error) { return fail(reply, error) }
+  })
+  for (const action of ['approve', 'reject', 'cancel'] as const) {
+    app.post<{ Params: { id: string } }>(`/api/skills/runs/:id/${action}`, { schema: { params: idParams } }, async (request, reply) => {
+      if (!skills) return off(reply)
+      try {
+        if (action === 'cancel') { skills.runs.cancel(request.params.id); return skills.runs.get(request.params.id) }
+        return await skills.runs[action](request.params.id)
+      } catch (error) { return fail(reply, error) }
+    })
+  }
+  app.get('/api/routines', async () => (skills ? skills.routines.list() : []))
+  app.post<{ Body: RoutineInput }>('/api/routines', { schema: { body: ROUTINE_BODY } }, async (request, reply) => {
+    if (!skills) return off(reply)
+    return reply.code(201).send(await skills.routines.create(request.body))
+  })
+  app.put<{ Params: { id: string }; Body: RoutineInput }>('/api/routines/:id', { schema: { params: idParams, body: ROUTINE_BODY } }, async (request, reply) => {
+    if (!skills) return off(reply)
+    try { return await skills.routines.update(request.params.id, request.body) } catch (error) { return fail(reply, error) }
+  })
+  app.delete<{ Params: { id: string } }>('/api/routines/:id', { schema: { params: idParams } }, async (request, reply) => {
+    if (!skills) return off(reply)
+    try { await skills.routines.remove(request.params.id); return reply.code(204).send() } catch (error) { return fail(reply, error) }
+  })
 }
 
 /** Obsidian Vault: 허용 폴더 읽기·검색과 AI Inbox 쓰기. 연결하지 않았으면 state: off. */

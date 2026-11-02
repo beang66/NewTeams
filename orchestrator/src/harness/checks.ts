@@ -50,6 +50,14 @@ export function checkOwnership(changed: string[], owned: string[]): string[] {
   return changed.filter((f) => !isOwned(norm(f)))
 }
 
+/** 에이전트 CLI가 다음 실행 때 읽는 설정(훅·권한·MCP). 에이전트가 고치면 스스로 권한을 넓힐 수 있다. */
+const AGENT_CONFIG = picomatch(['.claude/**', '**/.claude/**', '.codex/**', '**/.codex/**', '.mcp.json', '**/.mcp.json'], { dot: true })
+
+/** 소유 범위와 무관하게 막는 에이전트 설정 파일 변경. */
+export function checkAgentConfig(changed: string[]): string[] {
+  return changed.filter((f) => AGENT_CONFIG(norm(f)))
+}
+
 export type EvidenceManifest = { scenarioId: string; steps: { step: number; action: string; screenshot: string; ts: string }[] }[]
 
 export async function verifyEvidence(evidenceDir: string, lastChangeAt: Date): Promise<{ ok: boolean; problems: string[] }> {

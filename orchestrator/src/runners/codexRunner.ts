@@ -40,14 +40,17 @@ export class CodexRunner implements Runner {
           args.push('-c', `mcp_servers.${name}.command=${JSON.stringify(server.command)}`, '-c', `mcp_servers.${name}.args=${JSON.stringify(server.args)}`)
         }
       }
-      for (const img of req.images ?? []) args.push('-i', img)
+      // 이미지·출력 스키마는 이어갈 때 resume/fork 하위 명령의 옵션이어야 다음 프롬프트에 붙는다.
+      const promptOpts: string[] = []
+      for (const img of req.images ?? []) promptOpts.push('-i', img)
       if (req.outputSchema) {
         tmp = mkdtempSync(join(os.tmpdir(), 'codex-schema-'))
         const file = join(tmp, 'schema.json')
         writeFileSync(file, JSON.stringify(req.outputSchema), 'utf8')
-        args.push('--output-schema', file)
+        promptOpts.push('--output-schema', file)
       }
-      if (req.resumeSessionId) args.push(req.fork ? 'fork' : 'resume', req.resumeSessionId)
+      if (req.resumeSessionId) args.push(req.fork ? 'fork' : 'resume', ...promptOpts, req.resumeSessionId)
+      else args.push(...promptOpts)
       args.push('-')
 
       const r = await spawnCli(this.cfg.codexBin, args, {

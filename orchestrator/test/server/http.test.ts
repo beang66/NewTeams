@@ -6,6 +6,9 @@ import type { FastifyInstance } from 'fastify'
 import { Workflow } from '../../src/engine/workflow.js'
 import { buildServer, createWorkflowDriver, listenLocal } from '../../src/server/http.js'
 import { attachNotifier } from '../../src/server/notifier.js'
+import { SkillRuns } from '../../src/skills/runs.js'
+import { Routines } from '../../src/skills/routines.js'
+import type { RunRequest, RunResult } from '../../src/runners/types.js'
 import { fakeDeps, makeScript } from '../fixtures/scripts/common.js'
 
 let dir: string
@@ -23,6 +26,43 @@ afterEach(async () => {
 const publish = () => wf.bus.publish({ type: 'REPORT', from: 'test', to: 'all', payload: {} })
 
 describe('HTTP API', { timeout: 30_000 }, () => {
+  it('스킬: 실행은 바로 202, 기록·중단·고정·루틴 CRUD, 잘못된 입력은 거부', async () => {
+    const list = async () => [{ name: 'ponytail', desc: 'lazy', source: 'user' as const }]
+    const claude = { run: (req: RunRequest) => new Promise<RunResult>((_ok, fail) => req.signal!.addEventListener('abort', () => fail(new Error('killed')))) }
+    const runs = new SkillRuns(join(dir, 'skill-runs'), claude, list, 10_000)
+    await app.close()
+    app = buildServer(wf, { skills: { list, runs, routines: new Routines(join(dir, 'skill-runs', 'routines.json'), runs) } })
+    expect((await app.inject('/api/skills')).json()).toEqual([{ name: 'ponytail', desc: 'lazy', source: 'user' }])
+    const post = (url: string, payload?: object) => app.inject({ method: 'POST', url, ...(payload ? { payload } : {}) })
+    const started = await post('/api/skills/run', { name: 'ponytail', input: '리뷰해줘', model: 'Sonnet', effort: 'high' })
+    expect(started.statusCode).toBe(202)
+    const id = started.json().id as string
+    expect((await post('/api/skills/run', { name: 'ponytail' })).statusCode).toBe(409) // 한 번에 하나
+    expect((await post(`/api/skills/runs/${id}/cancel`)).statusCode).toBe(200)
+    for (let i = 0; i < 100 && runs.busy(); i++) await new Promise((ok) => setTimeout(ok, 5))
+    expect((await app.inject('/api/skills/runs')).json()[0]).toMatchObject({ id, status: 'cancelled' })
+    expect((await post('/api/skills/run', { name: 'nope' })).statusCode).toBe(404)
+    expect((await post('/api/skills/run', { name: 'ponytail', model: '--dangerously-skip-permissions' })).statusCode).toBe(400)
+    expect((await app.inject({ method: 'PUT', url: '/api/skills/pinned', payload: ['ponytail'] })).statusCode).toBe(204)
+    expect((await app.inject('/api/skills/pinned')).json()).toEqual(['ponytail'])
+
+    const routine = { name: '아침', skill: 'ponytail', input: '', model: '기본 모델', effort: '기본', enabled: true, schedule: { kind: 'daily', time: '07:30' } }
+    const created = await post('/api/routines', routine)
+    expect(created.statusCode).toBe(201)
+    const rid = created.json().id as string
+    expect((await app.inject({ method: 'PUT', url: `/api/routines/${rid}`, payload: { ...routine, name: '아침2' } })).json().name).toBe('아침2')
+    expect((await post('/api/routines', { ...routine, schedule: { kind: 'daily', time: '25:00' } })).statusCode).toBe(400)
+    expect((await app.inject({ method: 'DELETE', url: `/api/routines/${rid}` })).statusCode).toBe(204)
+    expect((await app.inject('/api/routines')).json()).toEqual([])
+  })
+  it('다른 사이트(Origin)나 로컬이 아닌 Host의 요청은 403', async () => {
+    const approve = (headers: Record<string, string>) => app.inject({ method: 'POST', url: '/api/spec/approve', headers })
+    expect((await approve({ origin: 'https://evil.example' })).statusCode).toBe(403)
+    expect((await approve({ host: 'evil.example:4317' })).statusCode).toBe(403)
+    expect((await app.inject({ url: '/api/state', headers: { host: 'rebind.example' } })).statusCode).toBe(403)
+    expect((await app.inject({ url: '/api/state', headers: { host: '127.0.0.1:4317', origin: 'http://localhost:5173' } })).statusCode).toBe(200)
+    expect((await app.inject('/api/state')).statusCode).toBe(200)
+  })
   it('returns state, event cursors, saved prompts and human documents', async () => {
     const settings = (await app.inject('/api/agents')).json()
     expect(settings.roles.master).toEqual({ provider: 'claude', model: 'opus' })

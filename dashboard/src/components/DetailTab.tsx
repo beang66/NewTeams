@@ -54,7 +54,7 @@ function HumanView({ task, round, onRawLink }: { task?: string; round: number; o
           <h3 className="paper-h">증거 캡처 · r{round}</h3>
           <ul className="shots">
             {shots.map((s) => (
-              <li key={s.name}><a href={s.src} target="_blank" rel="noreferrer"><img src={s.src} alt={s.name} loading="lazy" /></a></li>
+              <li key={s.name}><a href={s.src} target="_blank" rel="noreferrer"><img src={s.src} alt={s.name} loading="lazy" width={1280} height={720} /></a></li>
             ))}
           </ul>
         </section>

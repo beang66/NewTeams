@@ -1,0 +1,26 @@
+/* 화면 전체의 누름·등장 움직임. 다른 스타일의 transition을 덮어야 하므로 마지막에 불러온다. */
+
+/* 누른 것이 전달됐다는 즉각 피드백. 큰 카드는 덜 줄인다. */
+.btn, .ht-ico, .hs-opt, .hs-play span, .hb-groups button, .seg button {
+  transition-property: transform, color, background-color, border-color;
+  transition-duration: var(--dur-press);
+  transition-timing-function: var(--ease-out);
+}
+.btn:active:not(:disabled), .ht-ico:active:not(.is-disabled), .hs-opt:active,
+.hs-play:active span, .hb-groups button:active, .seg button:active { transform: scale(0.97); }
+
+.hs-run, .board-task, a.hs-board {
+  transition: transform var(--dur-press) var(--ease-out), border-color var(--dur), background-color var(--dur);
+}
+.hs-run:active, .board-task:active, a.hs-board:active { transform: scale(0.99); }
+
+/* 팝오버: 연 아이콘 쪽에서 살짝 커지며 나타난다. 닫힘은 즉시. */
+.ht-panel {
+  transform-origin: top right;
+  transition: opacity var(--dur-pop) var(--ease-out), transform var(--dur-pop) var(--ease-out);
+  @starting-style { opacity: 0; transform: scale(0.97); }
+}
+.so:popover-open {
+  transition: opacity var(--dur-pop) var(--ease-out), transform var(--dur-pop) var(--ease-out);
+  @starting-style { opacity: 0; transform: scale(0.97); }
+}

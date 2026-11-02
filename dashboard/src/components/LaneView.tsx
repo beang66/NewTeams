@@ -5,17 +5,14 @@ import type { AgentConfig } from '../api/client'
 import { buildLanes, windowArrows, type Arrow } from '../model/lanes'
 import { LaneArrow } from './LaneArrow'
 import { HEAD_W, LaneHead } from './LaneHead'
+import { clockHM, clockHMS } from '../model/time'
 
 const ROW = 56, ROW_COLLAPSED = 24, TOP = 18, AXIS = 22, RIGHT_PAD = 16, LABEL_GAP = 48
 type Zoom = number | 'all'
 const ZOOMS: { label: string; value: Zoom }[] = [
   { label: '5분', value: 300_000 }, { label: '1시간', value: 3_600_000 }, { label: '전체', value: 'all' },
 ]
-const pad2 = (n: number): string => String(n).padStart(2, '0')
-const clock = (ms: number, sec: boolean): string => {
-  const d = new Date(ms)
-  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}${sec ? `:${pad2(d.getSeconds())}` : ''}`
-}
+const clock = (ms: number, sec: boolean): string => (sec ? clockHMS(ms) : clockHM(ms))
 
 export interface LaneViewProps {
   events: Envelope[]; state: RunState; agents: AgentConfig | null

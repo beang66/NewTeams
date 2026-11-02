@@ -1,6 +1,7 @@
 import type { Plan } from '@orch/protocol/plan'
 import type { RunState, TaskStatus } from '@orch/store/state'
 import { boardGroups, type BoardGroup } from '../model/board'
+import { PIPELINE_DEFAULTS } from '../model/pipeline'
 
 interface Props {
   state: RunState
@@ -25,13 +26,13 @@ function chipFor(group: BoardGroup, status: TaskStatus, round: number, limit: nu
   return CHIP[status] ?? { text: '-', tone: '' }
 }
 
-export function TaskBoard({ state, plan, selectedTask, onSelect, rejectLimit = 5 }: Props) {
+export function TaskBoard({ state, plan, selectedTask, onSelect, rejectLimit = PIPELINE_DEFAULTS.rejectLimit }: Props) {
   if (!plan) return <p className="board-empty">기획이 끝나면 태스크가 여기에 나타납니다</p>
   return (
     <div className="task-board">
       {boardGroups(state, plan).map((g) => (
         <section key={g.group} className="board-group">
-          <h4>{g.label} {g.tasks.length}</h4>
+          <h2>{g.label} {g.tasks.length}</h2>
           <ul>
             {g.tasks.map((t) => {
               const chip = chipFor(g.group, t.status, t.round, rejectLimit)

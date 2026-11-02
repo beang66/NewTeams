@@ -52,4 +52,10 @@
   --space-6: 32px;
 
   --dur: 200ms;
+  --sticky-offset: 72px;
+  --dur-press: 160ms;
+  --dur-pop: 150ms;
+  /* 기본 ease는 힘이 약하다. 들어오고 반응하는 움직임은 ease-out, 옆에서 나오는 패널은 drawer 곡선. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }

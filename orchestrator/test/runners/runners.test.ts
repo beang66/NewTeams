@@ -62,6 +62,17 @@ describe('ClaudeRunner', () => {
     await mk().run({ ...req, role: 'reviewer' })
     expect(lastArgs()).not.toContain('--permission-mode')
   })
+  it('사용자 전역 설정(플러그인·훅·MCP)을 싣지 않는다', async () => {
+    await mk().run(req)
+    const a = lastArgs()
+    expect(a[a.indexOf('--setting-sources') + 1]).toBe('project,local')
+    expect(a).toContain('--strict-mcp-config')
+    await mk().run({ ...req, userSettings: true, effort: 'high' })
+    const s = lastArgs()
+    expect(s).not.toContain('--setting-sources')
+    expect(s).not.toContain('--strict-mcp-config')
+    expect(s[s.indexOf('--effort') + 1]).toBe('high')
+  })
   it('default 모델은 CLI 기본값을 사용한다', async () => {
     await mk().run({ ...req, model: 'default' })
     expect(lastArgs()).not.toContain('--model')
@@ -117,6 +128,15 @@ describe('CodexRunner', () => {
     const schemaPath = a[a.indexOf('--output-schema') + 1]!
     expect(existsSync(schemaPath)).toBe(false)
     expect(count()).toBe(before)
+  })
+  it('이어가기에서는 이미지와 output-schema를 resume 하위 명령 옵션으로 넘긴다', async () => {
+    await mk().run({ ...req, resumeSessionId: 'review-id', images: ['a.png'], outputSchema: { type: 'object' } })
+    const a = lastArgs()
+    const at = a.indexOf('resume')
+    expect(at).toBeGreaterThan(a.indexOf('--sandbox'))
+    expect(a.indexOf('-i')).toBeGreaterThan(at)
+    expect(a.indexOf('--output-schema')).toBeGreaterThan(at)
+    expect(a.slice(-2)).toEqual(['review-id', '-'])
   })
   it('turn.failed/종료 코드 실패는 classifyFailure로 분류 (format 아님)', async () => {
     process.env.FAKE_MODE = 'codexfail'

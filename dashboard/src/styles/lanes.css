@@ -11,7 +11,7 @@
 .seg button[aria-pressed='true'] { color: var(--ink); background: var(--surface-3); }
 .lane-toggle { border: 1px solid var(--line-strong); border-radius: var(--radius-sm); }
 .lane-toggle[aria-pressed='true'] { color: var(--ink); }
-.lane-toggle.is-follow::before { content: '\25CF'; margin-right: var(--space-1); color: var(--ink-faint); }
+.lane-toggle.is-follow::before { content: '\25CF' / ''; margin-right: var(--space-1); color: var(--ink-faint); }
 .lane-toggle.is-follow[aria-pressed='true']::before { color: var(--accent); }
 .lane-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
 .lane-svg { display: block; font-family: var(--font-body); font-size: var(--fs-12); }
@@ -40,7 +40,9 @@
 .arrow-hit { stroke: transparent; stroke-width: 10; }
 .arrow-label { fill: var(--ink-subtle); }
 .arrow.tone-bad .arrow-label { fill: var(--bad); }
-.arrow:hover .arrow-line { stroke-width: 2.5; }
+@media (hover: hover) and (pointer: fine) {
+  .arrow:hover .arrow-line { stroke-width: 2.5; }
+}
 .arrow.is-highlight .arrow-hit { stroke: var(--accent); stroke-opacity: .15; }
 .arrow.is-selected .arrow-hit { stroke: var(--accent); stroke-opacity: .35; }
 .arrow.is-selected .arrow-label { fill: var(--ink); }

@@ -117,23 +117,6 @@ export const calendar = {
 }
 
 export interface Skill { id: string; maker: string; name: string; desc: string; state: 'input' | 'ready'; placeholder?: string }
-export const skills: Skill[] = [
-  { id: 's1', maker: 'Claude', name: 'blog-draft', desc: '블로그 글 초안 작성', state: 'input', placeholder: 'AI 에이전트로 1인 업무 자동화하는 법, 2,000자 블로그 글로 써줘' },
-  { id: 's2', maker: 'Claude', name: 'channel-convert', desc: '채널별 형식 변환', state: 'ready' },
-  { id: 's3', maker: 'Claude', name: 'shorts-video', desc: '쇼츠 대본·음성·영상 생성', state: 'input', placeholder: '이번 주 블로그 글을 40초 세로 쇼츠로 만들어줘' },
-  { id: 's4', maker: 'Codex', name: 'brand-tone-check', desc: '브랜드 톤 검수', state: 'ready' },
-  { id: 's5', maker: 'Claude', name: 'proposal-writer', desc: '기획서 작성', state: 'input', placeholder: '○○회사 AI 교육 워크숍 제안 기획서 만들어줘' },
-  { id: 's6', maker: 'Claude', name: 'webapp-build', desc: '웹앱 기능 개발', state: 'input', placeholder: '할 일 추가·완료·삭제가 되는 한 페이지 웹앱 만들어줘' },
-]
-export const skillTotal = skills.length
-
-export interface RoutineRun { id: string; name: string; platform: 'Windows'; schedule: string; last: string; result: '완료' | '실패' | '기록 없음'; next?: string }
-export const routineRuns: RoutineRun[] = [
-  { id: 'rr1', name: '아침 채널 지표 수집', platform: 'Windows', schedule: '매일 07:30 · Windows 예약', last: '최근 11.01 07:30 · 예약', result: '완료' },
-  { id: 'rr2', name: '오늘 작업 브리핑 → Telegram', platform: 'Windows', schedule: '매일 08:00 · Windows 예약', last: '최근 11.01 08:00 · 예약', result: '완료' },
-  { id: 'rr3', name: '주간 콘텐츠 제안', platform: 'Windows', schedule: '매주 월 07:00 · Windows 예약', last: '최근 10.27 07:00 · 예약', result: '실패', next: '11.03 07:00' },
-  { id: 'rr4', name: '세컨드 브레인 색인 갱신', platform: 'Windows', schedule: '매일 09:00·13:00·18:00', last: '최근 11.01 09:00 · 예약', result: '완료' },
-]
 
 /** 다른 대시보드: 에셋 라이브러리와 다른 화면. count가 있으면 'N개 · 설명'으로 보인다. href가 없으면 준비 중. */
 /** icon은 SectionIcon 이름이다. */

@@ -1,6 +1,10 @@
 import type { RunState } from '@orch/store/state'
 import type { Envelope } from '@orch/protocol/messages'
 import type { Plan } from '@orch/protocol/plan'
+import type { SkillRun } from '@orch/skills/runs'
+import type { Routine, RoutineInput } from '@orch/skills/routines'
+
+export type { SkillRun, Routine, RoutineInput }
 
 export interface AgentConfig { roles: Record<string, { provider: 'claude' | 'codex'; model: string }> }
 
@@ -11,6 +15,7 @@ export type VaultSummary =
   | { state: 'error'; error: string }
   | { state: 'connected'; name: string; readFolders: string[]; inbox: string; total: number; groups: { key: string; label: string; count: number }[]; inboxCount: number; scannedAt: string; truncated: boolean }
 export interface VaultGraph { nodes: { id: string; title: string; group: string; degree: number }[]; links: { source: string; target: string }[]; truncated: boolean; scannedAt: string }
+export interface InstalledSkill { name: string; desc: string; source: 'user' | 'project' | 'plugin' }
 export interface VaultHit { path: string; title: string; group: string; snippet: string; mtimeMs: number }
 
 export class ApiError extends Error {
@@ -38,6 +43,8 @@ async function request(path: string, init?: RequestInit, okStatuses: number[] = 
 }
 
 const getJson = async <T>(path: string): Promise<T> => (await request(path)).json() as Promise<T>
+const send = (method: 'POST' | 'PUT', path: string, body: unknown) =>
+  request(path, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
 const post = (path: string, body?: unknown) =>
   request(path, {
     method: 'POST',
@@ -58,6 +65,21 @@ export const api = {
     try { return await getJson<VaultSummary>('/api/vault') } catch (e) { return { state: 'error', error: e instanceof Error ? e.message : String(e) } }
   },
   vaultGraph: () => getJson<VaultGraph>('/api/vault/graph'),
+  skills: () => getJson<InstalledSkill[]>('/api/skills'),
+  pinnedSkills: () => getJson<string[]>('/api/skills/pinned'),
+  async setPinnedSkills(names: string[]): Promise<void> { await send('PUT', '/api/skills/pinned', names) },
+  skillRuns: () => getJson<SkillRun[]>('/api/skills/runs'),
+  async runSkill(body: { name: string; input: string; model: string; effort: string }): Promise<SkillRun> {
+    return (await post('/api/skills/run', body)).json() as Promise<SkillRun>
+  },
+  async skillRunAction(id: string, action: 'approve' | 'reject' | 'cancel'): Promise<SkillRun> {
+    return (await post(`/api/skills/runs/${encodeURIComponent(id)}/${action}`)).json() as Promise<SkillRun>
+  },
+  routines: () => getJson<Routine[]>('/api/routines'),
+  async saveRoutine(input: RoutineInput, id?: string): Promise<Routine> {
+    return (await send(id ? 'PUT' : 'POST', id ? `/api/routines/${encodeURIComponent(id)}` : '/api/routines', input)).json() as Promise<Routine>
+  },
+  async deleteRoutine(id: string): Promise<void> { await request(`/api/routines/${encodeURIComponent(id)}`, { method: 'DELETE' }) },
   vaultSearch: (q: string, group?: string) =>
     getJson<VaultHit[]>(`/api/vault/search?q=${encodeURIComponent(q)}${group ? `&group=${encodeURIComponent(group)}` : ''}`),
   events: (after?: string) => getJson<Envelope[]>(after ? `/api/events?after=${encodeURIComponent(after)}` : '/api/events'),

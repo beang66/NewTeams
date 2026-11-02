@@ -1,14 +1,19 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useHashParam } from '../api/hashState'
 import { api, type VaultGraph, type VaultHit, type VaultSummary } from '../api/client'
 import { forceLayout } from '../model/forceLayout'
+import { PIPELINE_DEFAULTS } from '../model/pipeline'
+import { yearMonth } from '../model/time'
 import { StageRail } from '../components/StageRail'
 import { SectionIcon } from '../components/SectionIcons'
 import { TelegramChip } from '../components/TelegramChip'
 import { Clock, MessagePanel, NotificationPanel, SettingsPanel } from '../components/HeaderTools'
-import { SkillOptionsDialog, loadOption, optionSummary, type SkillOption } from '../components/SkillOptions'
+import { Section } from '../components/HomeSection'
+import { SkillsCard } from '../components/SkillsCard'
+import { RoutinesCard } from '../components/RoutinesCard'
 import {
   activeRuns, boards, brain, calendar, channels, goals, myTurn, obsidianLastSync, outputs, projects,
-  routineRuns, skills, todayTasks, usage, type BrainCluster, type Channel, type MyTurn,
+  todayTasks, usage, type BrainCluster, type Channel, type MyTurn,
 } from '../model/homeMock'
 
 /*
@@ -22,19 +27,6 @@ const nf = new Intl.NumberFormat('ko-KR')
 const fmt = (n: number | null) => (n === null ? '—' : nf.format(n))
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 
-function Section({ id, title, meta, area, action, children }: { id?: string; title: string; meta?: ReactNode; area: string; action?: ReactNode; children?: ReactNode }) {
-  return (
-    <section id={id} tabIndex={id ? -1 : undefined} className={`hs ha-${area}`} aria-label={title}>
-      <header className="hs-head">
-        <span className="hs-icon" aria-hidden="true"><SectionIcon name={area} /></span>
-        <h2>{title}</h2>
-        {meta !== undefined && <span className="hs-meta">{meta}</span>}
-        {action}
-      </header>
-      {children}
-    </section>
-  )
-}
 
 /** 접히는 한 줄 섹션(참고 이미지의 '목표 ›', '최근 파일 ›'). */
 function Fold({ title, meta, area, children }: { title: string; meta?: ReactNode; area: string; children: ReactNode }) {
@@ -58,10 +50,27 @@ function Dot({ tone, children }: { tone: 'ok' | 'bad' | 'off'; children: ReactNo
 
 /* ---------- 상단 ---------- */
 
+/** 고정 헤더는 화면 폭에 따라 줄이 바뀐다. 실제 높이를 --sticky-offset으로 알려 스크롤 대상이 가리지 않게 한다. */
+function useStickyOffset() {
+  const ref = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const root = document.documentElement
+    const apply = (h: number) => root.style.setProperty('--sticky-offset', `${Math.ceil(h) + 12}px`)
+    apply(el.getBoundingClientRect().height)
+    const ro = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(([entry]) => apply(entry!.borderBoxSize[0]!.blockSize))
+    ro?.observe(el)
+    return () => { ro?.disconnect(); root.style.removeProperty('--sticky-offset') }
+  }, [])
+  return ref
+}
+
 function HomeTop({ project, onProject }: { project: string; onProject: (p: string) => void }) {
   const ratio = Math.min(1, usage.apiSpendUsd / usage.apiCapUsd)
+  const ref = useStickyOffset()
   return (
-    <header className="ht">
+    <header className="ht" ref={ref}>
       <a className="ht-brand" href="#/">NEWTEAM</a>
       <span className="ht-sub">AGENT STUDIO</span>
       <label className="ht-project">
@@ -162,7 +171,7 @@ function Calendar() {
   return (
     <Section area="calendar" title="캘린더" meta="일정·실행·게시"
       action={
-        <span className="hs-month mono">{year}.{String(month).padStart(2, '0')}</span>
+        <span className="hs-month mono">{yearMonth(new Date(year, month - 1, 1))}</span>
       }>
       <table className="hs-cal">
         <thead>
@@ -311,6 +320,10 @@ function BrainGraph({ data, selected, onSelect }: { data: BrainCluster[]; select
 }
 
 const MAX_GRAPH_NODES = 600
+/** Tab으로 들르는 노트 수. 나머지는 검색으로 연다(수백 개의 탭 정지를 막는다). */
+const FOCUSABLE_GRAPH_NODES = 20
+/** 이보다 점이 많으면 번짐(blur) 필터를 끈다. 필터 비용은 점 수에 비례한다. */
+const GLOW_MAX_NODES = 300
 const short = (t: string) => (t.length > 16 ? `${t.slice(0, 15)}…` : t)
 
 /** Obsidian 그래프 보기와 같은 데이터(노트=점, [[링크]]=선)를 그린다. 점 크기는 연결 수, 이름은 연결이 많은 노트만. */
@@ -328,7 +341,9 @@ function NoteGraph({ graph, vaultName, group }: { graph: VaultGraph; vaultName: 
     return { nodes: laid, links: ls, meta }
   }, [graph])
   const pos = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes])
-  const labelled = useMemo(() => new Set([...nodes].sort((a, b) => b.degree - a.degree).slice(0, 6).map((n) => n.id)), [nodes])
+  const byDegree = useMemo(() => [...nodes].sort((a, b) => b.degree - a.degree).map((n) => n.id), [nodes])
+  const labelled = useMemo(() => new Set(byDegree.slice(0, 6)), [byDegree])
+  const focusable = useMemo(() => new Set(byDegree.slice(0, FOCUSABLE_GRAPH_NODES)), [byDegree])
   const neighbours = useMemo(() => {
     if (!hover) return null
     const set = new Set([hover])
@@ -348,13 +363,13 @@ function NoteGraph({ graph, vaultName, group }: { graph: VaultGraph; vaultName: 
           return <line key={`${l.source}>${l.target}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} className={on ? 'is-on' : dim(l.source) || dim(l.target) ? 'is-dim' : ''} />
         })}
       </g>
-      <g filter="url(#hb-glow)">
+      <g filter={nodes.length <= GLOW_MAX_NODES ? 'url(#hb-glow)' : undefined}>
         {nodes.map((n) => {
           const m = meta.get(n.id)!
           const r = 3 + Math.sqrt(n.degree) * 2.6
           const href = `obsidian://open?vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(n.id.replace(/\.md$/, ''))}`
           return (
-            <a key={n.id} href={href} className={`hb-node${dim(n.id) ? ' is-dim' : ''}${hover === n.id ? ' is-on' : ''}`} aria-label={`${m.title} · 연결 ${n.degree}`}
+            <a key={n.id} href={href} tabIndex={focusable.has(n.id) ? undefined : -1} className={`hb-node${dim(n.id) ? ' is-dim' : ''}${hover === n.id ? ' is-on' : ''}`} aria-label={`${m.title} · 연결 ${n.degree}`}
               onMouseEnter={() => setHover(n.id)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(n.id)} onBlur={() => setHover(null)}>
               <title>{`${m.title}\n${n.id}\n연결 ${n.degree}`}</title>
               <circle cx={n.x} cy={n.y} r={r} />
@@ -388,6 +403,16 @@ function SecondBrain() {
   const [q, setQ] = useState('')
   const [hits, setHits] = useState<VaultHit[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const searchRef = useRef<HTMLDivElement>(null)
+  // 결과 목록이 열려 있으면 검색창·목록 밖을 누르거나 Esc로 닫는다(헤더 팝오버와 같은 방식).
+  useEffect(() => {
+    if (!hits) return
+    const onDown = (e: MouseEvent) => { if (!searchRef.current?.contains(e.target as Node)) setHits(null) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setHits(null) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
+  }, [hits])
   const total = data.reduce((a, c) => a + c.count, 0)
   const toggle = (k: string) => setSelected((s) => (s === k ? null : k))
   const search = async (e: React.FormEvent) => {
@@ -418,9 +443,10 @@ function SecondBrain() {
         {live && graph ? (graph.nodes.length === 0 ? <p className="hs-meta">허용 폴더에 노트가 없습니다</p> : <NoteGraph graph={graph} vaultName={live.name} group={selected} />)
           : data.length === 0 ? <p className="hs-meta">허용 폴더에 노트가 없습니다</p> : <BrainGraph data={data} selected={selected} onSelect={toggle} />}
       </div>
+      <div ref={searchRef}>
       <form className="hb-search" onSubmit={search}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} aria-label="세컨드 브레인 검색" disabled={!live}
-          placeholder={!live ? 'Obsidian 연결 후 검색할 수 있습니다' : selected ? `${data.find((b) => b.key === selected)?.label}에서 검색` : '노트 검색'} />
+        <input type="search" name="vault-q" autoComplete="off" value={q} onChange={(e) => setQ(e.target.value)} aria-label="세컨드 브레인 검색" disabled={!live}
+          placeholder={!live ? 'Obsidian 연결 후 검색할 수 있습니다' : selected ? `${data.find((b) => b.key === selected)?.label}에서 검색…` : '노트 검색…'} />
         <button type="submit" className="btn" disabled={!live}>검색</button>
       </form>
       {err && <p className="hs-meta hb-msg" role="status">{err}</p>}
@@ -436,6 +462,7 @@ function SecondBrain() {
           ))}
         </ul>
       )}
+      </div>
       {openHref ? <a className="hb-open" href={openHref}>Obsidian에서 열기 ↗</a> : <span className="hb-open is-disabled">Obsidian 연결 후 열 수 있습니다</span>}
     </section>
   )
@@ -482,7 +509,7 @@ function MyTurnInbox({ project }: { project: string }) {
                 <span className="hs-mail-kind">{TURN_LABEL[t.kind]}</span>
                 <strong>{t.title}</strong>
                 <span className="hs-mail-detail">{t.detail}</span>
-                {t.kind === 'deadlock' && <span className="hs-mail-rule">반려 5회 또는 같은 지적 2회면 교착입니다. 마스터가 풀지 못해 사람에게 넘어왔고, 이 태스크는 멈춰 있습니다.</span>}
+                {t.kind === 'deadlock' && <span className="hs-mail-rule">반려 {PIPELINE_DEFAULTS.rejectLimit}회 또는 같은 지적 {PIPELINE_DEFAULTS.repeatFindingLimit}회면 교착입니다. 마스터가 풀지 못해 사람에게 넘어왔고, 이 태스크는 멈춰 있습니다.</span>}
               </a>
               <span className="hs-meta">{t.at}</span>
             </li>
@@ -514,67 +541,6 @@ function Runs({ project }: { project: string }) {
   )
 }
 
-const SKILLS_PER_PAGE = 4
-
-function Skills() {
-  const [q, setQ] = useState('')
-  const [page, setPage] = useState(0)
-  const [editing, setEditing] = useState<{ id: string; anchor: HTMLElement } | null>(null)
-  const [opts, setOpts] = useState<Record<string, SkillOption>>(() => Object.fromEntries(skills.map((sk) => [sk.id, loadOption(sk.id)])))
-  const shown = skills.filter((sk) => `${sk.name} ${sk.desc}`.toLowerCase().includes(q.trim().toLowerCase()))
-  const pages = Math.max(1, Math.ceil(shown.length / SKILLS_PER_PAGE))
-  const cur = Math.min(page, pages - 1)
-  const slice = shown.slice(cur * SKILLS_PER_PAGE, cur * SKILLS_PER_PAGE + SKILLS_PER_PAGE)
-  const target = skills.find((sk) => sk.id === editing?.id)
-  return (
-    <Section area="skills" title="스킬" meta={skills.length}
-      action={<input className="hs-skill-search" value={q} onChange={(e) => { setQ(e.target.value); setPage(0) }} placeholder="⌕ 스킬 검색" aria-label="스킬 검색" />}>
-      <ul className="hs-skills">
-        {slice.map((sk) => (
-          <li key={sk.id} className="hs-skill">
-            <span className="hs-skill-name"><span className="hs-meta">{sk.maker} · </span><strong>{sk.name}</strong></span>
-            <small>{sk.desc}</small>
-            <span className="hs-skill-actions">
-              <a className="hs-play" href="#/run"><span aria-hidden="true">▶</span>{sk.state === 'input' ? '입력하고 실행' : '실행'}</a>
-              <button type="button" className="hs-opt" onClick={(e) => setEditing({ id: sk.id, anchor: e.currentTarget })} aria-expanded={editing?.id === sk.id} aria-label={`${sk.name} 옵션: ${optionSummary(opts[sk.id]!)}`}>
-                옵션<small>{optionSummary(opts[sk.id]!)}</small>
-              </button>
-            </span>
-          </li>
-        ))}
-        {shown.length === 0 && <li className="hs-meta">일치하는 스킬 없음</li>}
-      </ul>
-      {pages > 1 && (
-        <div className="hs-pager" role="group" aria-label="스킬 페이지">
-          {Array.from({ length: pages }, (_, i) => (
-            <button key={i} type="button" aria-label={`${i + 1}쪽`} aria-current={i === cur ? 'true' : undefined} onClick={() => setPage(i)} />
-          ))}
-        </div>
-      )}
-      {target && (
-        <SkillOptionsDialog skill={target} anchor={editing!.anchor} onClose={() => setEditing(null)} onSaved={(v) => setOpts((o) => ({ ...o, [target.id]: v }))} />
-      )}
-    </Section>
-  )
-}
-
-function RoutineList() {
-  return (
-    <Section area="routines" title="루틴" meta="Windows · PC 켜져 있을 때">
-      <ul className="hs-list">
-        {routineRuns.map((r) => (
-          <li key={r.id} className="hs-routine">
-            <span className="hs-row"><strong>{r.name}</strong><span className="hs-badge">{r.platform}</span></span>
-            <small>{r.schedule}</small>
-            <small className="hs-last">{r.last} · {r.result === '실패' ? <b>✕ 실패</b> : r.result}</small>
-            {r.result === '실패' && <small className="hs-recover">다음 시도 {r.next ?? '예약 없음'} · 원인은 PC의 작업 스케줄러 기록(NEWTEAM 폴더)에서 확인</small>}
-          </li>
-        ))}
-      </ul>
-    </Section>
-  )
-}
-
 /* ---------- 화면 ---------- */
 
 // 해시 라우터라 기본 앵커 이동 대신 직접 포커스를 옮긴다.
@@ -586,7 +552,7 @@ function skipToTurn(e: React.MouseEvent) {
 }
 
 export function HomeScreen() {
-  const [project, setProject] = useState('')
+  const [project, setProject] = useHashParam<string>('project', '')
   return (
     <div className="home">
       <a className="skip-link" href="#my-turn" onClick={skipToTurn}>내 차례로 건너뛰기</a>
@@ -596,18 +562,18 @@ export function HomeScreen() {
         <div className="hg-col hg-ops">
           <MyTurnInbox project={project} />
           <Runs project={project} />
-          <RoutineList />
+          <GoalsFold />
+          <Boards />
         </div>
         <div className="hg-col hg-center">
           <Calendar />
-          <Skills />
           <SecondBrain />
         </div>
         <div className="hg-col hg-side">
           <Stats />
-          <GoalsFold />
+          <SkillsCard />
+          <RoutinesCard />
           <OutputsFold />
-          <Boards />
         </div>
       </main>
     </div>

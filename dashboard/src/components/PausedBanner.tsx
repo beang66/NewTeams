@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { reasonLabel } from '../model/labels'
 import type { UsageView } from '../model/usage'
+import { clockHM } from '../model/time'
 
 type Paused = NonNullable<UsageView['paused']>
 
@@ -12,7 +13,7 @@ function remainingText(ms: number): string {
   return min < 60 ? `${min}분 남음` : `${Math.floor(min / 60)}시간${min % 60 ? ` ${min % 60}분` : ''} 남음`
 }
 
-const hhmm = (d: Date): string => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+const hhmm = (d: Date): string => clockHM(d)
 
 export function PausedBanner({ paused, now = Date.now }: { paused: Paused; now?: () => number }) {
   const [, setTick] = useState(0)

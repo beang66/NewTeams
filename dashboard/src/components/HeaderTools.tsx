@@ -104,7 +104,7 @@ function Ask() {
         ))}
       </ol>
       <form onSubmit={send} className="ht-ask-form">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="질문 입력" aria-label="마스터에게 보낼 질문" maxLength={2000} />
+        <input name="question" autoComplete="off" value={q} onChange={(e) => setQ(e.target.value)} placeholder="예: 지금 막힌 태스크가 뭐야…" aria-label="마스터에게 보낼 질문" maxLength={2000} />
         <button type="submit" className="btn is-primary" disabled={busy || !q.trim()}>보내기</button>
       </form>
     </div>

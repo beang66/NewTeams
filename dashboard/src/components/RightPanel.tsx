@@ -50,7 +50,9 @@ export function RightPanel({ run, tab, onTab, selection, onSelectEvent, onSelect
   const showRaw = (eventId: string) => { onSelectEvent?.(eventId); setSub('raw'); onTab('detail') }
 
   return (
-    <aside ref={ref} className="panel" aria-label="오른쪽 패널" data-open={open ? '' : undefined}>
+    <aside ref={ref} className="panel" aria-labelledby="panel-title" data-open={open ? '' : undefined}>
+      {/* 카드 제목(h3)의 상위 제목. 화면에는 탭이 그 역할을 하므로 숨긴다. */}
+      <h2 id="panel-title" className="sr-only">오른쪽 패널</h2>
       <div role="tablist" aria-label="패널 탭" className="panel-tabs">
         {TABS.map((t) => (
           <button key={t.id} type="button" role="tab" id={`ptab-${t.id}`} aria-selected={tab === t.id} aria-controls="ppanel" onClick={() => onTab(t.id)}>

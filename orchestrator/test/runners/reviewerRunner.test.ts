@@ -19,6 +19,11 @@ describe('ReviewerRunner', () => {
     expect((await r.run(req)).text).toContain('approve')
     expect(openai.calls[0]).toEqual(req)
   })
+  it('이어가기 요청이 OpenAI로 넘어가면 세션 없이 freshPrompt 전체로 보낸다', async () => {
+    const codex = new FakeRunner([new RunnerError('rate_limit', 'x')]); const openai = new FakeRunner([ok(APPROVE)])
+    await new ReviewerRunner(codex, openai).run({ ...req, prompt: '증분', resumeSessionId: 's-rev', freshPrompt: '전체' })
+    expect(openai.calls[0]).toEqual({ ...req, prompt: '전체' })
+  })
   it('Codex의 다른 오류는 전파', async () => {
     const err = new RunnerError('crash', 'x')
     const openai = new FakeRunner([])

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { RunView } from '../api/useRun'
+import { useHashParam } from '../api/hashState'
 import { usageView } from '../model/usage'
 import { LaneView } from '../components/LaneView'
 import { AskBar } from '../components/AskBar'
@@ -11,6 +12,9 @@ import { TaskBoard } from '../components/TaskBoard'
 import { TimelineList } from '../components/TimelineList'
 import { TopBar } from '../components/TopBar'
 import { PipelineOverview } from './PipelineOverview'
+
+const PANEL_TABS = ['attention', 'master', 'detail'] as const satisfies readonly PanelTab[]
+const DETAIL_SUBS = ['human', 'raw'] as const satisfies readonly DetailSub[]
 
 const NARROW = '(max-width: 768px)'
 function useMediaQuery(query: string): boolean {
@@ -39,8 +43,8 @@ export function ControlScreen({ run, hasSpecDraft = false, initialRawEvent, topB
   const [panelOpen, setPanelOpen] = useState(initialRawEvent !== undefined)
   const [selectedTask, setSelectedTask] = useState<string | undefined>()
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(initialRawEvent)
-  const [tab, setTab] = useState<PanelTab>(initialRawEvent ? 'detail' : 'attention')
-  const [sub, setSub] = useState<DetailSub>(initialRawEvent ? 'raw' : 'human')
+  const [tab, setTab] = useHashParam<PanelTab>('tab', initialRawEvent ? 'detail' : 'attention', PANEL_TABS, !initialRawEvent)
+  const [sub, setSub] = useHashParam<DetailSub>('sub', initialRawEvent ? 'raw' : 'human', DETAIL_SUBS, !initialRawEvent)
   const [highlightIds, setHighlightIds] = useState<string[] | undefined>()
   const [view, setView] = useState<'control' | 'overview'>('control')
   const closePanel = useCallback(() => setPanelOpen(false), [])

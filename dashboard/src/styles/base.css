@@ -1,5 +1,8 @@
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
+/* 상단 고정 헤더(.ht) 높이만큼 비워 두어, 건너뛰기·j/k 이동 대상이 헤더에 가리지 않게 한다. */
+html { scroll-padding-top: var(--sticky-offset); touch-action: manipulation; }
+h1, h2, h3, h4 { text-wrap: balance; }
 body {
   margin: 0;
   background: var(--bg);
@@ -22,6 +25,11 @@ body {
   white-space: nowrap;
   border: 0;
 }
+/* 움직임 줄이기: 위치·크기 변화는 없애고, 상태 이해를 돕는 투명도·색 전환은 짧게 남긴다. */
 @media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; animation: none !important; }
+  *, ::before, ::after {
+    transition-property: opacity, color, background-color, border-color, fill, stroke !important;
+    transition-duration: 150ms !important;
+    animation: none !important;
+  }
 }

@@ -55,7 +55,7 @@ export function DoneScreen({ run }: { run: RunView }) {
             <button type="button" className="btn paper-btn" disabled={text === null} onClick={() => text !== null && downloadMarkdown(text)}>Markdown 내려받기</button>
           </header>
           <DoneFigure run={run} />
-          {report.state === 'loading' ? <Skeleton lines={5} label="보고서 불러오는 중" />
+          {report.state === 'loading' ? <Skeleton lines={5} label="보고서 불러오는 중…" />
             : text === null ? <p className="paper-empty">report.md가 아직 없습니다.</p> : <Markdown source={text} onRawLink={jump} />}
         </article>
         <DoneAside run={run} />

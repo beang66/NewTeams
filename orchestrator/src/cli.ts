@@ -20,6 +20,10 @@ import { ReviewerRunner } from './runners/reviewerRunner.js'
 import { createWorkflowActions } from './server/actions.js'
 import { buildServer, listenLocal } from './server/http.js'
 import { Vault } from './vault/vault.js'
+import { ClaudeRunner } from './runners/claudeRunner.js'
+import { listSkills } from './skills/skills.js'
+import { SkillRuns } from './skills/runs.js'
+import { Routines } from './skills/routines.js'
 import { attachNotifier, consoleNotifier, NOTIFY_TYPES } from './server/notifier.js'
 import { TelegramBot } from './telegram/bot.js'
 import { BotApi } from './telegram/botApi.js'
@@ -97,7 +101,14 @@ export function assembleServe(cfg: Config, wf: Workflow, env: NodeJS.ProcessEnv,
   const detachConsole = attachNotifier(wf.bus, consoleNotifier)
   const detachTelegram = bot ? attachNotifier(wf.bus, bot, [...NOTIFY_TYPES, 'RESUMED', 'APPROVE']) : undefined
   const vault = openVault(cfg, env, log)
-  const app = buildServer(wf, { resume: true, actions, dashboardDir: options.dashboardDir, telegramStatus: () => bot?.status() ?? { state: 'off' }, vault })
+  // 스킬 실행 기록·고정 목록·루틴은 프로젝트 폴더의 skill-runs/에 둔다. 루틴은 서버가 켜져 있을 때만 돈다.
+  const repoDir = fileURLToPath(new URL('../../', import.meta.url))
+  const skillDir = join(wf.store.paths.raw, '..', 'skill-runs')
+  const runs = new SkillRuns(skillDir, new ClaudeRunner(cfg), () => listSkills(repoDir), cfg.timeoutsMs.master)
+  const routines = new Routines(join(skillDir, 'routines.json'), runs)
+  const skills = { list: () => listSkills(repoDir), runs, routines }
+  const app = buildServer(wf, { resume: true, actions, dashboardDir: options.dashboardDir, telegramStatus: () => bot?.status() ?? { state: 'off' }, vault, skills })
+  app.addHook('onListen', async () => { routines.start() })
   app.addHook('onListen', async () => {
     if (!bot) { log('텔레그램: 꺼짐 (환경 변수 없음)'); return }
     // Telegram 장애나 getMe 지연이 HTTP listen 및 workflow drive를 기다리게 하지 않는다.
@@ -107,7 +118,7 @@ export function assembleServe(cfg: Config, wf: Workflow, env: NodeJS.ProcessEnv,
     }).catch(error => console.warn(`텔레그램: ${safeTelegramError(error, secrets)}`))
   })
   app.addHook('onClose', async () => {
-    detachConsole(); detachTelegram?.()
+    detachConsole(); detachTelegram?.(); routines.stop()
     await bot?.stop()
   })
   return { app, bot, actions }

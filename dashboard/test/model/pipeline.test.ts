@@ -23,7 +23,7 @@ describe('pipelineView', () => {
   })
   it('고정 조건은 agents 설정을 반영한다', () => {
     expect(pipelineView(runWithAgents({ dev: { provider: 'codex', model: 'codex-default' } })).fixed).toMatch(/^작업 G codex-default/)
-    expect(pipelineView(runAt('BUILD')).fixed).toBe('작업 C 기본 · 검수 G 읽기 전용 · 병렬 3 · 반려 상한 5 · 같은 지적 2회 · API $8')
+    expect(pipelineView(runAt('BUILD')).fixed).toBe('작업 C 기본 · 검수 G 읽기 전용 · 병렬 3 · 반려 상한 3 · 같은 지적 2회 · API $8')
   })
   it('교착, 사람 대기, 검수 중 태스크', () => {
     const h = human('msg-9001', 't3', 'repeat_finding')

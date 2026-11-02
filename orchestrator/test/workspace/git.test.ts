@@ -144,11 +144,28 @@ describe('git workspace', () => {
     await writeFile(join(wt, 'big.txt'), 'y'.repeat(5000))
     await commitAll(wt, 'big')
     const d = await diff(wt, base, 100)
-    expect(d.length).toBeLessThanOrEqual(100 + 40)
-    expect(d.endsWith('\n…(diff 일부 생략)')).toBe(true)
+    expect(d).toContain('…(diff 일부 생략)')
+    expect(d).toContain('- big.txt')
     const full = await diff(wt, base)
     expect(full).toContain('big.txt')
-    expect(full.endsWith('(diff 일부 생략)')).toBe(false)
+    expect(full).not.toContain('(diff 일부 생략)')
+  })
+
+  it('diff는 잠금 파일을 빼고, 잘리면 못 본 파일을 모두 알려 준다', async () => {
+    await ensureRepo(repo)
+    const base = await headRev(repo)
+    const wt = await createWorktree(repo, 't1')
+    await writeFile(join(wt, 'package-lock.json'), 'x\n'.repeat(5000))
+    await writeFile(join(wt, 'a.ts'), 'a'.repeat(300))
+    await writeFile(join(wt, 'b.ts'), 'b'.repeat(300))
+    await commitAll(wt, 'deps')
+    const full = await diff(wt, base)
+    expect(full).not.toContain('package-lock.json')
+    expect(full).toContain('diff --git a/a.ts')
+    const cut = await diff(wt, base, 200)
+    expect(cut).toContain('- a.ts') // 잘린 채 보인 파일
+    expect(cut).toContain('- b.ts') // 아예 못 본 파일
+    expect(cut).not.toContain('- package-lock.json')
   })
 
   it('removeWorktree는 워크트리와 브랜치를 지우고 멱등이다', async () => {

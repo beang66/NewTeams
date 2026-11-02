@@ -10,6 +10,8 @@ export interface SpawnOptions {
   onLine?: (l: string) => void
   /** process.env 위에 덮어쓸 환경 변수 */
   env?: Record<string, string>
+  /** 사람이 중단하면 프로세스 트리를 끝낸다 */
+  signal?: AbortSignal
 }
 
 function killTree(pid: number | undefined, child: { kill(sig?: NodeJS.Signals): boolean }): void {
@@ -87,11 +89,13 @@ export async function spawnCli(bin: string, args: string[], o: SpawnOptions): Pr
     child.stdin!.on('error', () => { /* 프로세스가 stdin을 닫고 종료 */ })
     child.stdin!.end(o.stdin, 'utf8')
 
-    timer = setTimeout(() => {
-      timedOut = true
+    const stop = (): void => {
       killTree(child.pid, child)
       // 손자 프로세스가 파이프를 붙잡아 close가 오지 않는 경우의 안전장치
       graceTimer = setTimeout(() => finish(1), 3000)
-    }, o.timeoutMs)
+    }
+    timer = setTimeout(() => { timedOut = true; stop() }, o.timeoutMs)
+    if (o.signal?.aborted) stop()
+    else o.signal?.addEventListener('abort', stop, { once: true })
   })
 }

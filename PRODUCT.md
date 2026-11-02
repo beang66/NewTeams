@@ -22,7 +22,7 @@ React + Vite (대시보드). 오케스트레이터는 Node/TypeScript. 대시보
 - 흐름: INTAKE → SPEC 승인(사람) → SEED → PLAN ⇄ GPT 검수 → BUILD(병렬, 기본 3) ⇄ QA + GPT 검수 → INTEGRATE → FINAL_QA → REPORT. 위키는 태스크 승인마다 갱신한다.
 - 역할: 마스터(Opus), 기획(Opus/Sonnet), 개발 ×N(Sonnet, 교착 시 Opus), QA(Sonnet + Playwright), 검수(GPT, Codex CLI 읽기 전용, 예비로 OpenAI API mini), 위키(Haiku).
 - 메시지 7종: ASSIGN, ESCALATE/GUIDANCE, REPORT, REVIEW_REQUEST, REJECT, REVISION, APPROVE. 상태 이벤트: PAUSED, RESUMED, STATE_CHANGE.
-- 교착 규칙: 반려 5회 또는 같은 지적 ID 2회 반복이면 마스터에게 ESCALATE하고, 해결되지 않으면 사람에게 넘긴다.
+- 교착 규칙: 반려 3회 또는 같은 지적 ID 2회 반복이면 마스터에게 ESCALATE하고, 해결되지 않으면 사람에게 넘긴다.
 - 과금: Claude와 ChatGPT 모두 구독제 CLI. 사용량 한도에 걸리면 PAUSED로 바꾸고 리셋 후 재개한다. OpenAI API 크레딧은 $10이며 누적 $8에서 하드 캡을 건다.
 - 저장: projects/<name>/human/(intake, spec, plan, iterations, evidence, timeline, decisions, wiki, report)과 raw/(events.jsonl, prompts, sessions), state.json.
 - 메신저: 텔레그램, 2차 연동(알림 + 승인 버튼 + 진행 요약).

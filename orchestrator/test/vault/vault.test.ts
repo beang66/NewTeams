@@ -1,5 +1,5 @@
 import { promises as fs } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { FastifyInstance } from 'fastify'
@@ -62,8 +62,14 @@ describe('Vault', () => {
     await expect(vault.note(path)).rejects.toMatchObject({ status })
   })
 
-  it('허용 폴더 안의 심볼릭 링크로 밖을 읽을 수 없다', async () => {
-    await fs.symlink(join(root, '00 Me'), join(root, 'wiki', 'me'))
+  it('허용 폴더 안의 심볼릭 링크로 밖을 읽을 수 없다', async (ctx) => {
+    try {
+      await fs.symlink(join(root, '00 Me'), join(root, 'wiki', 'me'))
+    } catch (e) {
+      // Windows는 관리자 권한·개발자 모드 없이 심볼릭 링크를 만들 수 없다. 다른 OS에서는 그대로 검사한다.
+      if ((e as NodeJS.ErrnoException).code === 'EPERM') return ctx.skip()
+      throw e
+    }
     await expect(vault.note('wiki/me/About Me.md')).rejects.toBeInstanceOf(VaultError)
     expect((await vault.summary()).total).toBe(4)
   })
@@ -81,6 +87,16 @@ describe('Vault', () => {
     expect(g.nodes.find((n) => n.id === 'wiki/concepts/A.md')!.degree).toBe(3)
   })
 
+  it('그래프: 폴더 이름에 대괄호([진행])가 있어도 링크를 읽는다', async () => {
+    await put('01 Projects/[진행] P/허브.md', '허브')
+    await put('wiki/concepts/A.md', '[[01 Projects/[진행] P/허브]] [[01 Projects/[진행] P/허브#절|별칭]] [[Harness]]')
+    const pairs = (await vault.graph()).links.map((l) => [l.source, l.target].sort().join(' — ')).sort()
+    expect(pairs).toEqual([
+      '01 Projects/[진행] P/허브.md — wiki/concepts/A.md',
+      'wiki/concepts/A.md — wiki/concepts/Harness.md',
+    ])
+  })
+
   it('AI Inbox에 새 파일로 쓰고, 같은 이름은 덮어쓰지 않는다', async () => {
     const now = new Date('2026-11-01T01:02:03Z')
     const { path } = await vault.writeInbox({ title: '주간 회고', body: '본문', project: 'P', runId: 'run-1', sources: ['wiki/concepts/Harness.md'] }, now)
@@ -90,6 +106,13 @@ describe('Vault', () => {
     expect(text).toContain('"[[wiki/concepts/Harness]]"')
     await expect(vault.writeInbox({ title: '주간 회고', body: '다른 본문', runId: 'run-1' }, now)).rejects.toMatchObject({ status: 409 })
     expect(await fs.readFile(join(root, path), 'utf8')).toBe(text)
+  })
+
+  it('출처에 따옴표·줄바꿈이 있어도 frontmatter에 새 키가 생기지 않는다', async () => {
+    const { path } = await vault.writeInbox({ title: 't', body: 'b', sources: ['a"\nevil: x'] }, new Date('2026-11-01T01:02:03Z'))
+    const text = await fs.readFile(join(root, path), 'utf8')
+    expect(text).not.toMatch(/^evil:/m)
+    expect(text).toContain('"[[a\\"\\nevil: x]]"')
   })
 })
 
@@ -122,7 +145,7 @@ describe('Vault HTTP', { timeout: 30_000 }, () => {
 })
 
 it('vault 설정 기본값과 검증', () => {
-  expect(resolveConfig({}).vault).toEqual({ path: 'C:\Users\JB\Documents\Obsidian Vault', github: 'https://github.com/beang66/Vault', read: ['01 Projects', 'wiki'], inbox: '01 Projects/[진행] NEWTEAMs AI Agent Studio/AI Inbox' })
+  expect(resolveConfig({}).vault).toEqual({ path: join(homedir(), 'Documents', 'Obsidian Vault'), github: 'https://github.com/beang66/Vault', read: ['01 Projects', 'wiki'], inbox: '01 Projects/[진행] NEWTEAMs AI Agent Studio/AI Inbox' })
   expect(resolveConfig({ vault: { path: 'C:/V' } as never }).vault.path).toBe('C:/V')
   expect(() => resolveConfig({ vault: { read: [] } as never })).toThrow(/vault 설정 오류/)
 })

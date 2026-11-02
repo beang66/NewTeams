@@ -1,6 +1,6 @@
 import type { UsageView } from '../model/usage'
 
-const fmt = new Intl.NumberFormat('en-US')
+const fmt = new Intl.NumberFormat('ko-KR')
 const NAMES = { claude: 'Claude', codex: 'GPT' } as const
 
 export function UsageGauges({ usage }: { usage: UsageView }) {

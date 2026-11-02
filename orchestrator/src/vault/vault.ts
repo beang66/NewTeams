@@ -133,7 +133,8 @@ export class Vault {
     for (const n of list) {
       const text = await fs.readFile(join(this.root, n.path), 'utf8').catch(() => '')
       const targets: string[] = []
-      for (const m of text.matchAll(/\[\[([^\]|#^]+)(?:[#^][^\]|]*)?(?:\|[^\]]*)?\]\]/g)) targets.push(m[1]!)
+      // 폴더 이름에 [진행] 같은 대괄호가 있으므로 처음 나오는 ]]까지 읽고, 별칭(|)·절(#, ^)을 뗀다.
+      for (const m of text.matchAll(/\[\[(.+?)\]\](?!\])/g)) targets.push(m[1]!.split('|')[0]!.split(/[#^]/)[0]!)
       for (const m of text.matchAll(/\]\(([^)\s]+\.md)(?:#[^)]*)?\)/gi)) targets.push(m[1]!)
       for (const raw of targets) {
         const to = resolveLink(n.path, raw)
@@ -167,7 +168,7 @@ export class Vault {
     if (!within(await fs.realpath(this.root), realDir)) throw new VaultError(403, 'Inbox가 Vault 밖을 가리킴')
     const stamp = kst(now)
     const name = `${stamp.file}-${slug(title)}${input.runId ? `-${slug(input.runId)}` : ''}.md`
-    const sources = (input.sources ?? []).map((s) => `  - "[[${norm(s).replace(/\.md$/, '')}]]"`).join('\n')
+    const sources = (input.sources ?? []).map((s) => `  - ${JSON.stringify(`[[${norm(s).replace(/\.md$/, '')}]]`)}`).join('\n')
     const doc = [
       '---',
       `title: ${JSON.stringify(title)}`,

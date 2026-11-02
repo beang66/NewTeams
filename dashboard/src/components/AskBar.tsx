@@ -34,7 +34,7 @@ export function AskBar({ events, onRawLink }: { events: Envelope[]; onRawLink?: 
       )}
       <div className="ask-row">
         <form className="ask-form" onSubmit={(e) => { e.preventDefault(); void submit() }}>
-          <input type="text" className="ask-input" aria-label="마스터에게 묻기" placeholder='마스터에게 묻기 — 예: "t3이 왜 세 번 걸렸는지 요약해 줘"'
+          <input type="text" name="question" autoComplete="off" className="ask-input" aria-label="마스터에게 묻기" placeholder="마스터에게 묻기 — 예: “t3이 왜 세 번 걸렸는지 요약해 줘”…"
             value={question} disabled={busy} onChange={(e) => setQuestion(e.target.value)} />
           <button type="submit" className="btn is-primary" disabled={busy || !question.trim()}>{busy ? '묻는 중…' : '묻기'}</button>
           <span className="ask-note">사용량을 씁니다</span>

@@ -112,6 +112,7 @@ export async function mockApi(page: Page, name: FixtureName): Promise<Mock> {
       if (path === '/api/plan') return fixture.plan ? json(route, fixture.plan) : json(route, { error: 'plan 없음' }, 404)
       if (path === '/api/agents') return json(route, fixture.agents)
       if (path === '/api/telegram') return json(route, fixture.telegram)
+      if (path === '/api/skills') return json(route, [{ name: 'blog-draft', desc: '블로그 글 초안 작성', source: 'user' }])
       if (path === '/api/events') {
         const after = url.searchParams.get('after')
         return json(route, after ? events.filter((e) => idNum(e.id) > idNum(after)) : events)

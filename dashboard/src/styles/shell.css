@@ -37,7 +37,7 @@
   padding: var(--space-2) var(--space-4); font-size: var(--fs-13);
   background: var(--surface-2); color: var(--ink-muted); border-bottom: 1px solid var(--line);
 }
-.paused-banner::before { content: '\23F8\FE0E'; color: var(--warn); margin-right: var(--space-2); }
+.paused-banner::before { content: '\23F8\FE0E' / ''; color: var(--warn); margin-right: var(--space-2); }
 .since-bar {
   display: flex; align-items: center; gap: var(--space-3);
   padding: var(--space-1) var(--space-4); font-size: var(--fs-13);
@@ -60,7 +60,7 @@
   .panel {
     position: fixed; top: 0; right: 0; bottom: 0; width: min(400px, 100%); z-index: 10;
     background: var(--surface-2); border-left: 1px solid var(--line); transform: translateX(100%);
-    transition: transform var(--dur);
+    transition: transform 280ms var(--ease-drawer);
   }
   .panel[data-open] { transform: none; }
 }
@@ -75,7 +75,7 @@
 .board { overflow-y: auto; min-width: 0; }
 .board-empty { margin: 0; font-size: var(--fs-13); color: var(--ink-subtle); }
 .board-group { margin-bottom: var(--space-4); }
-.board-group h4 { margin: 0 0 var(--space-2); font-size: var(--fs-12); font-weight: 600; color: var(--ink-subtle); }
+.board-group h2 { margin: 0 0 var(--space-2); font-size: var(--fs-12); font-weight: 600; color: var(--ink-subtle); }
 .board-group ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); }
 .board-task {
   display: flex; align-items: center; gap: var(--space-2); width: 100%; min-width: 0;

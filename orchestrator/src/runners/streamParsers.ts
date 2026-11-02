@@ -24,8 +24,12 @@ export function parseClaudeStream(lines: string[]): RunResult {
   if (result.is_error === true) throw classifyClaudeFailure(lines, '', 1)
   const u = result.usage ?? {}
   const cached = n(u.cache_read_input_tokens)
+  const denied = (Array.isArray(result.permission_denials) ? result.permission_denials : [])
+    .map((d: { tool_name?: unknown; tool_input?: { file_path?: unknown; command?: unknown } }) =>
+      `${String(d.tool_name ?? '?')}${typeof d.tool_input?.file_path === 'string' ? `: ${d.tool_input.file_path}` : typeof d.tool_input?.command === 'string' ? `: ${d.tool_input.command}` : ''}`)
   return {
     text,
+    ...(denied.length ? { denied } : {}),
     sessionId: typeof result.session_id === 'string' ? result.session_id : undefined,
     usage: {
       in: n(u.input_tokens) + n(u.cache_creation_input_tokens) + cached,

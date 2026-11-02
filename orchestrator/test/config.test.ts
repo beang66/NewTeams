@@ -7,7 +7,7 @@ import { DEFAULT_CONFIG, loadConfig, resolveConfig } from '../src/config.js'
 describe('config', () => {
   it('스펙 기본값', () => {
     expect(DEFAULT_CONFIG.maxParallel).toBe(3)
-    expect(DEFAULT_CONFIG.rejectLimit).toBe(5)
+    expect(DEFAULT_CONFIG.rejectLimit).toBe(3)
     expect(DEFAULT_CONFIG.repeatFindingLimit).toBe(2)
     expect(DEFAULT_CONFIG.timeoutsMs).toMatchObject({ dev: 1_200_000, qa: 600_000, reviewer: 300_000, planner: 600_000, wiki: 180_000, master: 600_000, logQuery: 120_000 })
     expect(DEFAULT_CONFIG.openaiCapUsd).toBe(8)

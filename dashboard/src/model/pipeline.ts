@@ -9,7 +9,7 @@ import { providerOf } from './provider'
 export type StepState = 'done' | 'now' | 'future' | 'human'
 
 /** The dashboard has no config endpoint, so the orchestrator defaults live here and nowhere else. */
-export const PIPELINE_DEFAULTS = { maxParallel: 3, rejectLimit: 5, repeatFindingLimit: 2, apiCapUsd: 8 } as const
+export const PIPELINE_DEFAULTS = { maxParallel: 3, rejectLimit: 3, repeatFindingLimit: 2, apiCapUsd: 8 } as const
 
 export interface PipelineView {
   fixed: string

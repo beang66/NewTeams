@@ -90,9 +90,25 @@ export async function changedFiles(dir: string, base: string): Promise<string[]>
   return lines(await git(dir, ['-c', 'core.quotepath=false', 'diff', '--name-only', `${base}...HEAD`]))
 }
 
+// 잠금 파일은 길기만 하고 검수할 내용이 없다. 앞쪽에 오면 실제 코드를 diff 한도 밖으로 밀어낸다.
+const NOT_REVIEWED = ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lockb'].map((f) => `:(exclude,glob)**/${f}`)
+
+/** 검수용 diff. 한도를 넘으면 자르고, 못 보거나 잘린 파일을 적어 작업 폴더에서 직접 읽게 한다. */
 export async function diff(dir: string, base: string, maxChars = 60000): Promise<string> {
-  const out = await git(dir, ['diff', `${base}...HEAD`])
-  return out.length > maxChars ? out.slice(0, maxChars) + '\n…(diff 일부 생략)' : out
+  const range = `${base}...HEAD`
+  const out = await git(dir, ['diff', range, '--', ...NOT_REVIEWED])
+  if (out.length <= maxChars) return out
+  const kept = out.slice(0, maxChars)
+  const whole = [...kept.matchAll(/^diff --git a\/(.+?) b\//gm)].map((m) => m[1]!).slice(0, -1) // 마지막 파일은 잘렸다
+  const files = lines(await git(dir, ['-c', 'core.quotepath=false', 'diff', '--name-only', range, '--', ...NOT_REVIEWED]))
+  const unseen = files.filter((f) => !whole.includes(f))
+  return `${kept}\n…(diff 일부 생략) 아래 파일은 diff에 없거나 잘렸다. 작업 폴더에서 직접 읽고 판단하라:\n${unseen.map((f) => `- ${f}`).join('\n')}`
+}
+
+/** 지정 파일을 base 상태로 되돌리고(base에 없던 파일은 지움) 커밋한다. */
+export async function restoreFiles(dir: string, base: string, files: string[], message: string): Promise<void> {
+  await git(dir, ['restore', `--source=${base}`, '--staged', '--worktree', '--', ...files])
+  await commitAll(dir, message)
 }
 
 export async function lastCommitAt(dir: string): Promise<Date> {

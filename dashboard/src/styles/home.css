@@ -26,11 +26,11 @@
 
 /* ---------- 3열 ---------- */
 .hg { display: grid; gap: var(--space-6); align-items: start; padding: var(--space-5) var(--space-5) var(--space-6);
-  grid-template-columns: minmax(340px, 36fr) minmax(360px, 36fr) minmax(280px, 28fr); }
+  grid-template-columns: minmax(300px, 1fr) minmax(420px, 1.5fr) minmax(300px, 1fr); }
 .hg-col { display: flex; flex-direction: column; gap: var(--space-5); min-width: 0; }
 
 /* 섹션: 위쪽 포인트색 선 + 제목 줄 */
-.hs { border-top: 2px solid var(--accent); padding-top: var(--space-4); }
+.hs { border-top: 2px solid var(--accent); padding-top: var(--space-4); scroll-margin-top: var(--sticky-offset); }
 .hs-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-3); }
 .hs-head h2 { margin: 0; font-size: var(--fs-16); font-weight: 700; }
 .hs-icon { display: inline-grid; place-items: center; color: var(--ink-subtle); width: 18px; }
@@ -56,7 +56,12 @@
 .hs-dot.is-off i { color: var(--ink-faint); }
 
 /* 채널 지표 카드(참고 이미지의 유튜브·뉴스레터) */
-.hs-stats { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5) var(--space-5); }
+/* 채널 4개를 한 줄로. 오른쪽 열이 좁으므로 숫자·간격을 줄이고 보조 줄은 접어 쓴다. */
+.hs-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); }
+.hs-stats .hs-big strong { font-size: 22px; }
+.hs-stats .hs-big small { font-size: var(--fs-12); }
+.hs-stats .hs-delta { flex-wrap: wrap; gap: 2px var(--space-1); }
+.hs-stats .hs-head h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hs-stat .hs-head { margin-bottom: var(--space-2); }
 .hs-stat p { margin: 0; }
 .hs-big { display: flex; align-items: baseline; gap: 4px; }
@@ -167,7 +172,7 @@ a.hb-open:hover { color: var(--ink); border-color: var(--line-strong); }
 .hs-mail.is-deadlock { margin-bottom: var(--space-2); padding: var(--space-3) var(--space-4); border: 1px solid var(--ink); border-radius: var(--radius-md); background: var(--surface-2); }
 .hs-mail.is-deadlock strong { white-space: normal; font-size: var(--fs-16); }
 .hs-mail.is-deadlock .hs-mail-kind { color: var(--ink); }
-.hs-mail.is-deadlock .hs-mail-kind::before { content: '✕ '; }
+.hs-mail.is-deadlock .hs-mail-kind::before { content: '✕ ' / ''; }
 .hs-mail.is-deadlock .hs-mail-detail { color: var(--ink); }
 .hs-mail-rule { margin-top: var(--space-1); font-size: var(--fs-12); color: var(--ink-subtle); line-height: 1.5; }
 .ha-turn:focus { outline: none; }
@@ -183,9 +188,14 @@ a.hb-open:hover { color: var(--ink); border-color: var(--line-strong); }
 .hs-skills { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
 .hs-skill { display: flex; flex-direction: column; gap: 2px; padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-1); min-width: 0; }
 .hs-skill-name { font-size: var(--fs-13); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hs-play { display: inline-flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); font-size: var(--fs-12); color: var(--ink-muted); text-decoration: none; }
+.hs-play { display: inline-flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); font-size: var(--fs-12); color: var(--ink-muted); text-decoration: none; white-space: nowrap; }
 .hs-play span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: var(--bg); font-size: var(--fs-12); }
 .hs-play:hover span { background: var(--accent); color: var(--ink); }
+button.hs-play { background: none; border: 0; padding: 0; font: inherit; font-size: var(--fs-12); cursor: pointer; }
+button.hs-play:disabled { cursor: progress; opacity: 0.6; }
+/* SKILL.md 설명은 길다. 카드에서는 두 줄만 보이고 전체는 title로 본다. */
+.hs-skill small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--ink-subtle); }
+.hs-skill-result { margin-top: var(--space-3); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); max-height: 360px; overflow: auto; overscroll-behavior: contain; }
 
 /* 루틴 */
 .hs-routine strong { font-size: var(--fs-14); }
@@ -200,7 +210,7 @@ a.hb-open:hover { color: var(--ink); border-color: var(--line-strong); }
 /* ---------- 좁은 화면 ---------- */
 @media (max-width: 1280px) {
   /* 관제 열은 왼쪽 위에 그대로 두고, 채널·기록 열만 아래로 내린다. */
-  .hg { grid-template-columns: minmax(320px, 1fr) minmax(340px, 1fr); }
+  .hg { grid-template-columns: minmax(300px, 1fr) minmax(360px, 1.4fr); }
   .hg-side { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; }
 }
 /* 모바일: 내 차례 → 진행 중 실행 → 캘린더 → 채널 → 목표 → 세컨드 브레인 순 */
@@ -225,7 +235,7 @@ a.hb-open:hover { color: var(--ink); border-color: var(--line-strong); }
 button.ht-ico { background: none; border: 0; cursor: pointer; font: inherit; }
 .ht-ico[aria-expanded='true'] { background: var(--surface-3); color: var(--ink); }
 .ht-panel {
-  position: absolute; right: 0; top: calc(100% + 8px); z-index: 10; width: 340px; max-height: min(70vh, 560px); overflow: auto;
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 10; width: 340px; max-height: min(70vh, 560px); overflow: auto; overscroll-behavior: contain;
   background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius-lg); padding: var(--space-4);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
 }
@@ -280,7 +290,7 @@ button.ht-ico { background: none; border: 0; cursor: pointer; font: inherit; }
 .hs-pager { gap: 0; }
 
 /* ---------- 스킬 옵션 팝오버 ---------- */
-.so { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--radius-lg); background: var(--surface-2); color: var(--ink); width: min(520px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: auto; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6); }
+.so { position: fixed; inset: auto; margin: 0; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--radius-lg); background: var(--surface-2); color: var(--ink); width: min(520px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: auto; overscroll-behavior: contain; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6); }
 .so-body { padding: var(--space-5); display: flex; flex-direction: column; }
 .so-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
 .so-head h2 { margin: 0; font-size: var(--fs-16); }
@@ -295,9 +305,12 @@ button.ht-ico { background: none; border: 0; cursor: pointer; font: inherit; }
 .so-grid td { text-align: center; padding: 0; }
 .so-cell { position: relative; display: inline-grid; place-items: center; width: 40px; height: 36px; cursor: pointer; }
 .so-cell input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
-.so-cell span { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-faint); transition: all var(--dur); }
-.so-cell:hover span { background: var(--ink-muted); width: 10px; height: 10px; }
-.so-cell.is-on span { width: 30px; height: 30px; background: var(--ink); box-shadow: 0 0 0 4px var(--accent); }
+/* 점은 30px 원을 transform으로 줄여 그린다(레이아웃 재계산 없이 크기 변화). */
+.so-cell span { width: 30px; height: 30px; border-radius: 50%; background: var(--ink-faint); transform: scale(0.2); transition: transform var(--dur) var(--ease-out), background-color var(--dur); }
+@media (hover: hover) and (pointer: fine) {
+  .so-cell:hover span { background: var(--ink-muted); transform: scale(0.34); }
+}
+.so-cell.is-on span { transform: scale(1); background: var(--ink); box-shadow: 0 0 0 4px var(--accent); }
 .so-cell input:focus-visible + span { outline: 2px solid var(--ink); outline-offset: 4px; }
 .so-hint { margin: var(--space-2) 0 0; color: var(--ink-subtle); font-size: var(--fs-12); line-height: 1.6; }
 .so-prompt { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-2); font-size: var(--fs-13); }
@@ -311,3 +324,26 @@ button.ht-ico { background: none; border: 0; cursor: pointer; font: inherit; }
 @media (max-width: 768px) {
   .ht-panel, .ht-panel.is-wide { position: fixed; left: 8px; right: 8px; top: 56px; width: auto; }
 }
+.hs-stepper { display: flex; align-items: center; justify-content: center; gap: var(--space-3); margin-top: var(--space-3); font-size: var(--fs-13); color: var(--ink-muted); }
+.hs-stepper .btn { min-width: 32px; text-align: center; }
+
+/* 스킬: 고정·실행 상태·기록 / 루틴 폼 */
+.hs-skill-scope { margin-bottom: var(--space-2); }
+.hs-skill-name { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.hs-pin { background: none; border: 0; padding: 2px 4px; font: inherit; color: var(--ink-subtle); cursor: pointer; border-radius: var(--radius-sm); }
+.hs-pin[aria-pressed='true'] { color: var(--accent-hover); }
+.hs-run-status { font-size: var(--fs-12); padding: 0 var(--space-2); border-radius: 999px; border: 1px solid var(--line-strong); color: var(--ink-muted); white-space: nowrap; }
+.hs-run-status.is-running, .hs-run-status.is-needs_approval { color: var(--ink); border-color: var(--accent); }
+.hs-run-status.is-failed { color: var(--bad); border-color: var(--bad); }
+.hs-approve { border-left: 2px solid var(--accent); padding-left: var(--space-3); margin: var(--space-2) 0; font-size: var(--fs-13); }
+.hs-approve ul { margin: var(--space-2) 0; padding-left: var(--space-4); }
+.hs-run-history { margin-top: var(--space-3); font-size: var(--fs-13); }
+.hs-run-history summary { cursor: pointer; color: var(--ink-muted); }
+.hs-run-row { display: block; width: 100%; text-align: left; background: none; border: 0; padding: var(--space-1) 0; font: inherit; color: inherit; cursor: pointer; }
+.hs-run-row[aria-current='true'] strong { text-decoration: underline; text-underline-offset: 3px; }
+.hs-routine-form { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-md); margin-bottom: var(--space-3); }
+.hs-routine-form input:not([type='radio']):not([type='checkbox']), .hs-routine-form select, .hs-routine-form textarea { font: inherit; font-size: var(--fs-13); color: var(--ink); background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: var(--space-1) var(--space-2); }
+.hs-routine-form fieldset { border: 0; margin: 0; padding: 0; }
+/* 스킬 결과의 긴 경로·코드 블록이 가로 스크롤을 만들지 않게 */
+.hs-skill-result { overflow-wrap: anywhere; overflow-x: hidden; }
+.hs-skill-result pre { white-space: pre-wrap; }

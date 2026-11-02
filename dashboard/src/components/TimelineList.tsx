@@ -2,11 +2,11 @@ import { useLayoutEffect, useRef } from 'react'
 import { observeElementRect, useVirtualizer } from '@tanstack/react-virtual'
 import type { Envelope } from '@orch/protocol/messages'
 import { typeLabel } from '../model/labels'
+import { clockHMS } from '../model/time'
 
 const ROW_H = 44
 const FALLBACK_H = 480
-const pad2 = (n: number): string => String(n).padStart(2, '0')
-const clock = (ts: string): string => { const d = new Date(ts); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}` }
+const clock = (ts: string): string => clockHMS(new Date(ts))
 
 /** Narrow-screen chronological list (oldest on top, newest at the bottom), virtualized. */
 export function TimelineList({ events, selectedId, onSelectEvent }: { events: Envelope[]; selectedId?: string; onSelectEvent: (id: string) => void }) {
