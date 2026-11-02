@@ -37,3 +37,11 @@
 ## 2026-11-02 — 주소에 화면 상태
 
 - 홈의 프로젝트 선택(`#/?project=`)과 관제 화면 패널 탭(`#/run?tab=&sub=`)을 해시 질의로 남긴다. `replaceState`라 라우팅을 다시 타지 않고 뒤로 가기 기록도 쌓지 않는다. 보고서 링크로 원본 메시지에 갈 때는 주소 값을 무시한다(`useHashParam`의 `fromUrl=false`).
+
+## 2026-11-02 — 라이브러리를 Vault 노트로 저장
+
+- **결정:** 브랜드·콘텐츠·아이디어 라이브러리를 브라우저 `localStorage`에서 Vault의 `Libraries/brand|content|ideas`로 옮긴다(`orchestrator/src/vault/library.ts`, `/api/library/:kind[/:file]`). 카드 하나 = Markdown 노트 하나, frontmatter `title`·`status`·`kind`·`tags`·`updated`.
+- **이유:** 다른 브라우저·기기에서도 보이고, Obsidian에서 그대로 읽고 고칠 수 있고, Vault의 Git 동기화로 백업된다.
+- **충돌:** 수정 요청에 화면이 읽은 `mtimeMs`를 함께 보내 디스크와 다르면 409. Git 병합 충돌은 Obsidian Git이 처리한다.
+- **이전:** 각 라이브러리 페이지를 처음 열 때 예전 `localStorage` 항목을 Vault로 만들고(이미 있으면 건너뜀) 브라우저 사본을 지운다.
+- 제목을 고쳐도 파일 이름은 그대로 둔다(링크가 깨지지 않게).

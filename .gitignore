@@ -2,3 +2,6 @@ projects/
 **/raw/
 node_modules/
 .superpowers/
+.impeccable/
+.playwright-mcp/
+portfolio/

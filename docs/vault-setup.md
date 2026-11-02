@@ -34,3 +34,10 @@ JSON에서는 역슬래시를 두 번 쓴다. 시작 로그의 `Obsidian: …`�
 ## 개발 실행
 
 `.claude/launch.json`의 `orchestrator`가 `projects/home`(INTAKE에서 멈춰 모델을 부르지 않는 빈 프로젝트)으로 서버를 띄운다. 처음 한 번 `npx tsx src/cli.ts new home`이 필요하다.
+
+## 라이브러리 저장소 (`Libraries/`)
+
+- 대시보드의 브랜드·콘텐츠·아이디어 페이지는 Vault의 `Libraries/brand`, `Libraries/content`, `Libraries/ideas`에 노트를 쓴다. 폴더는 처음 열 때 만든다.
+- 카드를 누르면 `#/brand/<파일>` 같은 별도 페이지에서 전체 내용을 읽고 고친다. 삭제한 노트는 `Libraries/.trash/`에 남는다.
+- Vault 규칙(`Obsidian Vault/CLAUDE.md`)에 이 세 폴더만 대시보드가 쓸 수 있다고 적어 두었다.
+- GitHub 동기화(`beang66/Vault`)는 Obsidian Git이 맡는다. 이 PC의 Vault 폴더가 Git 저장소여야 한다.

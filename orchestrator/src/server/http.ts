@@ -7,6 +7,7 @@ import type { Envelope } from '../protocol/messages.js'
 import { PlanSchema } from '../protocol/plan.js'
 import fastifyStatic from '@fastify/static'
 import { Vault, VaultError } from '../vault/vault.js'
+import { LIBRARY_KINDS, Library, type LibraryInput, type LibraryKind } from '../vault/library.js'
 import { SKILL_EFFORTS, SKILL_MODELS, SkillNotFound, type SkillInfo } from '../skills/skills.js'
 import { RunConflict, RunNotFound, SkillBusy, type SkillRuns } from '../skills/runs.js'
 import { RoutineNotFound, type RoutineInput, type Routines } from '../skills/routines.js'
@@ -319,5 +320,38 @@ function registerVaultRoutes(app: FastifyInstance, vault: Vault | undefined): vo
   }, async (request, reply) => {
     if (!vault) return reply.code(404).send({ error: 'Vault 연결 안 됨' })
     try { return reply.code(201).send(await vault.writeInbox(request.body)) } catch (error) { return fail(reply, error) }
+  })
+
+  // 라이브러리: Vault의 Libraries/brand|content|ideas 안에서만 읽기·쓰기(library.ts).
+  const library = vault && new Library(vault.root)
+  const kindParams = { type: 'object', required: ['kind'], properties: { kind: { type: 'string', enum: [...LIBRARY_KINDS] } } }
+  const fileParams = { type: 'object', required: ['kind', 'file'], properties: { ...kindParams.properties, file: { type: 'string', minLength: 4, maxLength: 200 } } }
+  const itemProps = {
+    title: { type: 'string', minLength: 1, maxLength: 200 }, status: { type: 'string', maxLength: 50 }, kind: { type: 'string', maxLength: 50 },
+    tags: { type: 'array', maxItems: 30, items: { type: 'string', maxLength: 50 } }, body: { type: 'string', maxLength: 200_000 },
+  }
+  const itemBody = { type: 'object', required: ['title', 'status', 'kind', 'tags', 'body'], additionalProperties: false, properties: itemProps }
+  const updateBody = { ...itemBody, required: [...itemBody.required, 'mtimeMs'], properties: { ...itemProps, mtimeMs: { type: 'number' } } }
+  type K = { kind: LibraryKind }
+  type KF = K & { file: string }
+  app.get<{ Params: K }>('/api/library/:kind', { schema: { params: kindParams } }, async (request, reply) => {
+    if (!library) return reply.code(404).send({ error: 'Vault 연결 안 됨' })
+    try { return await library.list(request.params.kind) } catch (error) { return fail(reply, error) }
+  })
+  app.get<{ Params: KF }>('/api/library/:kind/:file', { schema: { params: fileParams } }, async (request, reply) => {
+    if (!library) return reply.code(404).send({ error: 'Vault 연결 안 됨' })
+    try { return await library.get(request.params.kind, request.params.file) } catch (error) { return fail(reply, error) }
+  })
+  app.post<{ Params: K; Body: LibraryInput }>('/api/library/:kind', { schema: { params: kindParams, body: itemBody } }, async (request, reply) => {
+    if (!library) return reply.code(404).send({ error: 'Vault 연결 안 됨' })
+    try { return reply.code(201).send(await library.create(request.params.kind, request.body)) } catch (error) { return fail(reply, error) }
+  })
+  app.put<{ Params: KF; Body: LibraryInput & { mtimeMs: number } }>('/api/library/:kind/:file', { schema: { params: fileParams, body: updateBody } }, async (request, reply) => {
+    if (!library) return reply.code(404).send({ error: 'Vault 연결 안 됨' })
+    try { return await library.update(request.params.kind, request.params.file, request.body) } catch (error) { return fail(reply, error) }
+  })
+  app.delete<{ Params: KF }>('/api/library/:kind/:file', { schema: { params: fileParams } }, async (request, reply) => {
+    if (!library) return reply.code(404).send({ error: 'Vault 연결 안 됨' })
+    try { await library.remove(request.params.kind, request.params.file); return reply.code(204).send() } catch (error) { return fail(reply, error) }
   })
 }

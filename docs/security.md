@@ -12,6 +12,7 @@
 | 검수자가 잘린 diff만 보고 승인 | 잠금 파일(`package-lock.json` 등)을 diff에서 빼고, 6만 자에서 잘리면 못 본 파일 목록을 붙여 작업 폴더에서 직접 읽게 한다 | `workspace/git.ts` `diff` |
 | QA의 Playwright MCP를 실행마다 `@latest`로 받음(공급망) | `@playwright/mcp@0.0.83` 고정 | `engine/reviewLoop.ts` `PLAYWRIGHT_MCP` |
 | 스킬 실행이 파일을 마음대로 씀 | 처음엔 권한 없이 돌리고, 거부되면 사람이 승인해야 실행 폴더 안 편집만 허용. 셸은 계속 막음 | [skills-and-routines.md](skills-and-routines.md) |
+| 대시보드가 Vault 노트를 마음대로 고침 | 쓰기는 `Libraries/brand`·`content`·`ideas` 세 폴더의 `.md`만. 파일 이름에 경로 구분자·`..`·숨김 이름 금지, 폴더 실제 경로가 Vault 안인지 확인, 심볼릭 링크 파일 거부. 삭제는 `Libraries/.trash/`로 이동, 수정은 수정 시각이 다르면 409. frontmatter 값은 `JSON.stringify` | `vault/library.ts` |
 | Vault Inbox 메모의 frontmatter에 키 주입 | `sources`를 `JSON.stringify`로 감쌈 | `vault/vault.ts` `writeInbox` |
 
 이미 있던 것: 서버는 `127.0.0.1`에만 열린다. 검수자(Codex)는 읽기 전용 샌드박스, 로그 질의는 `Read`·`Grep`만. Vault는 허용 폴더 밖·`..`·심볼릭 링크로 밖을 막는다. 텔레그램은 허용한 채팅만 받고 비밀값을 걸러 보낸다. `projects/`와 `raw/`는 git에서 빠진다.

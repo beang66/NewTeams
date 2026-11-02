@@ -51,6 +51,10 @@ const post = (path: string, body?: unknown) =>
     ...(body === undefined ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
   })
 
+export type LibraryKind = 'brand' | 'content' | 'ideas'
+export interface LibraryInput { title: string; status: string; kind: string; tags: string[]; body: string }
+export interface LibraryItem extends LibraryInput { file: string; updated: string; mtimeMs: number }
+
 export const api = {
   state: () => getJson<RunState>('/api/state'),
   async plan(): Promise<Plan | null> {
@@ -80,6 +84,17 @@ export const api = {
     return (await send(id ? 'PUT' : 'POST', id ? `/api/routines/${encodeURIComponent(id)}` : '/api/routines', input)).json() as Promise<Routine>
   },
   async deleteRoutine(id: string): Promise<void> { await request(`/api/routines/${encodeURIComponent(id)}`, { method: 'DELETE' }) },
+  library: (kind: LibraryKind) => getJson<LibraryItem[]>(`/api/library/${kind}`),
+  libraryItem: (kind: LibraryKind, file: string) => getJson<LibraryItem>(`/api/library/${kind}/${encodeURIComponent(file)}`),
+  async createLibraryItem(kind: LibraryKind, input: LibraryInput): Promise<LibraryItem> {
+    return (await send('POST', `/api/library/${kind}`, input)).json() as Promise<LibraryItem>
+  },
+  async updateLibraryItem(kind: LibraryKind, file: string, input: LibraryInput & { mtimeMs: number }): Promise<LibraryItem> {
+    return (await send('PUT', `/api/library/${kind}/${encodeURIComponent(file)}`, input)).json() as Promise<LibraryItem>
+  },
+  async deleteLibraryItem(kind: LibraryKind, file: string): Promise<void> {
+    await request(`/api/library/${kind}/${encodeURIComponent(file)}`, { method: 'DELETE' })
+  },
   vaultSearch: (q: string, group?: string) =>
     getJson<VaultHit[]>(`/api/vault/search?q=${encodeURIComponent(q)}${group ? `&group=${encodeURIComponent(group)}` : ''}`),
   events: (after?: string) => getJson<Envelope[]>(after ? `/api/events?after=${encodeURIComponent(after)}` : '/api/events'),
