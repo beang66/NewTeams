@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { RunView } from '../api/useRun'
 import { useHashParam } from '../api/hashState'
 import { usageView } from '../model/usage'
@@ -7,14 +7,17 @@ import { AskBar } from '../components/AskBar'
 import type { DetailSub } from '../components/DetailTab'
 import { RightPanel, type PanelTab } from '../components/RightPanel'
 import { PausedBanner } from '../components/PausedBanner'
+import { DecisionQueue } from '../components/DecisionQueue'
+import { pipelineIdle, startWithConfirm } from '../components/PipelineControl'
+import { attentionItems } from '../model/attention'
+import { decisionsOf, type Decision } from '../model/decisions'
 import { SinceBar } from '../components/SinceBar'
 import { TaskBoard } from '../components/TaskBoard'
 import { TimelineList } from '../components/TimelineList'
-import { TopBar } from '../components/TopBar'
-import { UsageDailyStrip } from '../components/UsageGauges'
+import { TopBar, useProjectName } from '../components/TopBar'
 import { PipelineOverview } from './PipelineOverview'
 
-const PANEL_TABS = ['attention', 'master', 'detail'] as const satisfies readonly PanelTab[]
+const PANEL_TABS = ['attention', 'master', 'detail', 'usage'] as const satisfies readonly PanelTab[]
 const DETAIL_SUBS = ['human', 'raw'] as const satisfies readonly DetailSub[]
 
 const NARROW = '(max-width: 768px)'
@@ -58,12 +61,26 @@ export function ControlScreen({ run, hasSpecDraft = false, initialRawEvent, topB
   const narrow = useMediaQuery(NARROW)
   const usage = usageView(run.events, run.state, run.agents, new Date())
   const paused = usage.paused
+  const project = useProjectName()
+  const decisions = useMemo(() => decisionsOf(attentionItems(run.state, run.events, { hasSpecDraft }), pipelineIdle(run.state)), [run.state, run.events, hasSpecDraft])
+  // 결정 하나를 고르면 오른쪽 패널의 '주의' 탭에서 그 카드로 바로 간다.
+  const openDecision = (d: Decision) => {
+    if (d.item.kind === 'start') { void startWithConfirm().catch((e: unknown) => window.alert(e instanceof Error ? e.message : String(e))); return }
+    setView('control'); setTab('attention'); setPanelOpen(true)
+    // 패널이 열리면서 첫 버튼에 포커스를 주므로, 그 뒤에 카드로 옮긴다.
+    setTimeout(() => {
+      const card = document.getElementById(`decision-${d.key}`)
+      card?.scrollIntoView({ block: 'nearest' })
+      const target = card?.querySelector<HTMLElement>('textarea') ?? card?.querySelector<HTMLElement>('button')
+      target?.focus()
+    })
+  }
   return (
     <div className="control">
       <TopBar run={run} hasSpecDraft={hasSpecDraft} extra={topBarExtra} onOpenAttention={() => { setTab('attention'); setPanelOpen(true) }} view={view} onView={setView} />
       {paused && <PausedBanner paused={paused} />}
       <SinceBar events={run.events} onOpenTimeline={setHighlightIds} />
-      <UsageDailyStrip usage={usage} />
+      <DecisionQueue decisions={decisions} onOpen={openDecision} />
       {view === 'overview' ? (
         <main className="control-grid is-overview">
           <PipelineOverview run={run} onOpenTask={openTask} onShowRaw={openRaw} />
@@ -81,7 +98,7 @@ export function ControlScreen({ run, hasSpecDraft = false, initialRawEvent, topB
                   onSelectEvent={selectEvent} highlightIds={highlightIds} />}
           </section>
           <RightPanel run={run} hasSpecDraft={hasSpecDraft} sub={sub} onSub={setSub} tab={tab} onTab={setTab} selection={{ eventId: selectedEventId, taskId: selectedTask }}
-            onSelectEvent={selectEvent} onSelectTask={selectTask} open={panelOpen} onClose={closePanel} />
+            onSelectEvent={selectEvent} onSelectTask={selectTask} open={panelOpen} onClose={closePanel} usage={usage} project={project} />
           <AskBar events={run.events} onRawLink={showRaw} />
         </main>
       )}

@@ -89,10 +89,11 @@ a.ws-asset:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px
 .ws-preview.is-copy { align-items: center; gap: var(--space-3); background: var(--surface-2); }
 .ws-preview.is-copy > span { color: var(--accent-hover); font: 700 calc(var(--fs-20) * 2.4)/1 Georgia, serif; }
 .ws-preview.is-copy strong { max-width: 20ch; font-size: var(--fs-16); line-height: 1.65; }
-.ws-preview.is-content { flex-direction: column; justify-content: flex-end; gap: var(--space-2); background: var(--accent); color: var(--ink); }
+/* 채널 표시는 위, 제목은 그 아래 두 줄 고정, 설명은 아래 끝. 제목 길이와 상관없이 카드마다 위치가 같다. */
+.ws-preview.is-content { flex-direction: column; justify-content: flex-start; gap: var(--space-2); background: var(--accent); color: var(--ink); }
 .ws-preview.is-content > span { align-self: flex-start; padding: 1px var(--space-2); border: 1px solid currentColor; border-radius: var(--radius-lg); font-size: var(--fs-12); }
-.ws-preview.is-content strong { max-width: 18ch; font-size: var(--fs-20); line-height: 1.25; }
-.ws-preview.is-content small { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: var(--ink-muted); }
+.ws-preview.is-content strong { display: -webkit-box; max-width: 18ch; min-height: 2.5em; overflow: hidden; font-size: var(--fs-20); line-height: 1.25; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.ws-preview.is-content small { display: -webkit-box; margin-top: auto; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: var(--ink-muted); }
 .ws-preview.is-idea { flex-direction: column; justify-content: space-between; gap: var(--space-3); background: var(--c-white); color: var(--c-black); }
 .ws-preview.is-idea strong { max-width: 18ch; font-size: var(--fs-20); line-height: 1.25; }
 .ws-preview.is-idea span { color: var(--c-gray-700); }
@@ -171,3 +172,6 @@ a.ws-asset:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px
   .ws-timeline .btn { grid-column: 2; justify-self: start; }
   .ws-connections dl div { grid-template-columns: 1fr; gap: var(--space-1); }
 }
+.ws-detail-input { margin-top: var(--space-3); color: var(--ink-subtle); font-size: var(--fs-13); }
+.ws-detail-input summary { cursor: pointer; }
+.ws-detail-input pre { margin: var(--space-2) 0 0; padding: var(--space-3); white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-sm); }

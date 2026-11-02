@@ -16,9 +16,9 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 type HumanItem = Extract<AttentionItem, { kind: 'human' }>
 const HUMAN_ITEM: HumanItem = {
   kind: 'human', eventId: 'msg-0010', task: 't1', reason: 'repeat_finding', detail: '',
-  findings: [{ id: 'F-1', severity: 'major', issue: '매우긴문구'.repeat(40) }], tried: ['먼저 시도한 지침'],
+  findings: [{ id: 'F-1', severity: 'major', issue: '매우긴문구'.repeat(40) }], tried: ['먼저 시도한 지침'], since: '2026-11-02T00:00:00Z',
 }
-const LOGIN_ITEM: AttentionItem = { kind: 'login', eventId: 'msg-0020' }
+const LOGIN_ITEM: AttentionItem = { kind: 'login', eventId: 'msg-0020', since: '2026-11-02T00:00:00Z' }
 const planOf = (deps: Record<string, string[]>): Plan => ({
   tasks: Object.entries(deps).map(([id, d]) => ({ id, title: id, deps: d, ownedFiles: [], difficulty: 'low' as const, acceptance: [], qaScenarios: [] })),
   testCommands: [], devCommand: '',
@@ -150,7 +150,7 @@ describe('AttentionTab', () => {
     const { rerender } = render(<AttentionTab items={[LOGIN_ITEM]} />)
     await userEvent.click(screen.getByRole('button', { name: '로그인했어요, 재개' }))
     expect(screen.queryByText('아직 로그인되지 않았습니다')).toBeNull()
-    rerender(<AttentionTab items={[{ kind: 'login', eventId: 'msg-0021' }]} />)
+    rerender(<AttentionTab items={[{ kind: 'login', eventId: 'msg-0021', since: '2026-11-02T00:00:00Z' }]} />)
     expect(screen.getByText('아직 로그인되지 않았습니다')).toBeInTheDocument()
   })
   it('재개 후 5초가 지난 새 카드에는 메시지가 없다', async () => {
@@ -160,7 +160,7 @@ describe('AttentionTab', () => {
     const { rerender } = render(<AttentionTab items={[LOGIN_ITEM]} />)
     await userEvent.click(screen.getByRole('button', { name: '로그인했어요, 재개' }))
     now.mockReturnValue(1_006_000)
-    rerender(<AttentionTab items={[{ kind: 'login', eventId: 'msg-0021' }]} />)
+    rerender(<AttentionTab items={[{ kind: 'login', eventId: 'msg-0021', since: '2026-11-02T00:00:00Z' }]} />)
     expect(screen.queryByText('아직 로그인되지 않았습니다')).toBeNull()
   })
   it('OpenAI 상한 카드는 재개 후 같은 사유가 다시 오면 아직 상한이 그대로입니다', async () => {

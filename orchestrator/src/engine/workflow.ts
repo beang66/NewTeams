@@ -31,8 +31,8 @@ export interface WorkflowDeps {
   /** 함수면 RunState.apiSpendUsd 위의 SpendTracker로 호출해 검수 러너를 만든다 (OpenAI 예비 경로용). */
   reviewer: Runner | ((spend: SpendTracker) => Runner)
 }
-export type RunOutcome = 'done' | 'waiting_human' | 'waiting_spec'
-type StageResult = 'ok' | 'waiting_human'
+export type RunOutcome = 'done' | 'waiting_human' | 'waiting_spec' | 'not_started' | 'stopped'
+type StageResult = 'ok' | 'waiting_human' | 'stopped'
 
 const RULES = [
   '- 기존 코드의 패턴·이름 규칙·디렉터리 구조를 따른다.',
@@ -169,6 +169,25 @@ export class Workflow {
     await this.transition('SPEC_APPROVED')
   }
 
+  /** 사람만 파이프라인을 시작한다. 스펙 승인 뒤 첫 시작, 정지 뒤 다시 시작 모두 이 호출. */
+  async startPipeline(): Promise<void> {
+    if (this.st.stage === 'INTAKE') throw new Error('스펙 승인 전에는 시작할 수 없음 (INTAKE)')
+    if (this.st.stage === 'DONE') throw new Error('이미 완료된 파이프라인')
+    if (this.st.pipeline === 'running') return
+    await this.bus.publish({ type: 'STATE_CHANGE', from: 'user', to: 'all', payload: { pipeline: 'running', detail: '사람이 파이프라인 시작' } })
+  }
+
+  /** 정지: 지금 돌고 있는 에이전트 작업은 끝까지 두고, 새 작업·다음 단계는 시작하지 않는다. */
+  async stopPipeline(): Promise<void> {
+    if (this.st.pipeline !== 'running') return
+    await this.bus.publish({ type: 'STATE_CHANGE', from: 'user', to: 'all', payload: { pipeline: 'stopped', detail: '사람이 파이프라인 정지' } })
+  }
+
+  private get halted(): RunOutcome | undefined {
+    if (this.st.stage === 'INTAKE' || this.st.stage === 'DONE' || this.st.pipeline === 'running') return undefined
+    return this.st.pipeline === 'stopped' ? 'stopped' : 'not_started'
+  }
+
   async answerHuman(eventId: string, answer: { action: 'guidance' | 'skip'; text: string; restartSession?: boolean }): Promise<void> {
     if (!this.st.humanRequired.includes(eventId)) throw new Error(`열린 HUMAN_REQUIRED가 아님: ${eventId}`)
     const target = this.waiting.get(eventId)
@@ -208,24 +227,27 @@ export class Workflow {
 
   async runUntilBlocked(): Promise<RunOutcome> {
     for (;;) {
+      const halted = this.halted
+      if (halted) return halted
+      let r: StageResult
       switch (this.st.stage) {
         case 'INTAKE': return 'waiting_spec'
         case 'DONE': return 'done'
         case 'SPEC_APPROVED': await this.transition('SEED'); break
         case 'SEED': await this.seedFor(pickModel('planner', {}, this.deps.config)); await this.transition('PLAN'); break
         case 'PLAN':
-          if ((await this.planStage()) === 'waiting_human') return 'waiting_human'
+          if ((r = await this.planStage()) !== 'ok') return r
           await this.transition('BUILD'); break
         case 'BUILD':
-          if ((await this.build()) === 'waiting_human') return 'waiting_human'
+          if ((r = await this.build()) !== 'ok') return r
           await this.transition('INTEGRATE'); break
         case 'INTEGRATE':
-          if ((await this.integrate()) === 'waiting_human') return 'waiting_human'
+          if ((r = await this.integrate()) !== 'ok') return r
           await this.transition('FINAL_QA'); break
         case 'FINAL_QA': {
-          const r = await this.finalQa()
-          if (r === 'waiting_human') return r
-          await this.transition(r === 'ok' ? 'REPORT' : 'BUILD'); break
+          const q = await this.finalQa()
+          if (q === 'waiting_human') return q
+          await this.transition(q === 'ok' ? 'REPORT' : 'BUILD'); break
         }
         case 'REPORT': await this.report(); await this.transition('DONE'); break
       }
@@ -508,7 +530,9 @@ export class Workflow {
     const inFlight = new Map<string, Promise<{ id: string; out: LoopOutcome }>>()
     try {
       for (;;) {
-        for (const t of readyTasks(this.plan!, this.schedView(new Set(inFlight.keys())), this.deps.config.maxParallel)) {
+        // 정지되면 새 태스크는 띄우지 않고, 이미 돌고 있는 태스크만 끝까지 기다린다.
+        const ready = this.st.pipeline === 'running' ? readyTasks(this.plan!, this.schedView(new Set(inFlight.keys())), this.deps.config.maxParallel) : []
+        for (const t of ready) {
           const start = this.starts.get(t.id) ?? {}
           this.starts.delete(t.id)
           const pending = runTaskLoop(t, this.loopDeps(), start).then((out) => ({ id: t.id, out }))
@@ -531,6 +555,7 @@ export class Workflow {
       throw e
     }
     if (this.plan!.tasks.some((t) => this.isWaiting(t.id))) return 'waiting_human'
+    if (this.st.pipeline !== 'running') return 'stopped'
     // 의존이 막혀 실행할 수 없는 태스크는 blocked로 정리한다
     for (const t of topoOrder(this.plan!)) {
       const s = this.st.tasks[t.id]?.status

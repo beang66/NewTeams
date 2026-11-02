@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useHashParam } from '../api/hashState'
-import { api, type VaultGraph, type VaultHit, type VaultSummary } from '../api/client'
+import { api, type DashboardUsage, type LibraryKind, type ProjectSummary, type SkillRun, type VaultGraph, type VaultHit, type VaultSummary } from '../api/client'
 import type { RunView } from '../api/useRun'
 import { forceLayout } from '../model/forceLayout'
 import { PIPELINE_DEFAULTS } from '../model/pipeline'
@@ -15,13 +15,13 @@ import { RoutinesCard } from '../components/RoutinesCard'
 import { UsageGauges } from '../components/UsageGauges'
 import { usageView, type UsageView } from '../model/usage'
 import {
-  activeRuns, boards, brain, calendar, channels, goals, myTurn, obsidianLastSync, outputs, projects,
+  boards, brain, calendar, channels, goals, myTurn, obsidianLastSync, projects,
   todayTasks, type BrainCluster, type Channel, type MyTurn,
 } from '../model/homeMock'
 
 /*
  * 통합 홈. 관제가 먼저다(PRODUCT.md 원칙 1): 사람이 할 일과 진행 상태를 첫 열에 둔다.
- *   첫 열(관제): 내 차례 → 진행 중 실행 → 루틴
+ *   첫 열(관제): 내 차례 → 진행 중 → 루틴
  *   가운데: 캘린더 → 스킬 → 세컨드 브레인(작게)
  *   오른쪽: 채널 지표 → 목표(접힘) → 최근 산출물(접힘) → 다른 대시보드(접힘)
  */
@@ -219,24 +219,50 @@ export function Calendar({ usage }: { usage: UsageView }) {
   )
 }
 
+/** 최근 산출물: 끝난 스킬 실행(루틴 포함) 중 결과가 있는 것. 누르면 #/outputs/<실행 ID> 상세 페이지. */
 function OutputsFold() {
+  const [runs, setRuns] = useState<SkillRun[] | null>(null)
+  useEffect(() => { api.skillRuns().then(setRuns).catch(() => setRuns([])) }, [])
+  const done = (runs ?? []).filter((r) => r.status === 'done' && (r.text || r.files?.length)).slice(0, 5)
   return (
-    <Fold area="outputs" title="최근 산출물" meta={`${outputs.length}건 · 근거와 함께`}>
+    <Fold area="outputs" title="최근 산출물" meta={runs ? `${done.length}건 · 스킬 실행 결과` : '불러오는 중…'}>
       <ul className="hs-list">
-        {outputs.map((o) => (
-          <li key={o.id} className="hs-row"><span className="hs-grow">{o.title}<small>{o.kind} · {o.evidence}</small></span><span className="hs-meta">{o.at}</span></li>
+        {done.map((r) => (
+          <li key={r.id}>
+            <a className="hs-row hs-output" href={`#/outputs/${encodeURIComponent(r.id)}`}>
+              <span className="hs-grow">{r.input.split('\n')[0]?.slice(0, 60) || r.skill}<small>{r.skill}{r.routine ? ` · 루틴 ${r.routine}` : ''}{r.files?.length ? ` · 파일 ${r.files.length}` : ''}</small></span>
+              <span className="hs-meta">{outputTime.format(new Date(r.endedAt ?? r.startedAt))}</span>
+            </a>
+          </li>
         ))}
+        {runs && done.length === 0 && <li className="hs-meta">아직 산출물이 없습니다. 스킬을 실행하면 결과가 여기 쌓입니다.</li>}
       </ul>
     </Fold>
   )
 }
+const outputTime = new Intl.DateTimeFormat('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+
+/** 라이브러리 세 곳의 개수는 Vault(Libraries/…)에서 실제 노트 수를 읽는다. 못 읽으면 개수를 빼고 설명만 보인다. */
+function useLibraryCounts(): Partial<Record<LibraryKind, number>> {
+  const [counts, setCounts] = useState<Partial<Record<LibraryKind, number>>>({})
+  useEffect(() => {
+    let alive = true
+    for (const kind of ['brand', 'content', 'ideas'] as const) {
+      api.library(kind).then((list) => { if (alive) setCounts((c) => ({ ...c, [kind]: list.length })) }).catch(() => undefined)
+    }
+    return () => { alive = false }
+  }, [])
+  return counts
+}
 
 function Boards() {
+  const live = useLibraryCounts()
+  const countOf = (b: (typeof boards)[number]) => (b.id in live ? live[b.id as LibraryKind]! : b.count)
   return (
     <Fold area="boards" title="다른 대시보드" meta={`${boards.filter((b) => b.href).length}개 사용 가능 · ${boards.filter((b) => !b.href).length}개 준비 중`}>
       <ul className="hs-boards">
         {boards.map((b) => {
-          const body = (<><span className="hs-tile" aria-hidden="true"><SectionIcon name={b.icon} size={18} /></span><span className="hs-grow"><strong>{b.title}</strong><small>{b.count !== null ? `${b.count}개 · ` : ''}{b.desc}{b.href ? '' : ' · 준비 중'}</small></span><span className="hs-arrow" aria-hidden="true">›</span></>)
+          const body = (<><span className="hs-tile" aria-hidden="true"><SectionIcon name={b.icon} size={18} /></span><span className="hs-grow"><strong>{b.title}</strong><small>{countOf(b) !== null ? `${countOf(b)}개 · ` : ''}{b.desc}{b.href ? '' : ' · 준비 중'}</small></span><span className="hs-arrow" aria-hidden="true">›</span></>)
           return <li key={b.id}>{b.href ? <a href={b.href} className="hs-board">{body}</a> : <span className="hs-board is-disabled" aria-disabled="true">{body}</span>}</li>
         })}
       </ul>
@@ -516,26 +542,37 @@ function MyTurnInbox({ project }: { project: string }) {
   )
 }
 
-function Runs({ project, usage }: { project: string; usage: UsageView }) {
-  const runs = activeRuns.filter((r) => !project || r.project === project)
+/** 진행 중: 서버가 연 실제 프로젝트들. 누르면 그 프로젝트만의 관제 페이지(#/run/<이름>). */
+function Runs() {
+  const [list, setList] = useState<ProjectSummary[] | null>(null)
+  const [usage, setUsage] = useState<DashboardUsage>()
+  useEffect(() => {
+    const load = () => {
+      api.projects().then(setList).catch(() => setList([]))
+      api.usageAll().then(setUsage).catch(() => undefined)
+    }
+    load()
+    const t = setInterval(load, 15_000)
+    return () => clearInterval(t)
+  }, [])
+  const tokensOf = (name: string) => usage?.projects.find((p) => p.name === name)
   return (
-    <Section area="runs" title="진행 중 실행" meta={`${runs.length}개`}>
+    <Section area="runs" title="진행 중" meta={list ? `${list.length}개 프로젝트` : '불러오는 중…'}>
       <ul className="hs-list">
-        {runs.length === 0 && <li className="hs-meta">이 프로젝트에서 진행 중인 실행이 없습니다</li>}
-        {runs.map((r) => (
-          <li key={r.id}>
-            <a href="#/run" className="hs-run">
-              <span className="hs-row"><strong>{r.title}</strong><small>{r.project}</small></span>
-              <StageRail stage={r.stage} waitingFor={r.waitingFor} />
-              <small>{r.note}</small>
-              <small className="hs-run-usage mono">
-                {r.live
-                  ? `토큰 ${nf.format(usage.totalTokens)} · API $${usage.apiSpendUsd.toFixed(2)} · 기록 비용 ${usage.hasRecordedCost ? `$${usage.recordedCostUsd.toFixed(2)}` : '—'}`
-                  : '사용량 기록 없음'}
-              </small>
-            </a>
-          </li>
-        ))}
+        {list?.length === 0 && <li className="hs-meta">열린 프로젝트가 없습니다. 오케스트레이터가 켜져 있는지 확인하세요.</li>}
+        {list?.map((p) => {
+          const u = tokensOf(p.name)
+          const state = p.stage === 'DONE' ? '완료' : p.stage === 'INTAKE' ? '요구사항' : p.pipeline === 'running' ? '실행 중' : p.pipeline === 'stopped' ? '정지됨' : '시작 전'
+          return (
+            <li key={p.name}>
+              <a href={`#/run/${encodeURIComponent(p.name)}`} className="hs-run">
+                <span className="hs-row"><strong>{p.displayName}</strong><small>{state}</small></span>
+                <StageRail stage={p.stage} />
+                <small className="hs-run-usage mono">{u ? `토큰 ${nf.format(u.tokens)} · 기록 비용 ${u.hasCost ? `$${u.costUsd.toFixed(2)}` : '—'}` : '사용량 불러오는 중'}</small>
+              </a>
+            </li>
+          )
+        })}
       </ul>
     </Section>
   )
@@ -564,7 +601,7 @@ export function HomeScreen({ run }: { run: RunView }) {
         <h1 className="sr-only">홈 · 관제</h1>
         <div className="hg-col hg-ops">
           <MyTurnInbox project={project} />
-          <Runs project={project} usage={usage} />
+          <Runs />
           <GoalsFold />
           <Boards />
         </div>

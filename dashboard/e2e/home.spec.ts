@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test'
 import { mockApi } from './mockApi'
 
-// 통합 홈: 내 차례 · 진행 중 실행 · 세컨드 브레인이 보이고, 실행 관제로 오가며, 모바일에서 가로 스크롤이 없다.
+// 통합 홈: 내 차례 · 진행 중 · 세컨드 브레인이 보이고, 실행 관제로 오가며, 모바일에서 가로 스크롤이 없다.
 
-test('홈: 내 차례와 진행 중 실행에서 관제로 이동하고 돌아온다', async ({ page }) => {
+test('홈: 내 차례와 진행 중에서 관제로 이동하고 돌아온다', async ({ page }) => {
   await mockApi(page, 'build')
   await page.goto('/')
   await expect(page.getByRole('region', { name: '내 차례' })).toBeVisible()
   await expect(page.getByRole('region', { name: '세컨드 브레인' })).toBeVisible()
-  await expect(page.getByText('목업 데이터')).toBeVisible()
+  await expect(page.getByText('업무 데이터 일부 목업')).toBeVisible()
 
   const groups = page.getByRole('group', { name: '분류로 강조' })
   await groups.getByRole('button', { name: /프로젝트 184/ }).click()
@@ -19,9 +19,9 @@ test('홈: 내 차례와 진행 중 실행에서 관제로 이동하고 돌아�
   await page.getByRole('button', { name: /다른 대시보드/ }).click()
   await expect(page.getByRole('region', { name: '다른 대시보드' })).toContainText('아이디어 패드')
 
-  await page.getByRole('region', { name: '진행 중 실행' }).getByRole('link').first().click()
-  await expect(page).toHaveURL(/#\/run$/)
-  await expect(page.getByRole('heading', { name: '에이전트 관제' })).toBeVisible()
+  await page.getByRole('region', { name: '진행 중' }).getByRole('link').first().click()
+  await expect(page).toHaveURL(/#\/run\/todo-app$/) // 프로젝트마다 자기 관제 페이지
+  await expect(page.getByRole('heading', { name: /todo-app/ })).toBeVisible()
   await page.getByRole('link', { name: '홈으로' }).click()
   await expect(page.getByRole('region', { name: '내 차례' })).toBeVisible()
 })
@@ -38,7 +38,7 @@ test('홈: 교착이 맨 위에 오고, 프로젝트를 고르면 내 차례·�
   await page.getByLabel('현재 프로젝트').selectOption('WordPress 사이트')
   await expect(turn.getByRole('listitem')).toHaveCount(2)
   await expect(turn.getByRole('listitem').filter({ hasText: '교착 · 해결 필요' })).toHaveCount(0)
-  await expect(page.getByRole('region', { name: '진행 중 실행' }).getByRole('link')).toHaveCount(1)
+  await expect(page.getByRole('region', { name: '진행 중' }).getByRole('link')).toHaveCount(1)
 })
 
 test('홈(모바일): 내 차례가 맨 위, 가로 스크롤 없음', async ({ page }) => {
@@ -54,7 +54,7 @@ test('홈: 스킬 옵션에서 모델·effort를 고르고 프롬프트를 저�
   await mockApi(page, 'build')
   await page.goto('/')
   const skills = page.getByRole('region', { name: '스킬' })
-  await skills.getByRole('button', { name: /blog-draft 옵션/ }).click()
+  await skills.getByRole('button', { name: /content-research-writer 옵션/ }).click()
   const dialog = page.getByRole('dialog', { name: '프롬프트 · 실행 설정' })
   await expect(dialog).toBeVisible()
   await dialog.getByRole('radio', { name: 'Opus · effort high' }).check()
@@ -62,10 +62,10 @@ test('홈: 스킬 옵션에서 모델·effort를 고르고 프롬프트를 저�
   await expect(dialog.getByText('8 / 10,000')).toBeVisible()
   await dialog.getByRole('button', { name: '저장' }).click()
   await expect(dialog).toBeHidden()
-  await expect(skills.getByRole('button', { name: 'blog-draft 옵션: Opus · high' })).toBeVisible()
+  await expect(skills.getByRole('button', { name: 'content-research-writer 옵션: Opus · high' })).toBeVisible()
 
   await page.reload()
-  await skills.getByRole('button', { name: /blog-draft 옵션/ }).click()
+  await skills.getByRole('button', { name: /content-research-writer 옵션/ }).click()
   await expect(dialog.getByRole('radio', { name: 'Opus · effort high' })).toBeChecked()
   await expect(dialog.getByLabel('프롬프트')).toHaveValue('테스트 프롬프트')
   await dialog.getByRole('button', { name: '취소' }).click()

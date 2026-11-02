@@ -40,6 +40,7 @@ async function openWith(d: TestWorkflowDeps): Promise<Workflow> {
 async function intake(wf: Workflow): Promise<void> {
   await wf.chat('할 일 앱 만들어줘')
   await wf.approveSpec()
+  await wf.startPipeline()
 }
 
 describe('Workflow', { timeout: 30_000 }, () => {
@@ -52,6 +53,8 @@ describe('Workflow', { timeout: 30_000 }, () => {
     expect(readFileSync(join(dir, 'human/spec.draft.md'), 'utf8')).toBe(specDraft)
     expect(wf.state().masterSessionId).toBe('s-master')
     await wf.approveSpec()
+    expect(await wf.runUntilBlocked()).toBe('not_started') // 스펙 승인만으로는 돌지 않는다
+    await wf.startPipeline()
     expect(await wf.runUntilBlocked()).toBe('done')
     for (const f of ['human/intake.md', 'human/spec.md', 'human/plan.md', 'human/timeline.md', 'human/iterations/plan.md', 'human/iterations/t1.md', 'human/report.md']) {
       expect(existsSync(join(dir, f)), f).toBe(true)

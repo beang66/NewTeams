@@ -79,4 +79,16 @@ describe('SkillRuns', () => {
     expect(await new SkillRuns(dir, new FakeRunner([]), list, 1000).pinned()).toEqual(['blog'])
     expect(existsSync(join(dir, 'pinned.json'))).toBe(true)
   })
+
+  it('사용자 고정 목록: 예전 프로젝트 목록을 옮기고, 파일이 깨져도 기본값으로 덮지 않는다', async () => {
+    writeFileSync(join(dir, 'pinned.json'), JSON.stringify(['old-pin']))
+    const user = join(dir, 'home', 'pinned-skills.json')
+    const runs = new SkillRuns(dir, new FakeRunner([]), list, 1000, undefined, user)
+    expect(await runs.pinned()).toEqual(['old-pin'])
+    expect(existsSync(user)).toBe(true)
+    await runs.setPinned(['a', 'b'])
+    await runs.setPinned(['a'])
+    writeFileSync(user, '{깨짐')
+    expect(await runs.pinned()).toEqual(['a', 'b']) // 직전 저장본(.bak)
+  })
 })

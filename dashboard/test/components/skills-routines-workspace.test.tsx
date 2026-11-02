@@ -83,6 +83,14 @@ describe('확장 대시보드', () => {
     expect(update).toHaveBeenCalledWith('brand', '보조-로고.md', expect.objectContaining({ title: '보조 로고 v2', mtimeMs: 10 }))
   })
 
+  it('최근 산출물 상세 페이지는 실행 결과 전체를 보여 준다', async () => {
+    vi.spyOn(api, 'skillRuns').mockResolvedValue([{ id: 'r1', skill: 'writer', input: '주간 로그 써 줘', model: '기본 모델', effort: '기본', status: 'done', startedAt: '2026-11-02T01:00:00Z', text: '## 완료\n세 가지', files: ['log.md'] }])
+    render(<WorkspaceScreen path="/outputs/r1" run={run} />)
+    expect(await screen.findByRole('heading', { name: '주간 로그 써 줘' })).toBeInTheDocument()
+    expect(screen.getByText('세 가지')).toBeInTheDocument()
+    expect(screen.getByText(/log\.md/)).toBeInTheDocument()
+  })
+
   it('수정 충돌(409)이면 다시 불러오기를 안내한다', async () => {
     vi.spyOn(api, 'libraryItem').mockResolvedValue(item)
     vi.spyOn(api, 'updateLibraryItem').mockRejectedValue(new ApiError(409, '다른 곳에서 바뀐 노트입니다.'))

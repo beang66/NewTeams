@@ -39,6 +39,17 @@ describe('workflow actions', { timeout: 30_000 }, () => {
     await expect(actions.chat('b')).resolves.toEqual({ reply: 'ok' })
     await expect(actions.approveSpec()).rejects.toBeInstanceOf(ActionConflict)
   })
+  it('스펙 승인 전 시작은 409, 시작·정지는 STATE_CHANGE로 남는다', async () => {
+    const actions = createWorkflowActions(wf, vi.fn())
+    await expect(actions.startPipeline()).rejects.toBeInstanceOf(ActionConflict) // INTAKE
+    await wf.bus.publish({ type: 'STATE_CHANGE', from: 'test', to: 'all', payload: { stage: 'SPEC_APPROVED' } })
+    expect(wf.state().pipeline).toBeUndefined()
+    await actions.startPipeline()
+    expect(wf.state().pipeline).toBe('running')
+    await vi.waitFor(() => expect(wf.runUntilBlocked).toHaveBeenCalled())
+    await actions.stopPipeline()
+    expect(wf.state().pipeline).toBe('stopped')
+  })
   it('HTTP와 공유: 텔레그램 쪽에서 먼저 답하면 HTTP는 409', async () => {
     const actions = createWorkflowActions(wf, vi.fn())
     const app = buildServer(wf, { actions })

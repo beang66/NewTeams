@@ -33,7 +33,62 @@ function render(name: string, vars: Record<string, string>): string {
   })
 }
 
+/** 파이프라인 문서(Vault)의 단계별 노트 이름. 노트 파일은 `<폴더>/<이름>.md`. */
+export const PIPELINE_NOTES = ['00 파이프라인 설계', '01 요구사항·스펙', '02 시드', '03 기획', '04 개발', '05 검수', '06 통합·위키', '07 최종 QA', '08 보고'] as const
+export type PipelineNote = (typeof PIPELINE_NOTES)[number]
+
+/** 역할(단계)마다 읽어야 할 노트. 설계 개요는 항상 함께 붙는다. */
+export function pipelineNoteFor(input: PromptInput): PipelineNote | undefined {
+  switch (input.role) {
+    case 'master': return input.mode === 'intake' ? '01 요구사항·스펙' : input.mode === 'report' ? '08 보고' : '05 검수'
+    case 'seed': return '02 시드'
+    case 'planner': case 'reviewer-plan': return '03 기획'
+    case 'dev': return '04 개발'
+    case 'qa': return input.task ? '05 검수' : '07 최종 QA'
+    case 'reviewer': case 'reviewer-followup': return '05 검수'
+    case 'wiki': return '06 통합·위키'
+    case 'logQuery': return undefined
+  }
+}
+
+/** 전문가 그래프의 시작 키(작업 노드의 applies_to). 그래프에 이 키의 작업이 없으면 단계 노트로 대신한다. */
+export function graphKeyFor(input: PromptInput): string | undefined {
+  switch (input.role) {
+    case 'planner': case 'reviewer-plan': return 'plan'
+    case 'dev': return 'dev'
+    case 'qa': return input.task ? 'qa' : 'final-qa'
+    case 'reviewer': case 'reviewer-followup': return 'review'
+    case 'master': return input.mode === 'report' ? 'report' : input.mode === 'intake' ? 'spec' : 'review'
+    case 'seed': return 'seed'
+    case 'wiki': return 'integrate'
+    case 'logQuery': return undefined
+  }
+}
+
+type Doc = { path: string; text: string; via?: string }
+let readNote: ((note: PipelineNote) => Doc | undefined) | undefined
+let readGraph: ((key: string) => Doc[]) | undefined
+/** 서버가 Vault를 연결하면 노트 읽기를 등록한다. 등록이 없으면(테스트·Vault 없음) 프롬프트는 그대로다. */
+export function usePipelineNotes(reader: typeof readNote, graph?: typeof readGraph): void { readNote = reader; readGraph = graph }
+
+/** 매 호출마다 새로 읽어, Vault에서 고친 기준이 다음 에이전트 실행에 바로 반영된다. */
+function pipelineSection(input: PromptInput): string {
+  const note = pipelineNoteFor(input)
+  if (!readNote || !note) return ''
+  const key = graphKeyFor(input)
+  const graph = key && readGraph ? readGraph(key) : []
+  const docs = [readNote('00 파이프라인 설계'), ...(graph.length ? graph : [readNote(note)])].filter((d): d is Doc => !!d)
+  if (!docs.length) return ''
+  const route = graph.length ? `읽은 경로: ${graph.map((d) => d.via).join(' · ')}\n\n` : ''
+  return section('작업 지식 (Vault) — 이 작업의 지식·과정·도구를 따르고, 완료 기준을 모두 채우기 전에는 끝났다고 보고하지 마세요.',
+    route + docs.map((d) => `### ${d.path}\n${d.text.trim()}`).join('\n\n'))
+}
+
 export function buildPrompt(input: PromptInput): string {
+  return buildBase(input) + pipelineSection(input)
+}
+
+function buildBase(input: PromptInput): string {
   switch (input.role) {
     case 'master':
       switch (input.mode) {

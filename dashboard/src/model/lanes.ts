@@ -14,18 +14,8 @@ export function laneKey(side: string, task?: string): string {
 
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' ? (v as Record<string, unknown>) : {})
 
-/** 토큰은 usage를 만든(응답한) 역할에 귀속한다. */
-export function usageSources(e: Envelope): { role: string; usage: Usage }[] {
-  const out: { role: string; usage: Usage }[] = []
-  const qa = obj(obj(e.payload).qa).usage as Usage | undefined
-  if (e.type === 'REVIEW_REQUEST' && qa) out.push({ role: 'qa', usage: qa })
-  if (!e.usage) return out
-  if (e.type === 'REPORT' || e.type === 'REVISION') out.push({ role: 'dev', usage: e.usage })
-  else if (e.type === 'REJECT' || e.type === 'APPROVE') { if (e.from === 'reviewer') out.push({ role: 'reviewer', usage: e.usage }) }
-  else if (e.type === 'GUIDANCE') out.push({ role: 'master', usage: e.usage })
-  else if (!SYSTEM.has(e.from) && e.from !== 'user') out.push({ role: e.from, usage: e.usage })
-  return out
-}
+export { usageSources } from '@orch/usage/usage'
+import { usageSources } from '@orch/usage/usage'
 
 const TONE: Partial<Record<MessageType, Arrow['tone']>> = {
   ASSIGN: 'accent', REJECT: 'bad', APPROVE: 'ok', ESCALATE: 'warn', HUMAN_REQUIRED: 'warn',

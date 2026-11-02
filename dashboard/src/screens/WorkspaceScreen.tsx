@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { api, ApiError, type LibraryInput, type LibraryItem, type LibraryKind } from '../api/client'
+import { api, ApiError, type LibraryInput, type LibraryItem, type LibraryKind, type SkillRun } from '../api/client'
 import type { RunView } from '../api/useRun'
 import { Markdown } from '../components/Markdown'
 import { RoutinesCard } from '../components/RoutinesCard'
@@ -24,7 +24,7 @@ const CONFIG: Record<WorkspaceKind, CollectionConfig> = {
   },
   content: {
     title: '콘텐츠 라이브러리', description: '게시물과 제작 소스를 채널·상태별로 모아 관리합니다.', icon: 'library', noun: '콘텐츠',
-    types: ['블로그', 'YouTube', 'Instagram', 'Threads', '레퍼런스'], statuses: ['초안', '검토', '예약', '게시됨'],
+    types: ['블로그', 'YouTube', 'Instagram', 'Threads', 'X', '레퍼런스'], statuses: ['초안', '검토', '예약', '게시됨'],
   },
   ideas: {
     title: '아이디어 패드', description: '떠오른 글감과 실험을 빠르게 적고, 제작 단계로 넘깁니다.', icon: 'ideas', noun: '아이디어',
@@ -336,7 +336,52 @@ function SettingsWorkspace() {
   )
 }
 
+const RUN_LABEL: Record<SkillRun['status'], string> = { running: '실행 중', needs_approval: '승인 대기', done: '완료', failed: '실패', cancelled: '중단' }
+const runTime = new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+
+/** 최근 산출물 하나(스킬 실행 결과)의 상세 페이지. */
+function OutputScreen({ id }: { id: string }) {
+  const [run, setRun] = useState<SkillRun | null>(null)
+  const [err, setErr] = useState<string>()
+  useEffect(() => {
+    api.skillRuns().then((list) => { const r = list.find((x) => x.id === id); if (r) setRun(r); else setErr('실행 기록을 찾을 수 없습니다.') })
+      .catch((e: unknown) => setErr(errText(e)))
+  }, [id])
+  return (
+    <div className="workspace">
+      <WorkspaceHeader title="최근 산출물" description="스킬과 루틴이 만든 결과를 읽습니다." icon="outputs" />
+      <WorkspaceLayout current="" side={<a className="ws-side-back" href="#/">← 홈</a>}>
+        <article className="ws-detail">
+          {err && <p className="acard-error" role="alert">{err}</p>}
+          {!run && !err && <p className="ws-empty">불러오는 중…</p>}
+          {run && (
+            <>
+              <div className="ws-detail-head"><h2>{run.input.split('\n')[0]?.slice(0, 80) || run.skill}</h2></div>
+              <div className="ws-asset-meta">
+                <span className="ws-status">{RUN_LABEL[run.status]}</span><span className="ws-kind">{run.skill}</span>
+                {run.routine && <span className="ws-tag">루틴 {run.routine}</span>}
+                <span className="ws-tag">{run.model} · {run.effort}</span>
+                <time className="mono" dateTime={run.endedAt ?? run.startedAt}>{runTime.format(new Date(run.endedAt ?? run.startedAt))}</time>
+              </div>
+              <details className="ws-detail-input"><summary>입력(프롬프트)</summary><pre>{run.input || '(없음)'}</pre></details>
+              <div className="ws-detail-body">{run.text ? <Markdown source={run.text} /> : <p className="ws-empty">결과 텍스트 없음</p>}</div>
+              {run.error && <p className="acard-error">{run.error}</p>}
+              {run.files?.length ? <p className="ws-detail-file mono">만든 파일 (skill-runs/{run.id}/): {run.files.join(', ')}</p> : null}
+              {run.denied?.length ? <p className="ws-detail-file">허용되지 않은 작업: {run.denied.join(', ')}</p> : null}
+            </>
+          )}
+        </article>
+      </WorkspaceLayout>
+    </div>
+  )
+}
+
 export function WorkspaceScreen({ path, run }: { path: string; run: RunView }) {
+  if (path.startsWith('/outputs/')) {
+    let id = path.slice('/outputs/'.length)
+    try { id = decodeURIComponent(id) } catch { /* 그대로 */ }
+    return <OutputScreen key={id} id={id} />
+  }
   if (path.startsWith('/calendar')) return <CalendarWorkspace run={run} />
   if (path.startsWith('/settings')) return <SettingsWorkspace />
   const [, first = 'brand', rest] = /^\/(brand|content|ideas)(?:\/([^?]+))?/.exec(path) ?? []

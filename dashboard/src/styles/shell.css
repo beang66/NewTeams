@@ -109,3 +109,74 @@
 .seg button[aria-pressed='true'] { color: var(--ink); background: var(--surface-3); }
 .control-grid.is-overview { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; grid-template-areas: 'overview' 'askbar'; }
 .overview { grid-area: overview; }
+
+/* 결정 큐: 사람이 할 일만, 오래 기다린 순. 정상 진행 중일 때는 한 줄로 조용히. */
+.dq { padding: var(--space-2) var(--space-4) var(--space-3); background: var(--surface-1); border-bottom: 1px solid var(--line); }
+.dq.is-empty { display: flex; align-items: center; gap: var(--space-2); padding-block: var(--space-2); font-size: var(--fs-12); color: var(--ink-subtle); }
+.dq-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+.dq-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-2); }
+.dq-head h2 { margin: 0; font-size: var(--fs-13); font-weight: 600; color: var(--ink); }
+.dq-head h2 .mono { margin-left: var(--space-1); padding: 0 var(--space-2); border-radius: 999px; background: var(--accent); font-size: var(--fs-12); }
+.dq-keys { font-size: var(--fs-12); color: var(--ink-faint); }
+.dq-keys kbd { font-family: var(--font-mono); font-size: var(--fs-12); padding: 0 4px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); }
+.dq-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); max-height: 168px; overflow-y: auto; overscroll-behavior: contain; }
+.dq-row {
+  display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr) auto auto; grid-template-areas: 'title why wait go' 'title choose wait go';
+  align-items: center; gap: 2px var(--space-4); width: 100%; padding: var(--space-2) var(--space-3);
+  font: inherit; font-size: var(--fs-13); text-align: left; color: var(--ink-muted); cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-md);
+  transition: border-color var(--dur), background var(--dur);
+}
+.dq-row:hover { background: var(--surface-3); }
+.dq-row[aria-current='true'] { border-color: var(--accent); }
+.dq-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dq-title { grid-area: title; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dq-title strong { color: var(--ink); }
+.dq-why { grid-area: why; color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dq-choose { grid-area: choose; font-size: var(--fs-12); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dq-choose b { font-weight: 600; color: var(--ink-subtle); margin-right: var(--space-1); }
+.dq-outcome { color: var(--ink-faint); }
+.dq-wait { grid-area: wait; font-size: var(--fs-12); color: var(--warn); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dq-go { grid-area: go; font-size: var(--fs-12); color: var(--ink-subtle); white-space: nowrap; }
+@media (max-width: 768px) {
+  .dq-keys { display: none; }
+  .dq-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'title wait' 'why why' 'choose choose'; }
+  .dq-go { display: none; }
+  .dq-why, .dq-choose { white-space: normal; }
+}
+.pipe-ctl { display: inline-flex; align-items: center; gap: var(--space-2); }
+.pipe-state { font-size: var(--fs-12); color: var(--ink-subtle); white-space: nowrap; }
+.pipe-state.is-running { color: var(--ink); }
+.pipe-state.is-running::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: var(--space-1); border-radius: 50%; background: var(--ok); vertical-align: middle; }
+
+/* 결정 큐의 시작 행: 사람이 내려야 할 가장 큰 결정이라 강조색 바탕 */
+.dq-row.is-start { background: var(--accent); border-color: var(--accent); color: var(--ink); }
+.dq-row.is-start .dq-choose, .dq-row.is-start .dq-outcome, .dq-row.is-start .dq-choose b { color: var(--ink); }
+.dq-row.is-start .dq-go { color: var(--ink); font-weight: 600; }
+.dq-row.is-start:hover { background: var(--accent-hover); }
+
+/* 헤더: 프로젝트 이름(누르면 고침) */
+.topbar-title { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.topbar-project { margin: 0; font-size: var(--fs-16); font-weight: 700; min-width: 0; }
+.topbar-project-btn { display: inline-flex; align-items: center; gap: var(--space-2); max-width: 32ch; padding: 2px var(--space-2); margin-left: calc(var(--space-2) * -1); font: inherit; color: var(--ink); background: none; border: 1px solid transparent; border-radius: var(--radius-sm); cursor: text; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-project-btn:hover { border-color: var(--line-strong); }
+.topbar-project-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.topbar-edit { font-size: var(--fs-12); font-weight: 400; color: var(--ink-faint); opacity: 0; transition: opacity var(--dur); }
+.topbar-project-btn:hover .topbar-edit, .topbar-project-btn:focus-visible .topbar-edit { opacity: 1; }
+.topbar-rename { display: inline-flex; align-items: center; gap: var(--space-2); }
+.topbar-rename input { width: 24ch; font: inherit; font-size: var(--fs-16); font-weight: 700; color: var(--ink); background: var(--surface-1); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: 2px var(--space-2); }
+
+/* 토큰 사용량 한 묶음: 왼쪽 열 아래. 레이블은 왼쪽, 숫자는 오른쪽 끝에 맞춘다. */
+.usage-panel { display: flex; flex-direction: column; gap: var(--space-3); margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--line); font-size: var(--fs-12); color: var(--ink-subtle); }
+.usage-panel-title { margin: 0; font-size: var(--fs-12); font-weight: 600; color: var(--ink-subtle); }
+.usage-block { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3); background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.usage-label { color: var(--ink-subtle); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.usage-big { color: var(--ink-muted); }
+.usage-big strong { font-size: var(--fs-20); color: var(--ink); font-variant-numeric: tabular-nums; }
+.usage-row { display: flex; justify-content: space-between; gap: var(--space-3); }
+.usage-row .mono, .usage-days-table .mono { color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.usage-meter { width: 100%; margin-top: 2px; }
+.usage-days-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.usage-days-table th { font-weight: 500; color: var(--ink-faint); text-align: right; padding: 0 0 var(--space-1); }
+.usage-days-table th:first-child, .usage-days-table td:first-child { text-align: left; }
+.usage-days-table td { text-align: right; padding: 2px 0; border-top: 1px solid var(--line); }

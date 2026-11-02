@@ -9,6 +9,8 @@ export interface RunState {
   masterSessionId?: string
   tasks: Record<string, TaskState>
   paused?: { reason: string; until?: string }
+  /** 사람이 켠 파이프라인 실행 상태. 없으면 아직 한 번도 시작하지 않은 것(첫 시작은 항상 사람). */
+  pipeline?: 'running' | 'stopped'
   humanRequired: string[]
   lastEventId?: string
   apiSpendUsd: number
@@ -30,6 +32,7 @@ interface StateChangePayload {
   sessionId?: string
   worktree?: string
   apiSpendUsd?: number
+  pipeline?: 'running' | 'stopped'
 }
 
 function obj(p: unknown): Record<string, unknown> {
@@ -79,6 +82,7 @@ export function applyEvent(s: RunState, e: Envelope): RunState {
     case 'STATE_CHANGE': {
       const p = obj(e.payload) as StateChangePayload
       if (p.stage) n = { ...n, stage: p.stage }
+      if (p.pipeline === 'running' || p.pipeline === 'stopped') n = { ...n, pipeline: p.pipeline }
       if (typeof p.masterSessionId === 'string') n = { ...n, masterSessionId: p.masterSessionId }
       if (typeof p.apiSpendUsd === 'number') n = { ...n, apiSpendUsd: p.apiSpendUsd }
       if (p.seed) n = { ...n, seedSessionIds: { ...n.seedSessionIds, [p.seed.model]: p.seed.sessionId } }

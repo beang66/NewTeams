@@ -15,7 +15,7 @@ let dir: string
 let fake: FakeBotApi
 let serve: ReturnType<typeof assembleServe> | undefined
 const until = async (check: () => void) => vi.waitFor(check, { timeout: 15_000, interval: 20 })
-const config = () => ({ ...structuredClone(DEFAULT_CONFIG), telegram: { ...DEFAULT_CONFIG.telegram, apiBase: fake.base, batchSeconds: 0, pollTimeoutSec: 1 } })
+const config = () => ({ ...structuredClone(DEFAULT_CONFIG), vault: { ...DEFAULT_CONFIG.vault, path: null, github: null }, telegram: { ...DEFAULT_CONFIG.telegram, apiBase: fake.base, batchSeconds: 0, pollTimeoutSec: 1 } })
 const env = () => ({ TELEGRAM_BOT_TOKEN: fake.token, TELEGRAM_CHAT_ID: fake.chatId })
 
 beforeEach(async () => {
@@ -42,6 +42,7 @@ describe('CLI Telegram assembly', { timeout: 30_000 }, () => {
     expect((await serve.app.inject('/api/telegram')).json()).toMatchObject({ state: 'connected', botUsername: 'fake_bot' })
     await serve.app.inject({ method: 'POST', url: '/api/chat', payload: { message: '할 일 앱' } })
     expect((await serve.app.inject({ method: 'POST', url: '/api/spec/approve' })).statusCode).toBe(204)
+    expect((await serve.app.inject({ method: 'POST', url: '/api/pipeline/start' })).statusCode).toBe(204)
     await until(() => expect(fake.sentTexts().some(t => t.startsWith('🔴 t1 사람 필요'))).toBe(true))
     const guidance = (await wf.store.readEvents()).find(e => e.type === 'GUIDANCE' && e.from === 'master')!
     expect(guidance).toBeDefined()

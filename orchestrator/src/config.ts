@@ -45,12 +45,18 @@ export interface VaultConfig {
   read: string[]
   /** AI 결과를 새 파일로 저장하는 Vault 안 폴더 */
   inbox: string
+  /** 파이프라인 설계·단계별 완수 기준 노트 폴더(Vault 안). 에이전트 프롬프트에 해당 단계 문서를 붙인다. */
+  pipeline: string
+  /** 전문가 그래프 폴더(Vault 안): 작업·지식·과정·도구·기준 노트. 에이전트가 자기 작업에서 경로를 따라 읽는다. */
+  graph: string
 }
 const vaultSchema = z.object({
   path: z.string().min(1).nullable().optional(),
   github: httpUrl.nullable().optional(),
   read: z.array(z.string().min(1)).min(1).optional(),
   inbox: z.string().min(1).optional(),
+  pipeline: z.string().min(1).optional(),
+  graph: z.string().min(1).optional(),
 }).strict()
 
 export interface Config {
@@ -65,7 +71,7 @@ export interface Config {
 }
 
 export const DEFAULT_CONFIG: Config = {
-  vault: { path: join(homedir(), 'Documents', 'Obsidian Vault'), github: 'https://github.com/beang66/Vault', read: ['01 Projects', 'wiki'], inbox: '01 Projects/[진행] NEWTEAMs AI Agent Studio/AI Inbox' },
+  vault: { path: join(homedir(), 'Documents', 'Obsidian Vault'), github: 'https://github.com/beang66/Vault', read: ['01 Projects', 'wiki'], inbox: '01 Projects/[진행] NEWTEAMs AI Agent Studio/AI Inbox', pipeline: '01 Projects/[진행] NEWTEAMs AI Agent Studio/파이프라인', graph: 'wiki/전문가 그래프' },
   agents: { master: { provider: 'claude' }, worker: { provider: 'claude' } },
   telegram: { apiBase: 'https://api.telegram.org', quietHours: null, heartbeatMinutes: 0, batchSeconds: 30, notifyTaskApprovals: false, dashboardUrl: null, pollTimeoutSec: 30 },
   projectsDir: './projects',

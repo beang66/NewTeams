@@ -25,12 +25,14 @@ export function AttentionTab({ items, ...ctx }: { items: AttentionItem[] } & Omi
       {items.map((item) => {
         const key = itemKey(item)
         return (
-          <AttentionCard key={key} item={item}
+          <div key={key} id={`decision-${key}`} className="attention-slot">
+          <AttentionCard item={item}
             ctx={{
               ...ctx,
               onResumed: (reason: string) => { resumed.current = { at: Date.now(), seen: new Set(items.map(itemKey)), reason } },
               retryMessage: repeated.has(key) ? retryMessageFor(item) : undefined,
             }} />
+          </div>
         )
       })}
     </div>

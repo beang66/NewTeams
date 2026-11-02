@@ -13,6 +13,10 @@ export interface TelegramStatus {
 export interface WorkflowActions {
   chat(message: string): Promise<{ reply: string; specDraft?: string }>
   approveSpec(): Promise<void>
+  /** 사람만 시작한다(스펙 승인은 시작이 아니다). */
+  startPipeline(): Promise<void>
+  /** 지금 도는 작업은 마치고, 새 작업은 띄우지 않는다. */
+  stopPipeline(): Promise<void>
   answer(eventId: string, a: { action: 'guidance' | 'skip'; text: string; restartSession?: boolean }): Promise<void>
   resume(): Promise<void>
   ask(question: string): Promise<string>
@@ -20,7 +24,7 @@ export interface WorkflowActions {
   drive(): void
 }
 
-const CONFLICT = /INTAKE|스펙 초안|열린 HUMAN_REQUIRED/
+const CONFLICT = /INTAKE|스펙 초안|열린 HUMAN_REQUIRED|이미 완료된/
 
 /** Runs at most one workflow, including while it is paused inside a runner. */
 export function createWorkflowDriver(wf: Workflow, onError: (error: unknown) => void | Promise<void>): () => void {
@@ -47,7 +51,11 @@ export function createWorkflowActions(wf: Workflow, onDriveError: (e: unknown) =
   }
   return {
     chat: (message) => serialized(() => wf.chat(message)),
-    approveSpec: () => serialized(async () => { await wf.approveSpec(); drive() }),
+    // 스펙 승인만 하고 실행은 하지 않는다. 첫 시작은 항상 사람이 [시작]을 눌러야 한다.
+    approveSpec: () => serialized(() => wf.approveSpec()),
+    startPipeline: () => serialized(async () => { await wf.startPipeline(); drive() }),
+    // 직렬화하지 않는다: 돌고 있는 작업이 큐를 잡고 있어도 정지는 바로 기록돼야 한다.
+    stopPipeline: () => wf.stopPipeline(),
     answer: (eventId, a) => serialized(async () => { await wf.answerHuman(eventId, a); drive() }),
     // 직렬화하지 않는다: 게이트 대기 중인 chat/answer가 큐를 잡고 있어도 사람 재개는 통과해야 한다.
     resume: async () => { await wf.gate.resumeByHuman(); drive() },

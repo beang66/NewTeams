@@ -100,3 +100,21 @@ describe('repoMap', () => {
     expect(await buildRepoMap(sampleRepo, 1)).not.toContain('z.ts')
   })
 })
+
+describe('파이프라인 문서(Vault)', () => {
+  it('등록된 노트 중 설계 개요와 그 역할의 단계 노트만 붙이고, 해제하면 붙이지 않는다', async () => {
+    const { usePipelineNotes, pipelineNoteFor } = await import('../../src/context/contextBuilder.js')
+    const read: string[] = []
+    usePipelineNotes((note) => { read.push(note); return note === '06 통합·위키' ? undefined : { path: `P/${note}.md`, text: `${note} 완수 기준` } })
+    try {
+      const out = buildPrompt({ role: 'planner' })
+      expect(out).toContain('## 작업 지식 (Vault)')
+      expect(out).toContain('### P/00 파이프라인 설계.md')
+      expect(out).toContain('03 기획 완수 기준')
+      expect(out).not.toContain('04 개발')
+      expect(pipelineNoteFor({ role: 'qa', task: null, scenarios: [], devCommand: '', evidenceDir: '' })).toBe('07 최종 QA')
+      expect(pipelineNoteFor({ role: 'logQuery', question: '', timeline: '' })).toBeUndefined()
+    } finally { usePipelineNotes(undefined) }
+    expect(buildPrompt({ role: 'planner' })).not.toContain('작업 지식')
+  })
+})

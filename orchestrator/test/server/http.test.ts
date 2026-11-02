@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { Workflow } from '../../src/engine/workflow.js'
 import { buildServer, createWorkflowDriver, listenLocal } from '../../src/server/http.js'
+import { createWorkflowActions } from '../../src/server/actions.js'
 import { attachNotifier } from '../../src/server/notifier.js'
 import { SkillRuns } from '../../src/skills/runs.js'
 import { Routines } from '../../src/skills/routines.js'
@@ -102,7 +103,7 @@ describe('HTTP API', { timeout: 30_000 }, () => {
     expect((await app.inject({ method: 'POST', url: '/api/ask', payload: { question: '왜 멈췄어?' } })).json().answer).toContain('msg-0001')
   })
   it('serves prompts produced by a complete workflow via event id or prompt filename', async () => {
-    await wf.chat('앱'); await wf.approveSpec()
+    await wf.chat('앱'); await wf.approveSpec(); await wf.startPipeline()
     expect(await wf.runUntilBlocked()).toBe('done')
     const event = (await wf.store.readEvents()).find((event) => event.promptRef)!
     const filename = event.promptRef!.split('/').at(-1)!.replace(/\.txt$/, '')
@@ -192,5 +193,27 @@ describe('HTTP API', { timeout: 30_000 }, () => {
     expect(notify.mock.calls.map(([e]) => e.type)).toEqual(['STATE_CHANGE', 'CHAT', 'PAUSED', 'HUMAN_REQUIRED'])
     detach(); await publish()
     expect(notify).toHaveBeenCalledTimes(4)
+  })
+})
+
+describe('프로젝트별 관제 API', () => {
+  it('/p/<이름>/api/state, 프로젝트 목록, 표시 이름 수정', async () => {
+    const root = await fs.mkdtemp(join(tmpdir(), 'orch-multi-'))
+    await fs.mkdir(join(root, 'main')); await fs.mkdir(join(root, 'other'))
+    const main = await Workflow.open(join(root, 'main'), fakeDeps(makeScript()))
+    const other = await Workflow.open(join(root, 'other'), fakeDeps(makeScript()))
+    const app = buildServer(main, { projects: [{ name: 'other', wf: other, actions: createWorkflowActions(other, () => undefined) }] })
+    try {
+      expect((await app.inject('/p/main/api/state')).json().stage).toBe('INTAKE')
+      expect((await app.inject('/p/other/api/state')).statusCode).toBe(200)
+      expect((await app.inject('/api/projects')).json().map((p: { name: string }) => p.name)).toEqual(['main', 'other'])
+      const put = await app.inject({ method: 'PUT', url: '/p/other/api/project', payload: { displayName: '두 번째 앱' } })
+      expect(put.json()).toEqual({ name: 'other', displayName: '두 번째 앱' })
+      expect((await app.inject('/p/other/api/project')).json().displayName).toBe('두 번째 앱')
+      expect((await app.inject('/api/project')).json()).toEqual({ name: 'main', displayName: 'main' })
+    } finally {
+      await app.close()
+      await fs.rm(root, { recursive: true, force: true })
+    }
   })
 })

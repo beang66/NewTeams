@@ -202,10 +202,19 @@ button.hs-play:disabled { cursor: progress; opacity: 0.6; }
 .hs-skill-result { margin-top: var(--space-3); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); max-height: 360px; overflow: auto; overscroll-behavior: contain; }
 
 /* 루틴 */
-.hs-routine strong { font-size: var(--fs-14); }
-.hs-badge { font-size: 11px; padding: 0 8px; border-radius: 999px; background: var(--ink); color: var(--bg); font-weight: 600; }
-.hs-last { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
-.hs-last b { color: var(--ink); }
+.hs-routine { display: flex; flex-direction: column; gap: var(--space-1); padding-bottom: var(--space-3); border-bottom: 1px solid var(--line); }
+.hs-routine:last-child { border-bottom: 0; }
+.hs-routine-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); min-width: 0; }
+.hs-routine strong { font-size: var(--fs-14); line-height: 1.4; overflow-wrap: anywhere; }
+.hs-routine-when { color: var(--ink-muted); }
+.hs-badge { flex-shrink: 0; font-size: var(--fs-12); line-height: 1.6; padding: 0 var(--space-2); border-radius: 999px; border: 1px solid var(--line-strong); color: var(--ink-subtle); }
+.hs-badge.is-on { border-color: var(--accent); color: var(--ink); }
+.hs-last { color: var(--ink-subtle); font-variant-numeric: tabular-nums; }
+.hs-last b { color: var(--bad); font-weight: 500; }
+/* 끄기·고치기는 왼쪽에 모으고, 되돌릴 수 없는 삭제만 오른쪽 끝으로 떨어뜨린다. */
+.hs-routine-actions { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+.hs-routine-actions .btn { text-align: center; min-width: 64px; }
+.hs-routine-actions .is-danger { margin-left: auto; }
 .hs-recover { color: var(--ink-muted); }
 .hs-keys { margin: var(--space-3) 0 0; }
 .hs-keys kbd { font-family: var(--font-mono); font-size: var(--fs-12); color: var(--ink-muted); background: var(--surface-3); border: 1px solid var(--line-strong); border-radius: 3px; padding: 0 4px; }
@@ -217,7 +226,7 @@ button.hs-play:disabled { cursor: progress; opacity: 0.6; }
   .hg { grid-template-columns: minmax(300px, 1fr) minmax(360px, 1.4fr); }
   .hg-side { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; }
 }
-/* 모바일: 내 차례 → 진행 중 실행 → 캘린더 → 채널 → 목표 → 세컨드 브레인 순 */
+/* 모바일: 내 차례 → 진행 중 → 캘린더 → 채널 → 목표 → 세컨드 브레인 순 */
 @media (max-width: 768px) {
   .ht { padding: var(--space-2) var(--space-3); }
   .ht-sub, .ht-clock { display: none; }
@@ -312,7 +321,7 @@ button.ht-ico { background: none; border: 0; cursor: pointer; font: inherit; }
 .so-cell { position: relative; display: inline-grid; place-items: center; width: 40px; height: 36px; cursor: pointer; }
 .so-cell input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 /* 점은 30px 원을 transform으로 줄여 그린다(레이아웃 재계산 없이 크기 변화). */
-.so-cell span { width: 30px; height: 30px; border-radius: 50%; background: var(--ink-faint); transform: scale(0.2); transition: transform var(--dur) var(--ease-out), background-color var(--dur); }
+.so-cell span { pointer-events: none; width: 30px; height: 30px; border-radius: 50%; background: var(--ink-faint); transform: scale(0.2); transition: transform var(--dur) var(--ease-out), background-color var(--dur); }
 @media (hover: hover) and (pointer: fine) {
   .so-cell:hover span { background: var(--ink-muted); transform: scale(0.34); }
 }
@@ -353,3 +362,6 @@ button.ht-ico { background: none; border: 0; cursor: pointer; font: inherit; }
 /* 스킬 결과의 긴 경로·코드 블록이 가로 스크롤을 만들지 않게 */
 .hs-skill-result { overflow-wrap: anywhere; overflow-x: hidden; }
 .hs-skill-result pre { white-space: pre-wrap; }
+a.hs-output { color: inherit; text-decoration: none; border-radius: var(--radius-sm); }
+a.hs-output:hover { background: var(--surface-2); }
+a.hs-output:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

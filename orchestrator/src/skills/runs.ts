@@ -1,6 +1,7 @@
 import { promises as fs, existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import type { Runner, RunRequest } from '../runners/types.js'
+import type { Usage } from '../protocol/messages.js'
 import { SKILL_MODELS, SkillNotFound, type SkillInfo } from './skills.js'
 
 export type RunStatus = 'running' | 'needs_approval' | 'done' | 'failed' | 'cancelled'
@@ -8,6 +9,7 @@ export interface SkillRun {
   id: string; skill: string; input: string; model: string; effort: string; routine?: string
   status: RunStatus; startedAt: string; endedAt?: string
   text?: string; error?: string; denied?: string[]; files?: string[]; sessionId?: string
+  usage?: Usage
 }
 export interface StartRequest { skill: string; input: string; model: string; effort: string; routine?: string }
 
@@ -41,9 +43,11 @@ export class SkillRuns {
     private readonly list: () => Promise<SkillInfo[]>,
     private readonly timeoutMs: number,
     private readonly now: () => Date = () => new Date(),
+    /** 고정 목록 파일. 프로젝트와 상관없이 사용자 한 사람의 목록이므로 서버는 홈 폴더 경로를 넘긴다. */
+    pinsPath?: string,
   ) {
     this.history = join(dir, 'history.jsonl')
-    this.pinsPath = join(dir, 'pinned.json')
+    this.pinsPath = pinsPath ?? join(dir, 'pinned.json')
     if (existsSync(this.history)) {
       for (const line of readFileSync(this.history, 'utf8').split('\n')) {
         try { const r = JSON.parse(line) as SkillRun; this.runs.set(r.id, r) } catch { /* 빈 줄·깨진 줄 */ }
@@ -89,12 +93,30 @@ export class SkillRuns {
     this.active.ctrl.abort()
   }
 
+  /**
+   * 고정 목록. 파일이 없을 때만 예전 프로젝트별 pinned.json → 기본 목록 순으로 채우고 바로 파일로 남긴다.
+   * 파일이 깨졌으면 기본값으로 덮지 않고 .bak(직전 저장본)을 읽는다.
+   */
   async pinned(): Promise<string[]> {
-    try { return JSON.parse(await fs.readFile(this.pinsPath, 'utf8')) as string[] } catch { return DEFAULT_PINNED }
+    const read = async (p: string): Promise<string[] | undefined> => {
+      try { const v: unknown = JSON.parse(await fs.readFile(p, 'utf8')); return Array.isArray(v) && v.every((x) => typeof x === 'string') ? v : undefined } catch { return undefined }
+    }
+    if (existsSync(this.pinsPath)) {
+      const v = (await read(this.pinsPath)) ?? (await read(`${this.pinsPath}.bak`))
+      if (v) return v
+      throw new Error(`고정 목록 파일을 읽을 수 없음: ${this.pinsPath}`)
+    }
+    const seed = (await read(join(this.dir, 'pinned.json'))) ?? DEFAULT_PINNED
+    await this.setPinned(seed)
+    return seed
   }
+  /** 쓰기 전에 직전 저장본을 .bak으로 남기고, 임시 파일에 쓴 뒤 이름을 바꾼다(중간에 끊겨도 목록이 비지 않게). */
   async setPinned(names: string[]): Promise<void> {
-    await fs.mkdir(this.dir, { recursive: true })
-    await fs.writeFile(this.pinsPath, JSON.stringify([...new Set(names)], null, 2))
+    await fs.mkdir(dirname(this.pinsPath), { recursive: true })
+    if (existsSync(this.pinsPath)) await fs.copyFile(this.pinsPath, `${this.pinsPath}.bak`)
+    const tmp = `${this.pinsPath}.tmp`
+    await fs.writeFile(tmp, JSON.stringify([...new Set(names)], null, 2))
+    await fs.rename(tmp, this.pinsPath)
   }
 
   private async exec(run: SkillRun, prompt: string, approved: boolean): Promise<void> {
@@ -117,7 +139,9 @@ export class SkillRuns {
       // 승인 뒤에도 거부가 남으면(셸 명령 등) 더 열지 않고 결과와 함께 끝낸다.
       const status: RunStatus = res.denied?.length && !approved && sessionId ? 'needs_approval' : 'done'
       // denied는 이번 실행의 거부만 남긴다(승인 전 목록이 승인 뒤까지 남지 않게).
-      await this.save({ ...run, status, text, files, sessionId, denied: res.denied?.length ? res.denied : undefined, ...(status === 'done' ? { endedAt: this.now().toISOString() } : {}) })
+      // 승인 뒤 이어 간 실행이면 앞선 사용량에 더한다(대시보드 전체 사용량 집계용).
+      const usage = run.usage ? { in: run.usage.in + res.usage.in, out: run.usage.out + res.usage.out, cached: run.usage.cached + res.usage.cached, ...(run.usage.costUsd !== undefined || res.usage.costUsd !== undefined ? { costUsd: (run.usage.costUsd ?? 0) + (res.usage.costUsd ?? 0) } : {}) } : res.usage
+      await this.save({ ...run, status, text, files, sessionId, usage, denied: res.denied?.length ? res.denied : undefined, ...(status === 'done' ? { endedAt: this.now().toISOString() } : {}) })
     } catch (e) {
       const cancelled = ctrl.signal.aborted
       await this.save({ ...run, status: cancelled ? 'cancelled' : 'failed', error: cancelled ? '사람이 중단함' : e instanceof Error ? e.message : String(e), endedAt: this.now().toISOString() })

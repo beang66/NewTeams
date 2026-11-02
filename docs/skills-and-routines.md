@@ -16,7 +16,7 @@
 
 ### 고정(☆)
 
-기본 화면은 고정한 스킬만 보여 준다. 고정 목록은 `skill-runs/pinned.json`에 저장되고, 파일이 없으면 `DEFAULT_PINNED`(`runs.ts`)를 쓴다. 설치되지 않은 이름은 화면에서 빠진다.
+기본 화면은 고정한 스킬만 보여 준다. 고정 목록은 사용자 홈의 `~/.newteams/pinned-skills.json`에 저장된다(프로젝트와 무관, 직전 본은 `.bak`). 파일이 없을 때만 예전 `skill-runs/pinned.json` → `DEFAULT_PINNED`(`runs.ts`) 순으로 채운다. 설치되지 않은 이름은 화면에서 빠진다.
 
 ## 실행 흐름
 
@@ -44,7 +44,7 @@
 | `history.jsonl` | 상태가 바뀔 때마다 실행 한 줄. 같은 `id`의 마지막 줄이 현재 상태. 메모리에는 최근 200건 |
 | `<실행 ID>/session.jsonl` | Claude stream-json 원본 |
 | `<실행 ID>/*` | 스킬이 만든 파일 |
-| `pinned.json` | 고정 목록 |
+| `pinned.json` | (예전) 고정 목록. 지금은 `~/.newteams/pinned-skills.json` |
 | `routines.json` | 루틴 |
 
 서버가 꺼질 때 `running`이던 실행은 다시 켤 때 `failed`(재시작으로 중단)로 바뀐다.

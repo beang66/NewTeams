@@ -5,7 +5,7 @@ import { api } from '../../src/api/client'
 import type { RunView } from '../../src/api/useRun'
 import { StageRail } from '../../src/components/StageRail'
 import { TopBar } from '../../src/components/TopBar'
-import { UsageDailyStrip, UsageGauges } from '../../src/components/UsageGauges'
+import { UsagePanel, UsageGauges } from '../../src/components/UsageGauges'
 import { PausedBanner } from '../../src/components/PausedBanner'
 import { SinceBar } from '../../src/components/SinceBar'
 import { TelegramChip } from '../../src/components/TelegramChip'
@@ -44,11 +44,15 @@ describe('상단 바 뼈대', () => {
     render(<UsageGauges usage={{ byProvider: { claude: { tokens: 12345, cached: 10000 }, codex: { tokens: 500, cached: 0 } }, totalTokens: 12845, recordedCostUsd: 0.35, hasRecordedCost: true, byDay: [], apiSpendUsd: 1.2, apiCapUsd: 8 }} />)
     expect(screen.getByText('12,345')).toBeInTheDocument(); expect(screen.getByText('$1.20 / $8')).toBeInTheDocument(); expect(screen.getByText('$0.35')).toBeInTheDocument()
   })
-  it('관제 사용량은 전체와 최근 일별 토큰·비용을 표시한다', () => {
-    render(<UsageDailyStrip usage={{ byProvider: { claude: { tokens: 1200, cached: 0 }, codex: { tokens: 0, cached: 0 } }, totalTokens: 1200, recordedCostUsd: 0.12, hasRecordedCost: true, byDay: [{ date: '2026-11-02', tokens: 1200, cached: 0, costUsd: 0.12, hasCost: true }], apiSpendUsd: 0.04, apiCapUsd: 8 }} />)
-    expect(screen.getByRole('region', { name: '토큰 사용 요약' })).toHaveTextContent('총 1,200 토큰')
+  it('관제 사용량은 이 프로젝트·대시보드 전체와 최근 일별 토큰·비용을 표시한다', async () => {
+    vi.spyOn(api, 'usageAll').mockResolvedValue({ total: { tokens: 5000, costUsd: 1.5, hasCost: true }, projects: [{ name: 'home', tokens: 1200, costUsd: 0.12, hasCost: true }, { name: 'b', tokens: 3800, costUsd: 1.38, hasCost: true }], skills: { tokens: 0, costUsd: 0, hasCost: false } })
+    render(<UsagePanel project="home" usage={{ byProvider: { claude: { tokens: 1200, cached: 0 }, codex: { tokens: 0, cached: 0 } }, totalTokens: 1200, recordedCostUsd: 0.12, hasRecordedCost: true, byDay: [{ date: '2026-11-02', tokens: 1200, cached: 0, costUsd: 0.12, hasCost: true }], apiSpendUsd: 0.04, apiCapUsd: 8 }} />)
+    const region = screen.getByRole('region', { name: '토큰 사용량' })
+    expect(region).toHaveTextContent(/이 프로젝트 · home\s*1,200 토큰\s*기록 비용\$0\.12/)
+    expect(await screen.findByText('5,000')).toBeInTheDocument()
+    expect(region).toHaveTextContent('프로젝트 2개')
     expect(screen.getByText('11.02')).toBeInTheDocument()
-    expect(screen.getByText('$0.12', { selector: 'small' })).toBeInTheDocument()
+    expect(screen.getAllByText('$0.12', { selector: 'td' })).toHaveLength(1)
   })
   it('일시정지 배너: 자동 재개 시각과 남은 시간', () => {
     render(<PausedBanner now={() => Date.parse('2026-10-27T05:00:00Z')} paused={{ reason: 'rate_limit', until: new Date('2026-10-27T05:30:00Z'), remainingMs: 1_800_000, needsHuman: false }} />)

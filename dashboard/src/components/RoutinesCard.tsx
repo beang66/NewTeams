@@ -56,13 +56,13 @@ export function RoutinesCard() {
           const next = r.enabled ? nextDue(r.schedule, now) : null
           return (
             <li key={r.id} className="hs-routine">
-              <span className="hs-row"><strong>{r.name}</strong><span className="hs-badge">{r.enabled ? '켜짐' : '꺼짐'}</span></span>
-              <small>{scheduleText(r.schedule)} · {r.skill}</small>
+              <span className="hs-routine-head"><strong>{r.name}</strong><span className={`hs-badge${r.enabled ? ' is-on' : ''}`}>{r.enabled ? '켜짐' : '꺼짐'}</span></span>
+              <small className="hs-routine-when">{scheduleText(r.schedule)} · {r.skill}</small>
               <small className="hs-last">
                 최근 {r.lastRunAt ? dateTime.format(new Date(r.lastRunAt)) : '없음'}{r.lastError ? <b> · ✕ {r.lastError}</b> : ''}
                 {next ? ` · 다음 ${dateTime.format(next)}` : ''}
               </small>
-              <span className="hs-row">
+              <span className="hs-routine-actions">
                 <button type="button" className="btn" onClick={() => void toggle(r)}>{r.enabled ? '끄기' : '다시 켜기'}</button>
                 <button type="button" className="btn" onClick={() => setForm({ id: r.id, value: { name: r.name, skill: r.skill, input: r.input, model: r.model, effort: r.effort, enabled: r.enabled, schedule: r.schedule } })}>고치기</button>
                 <button type="button" className="btn is-danger" onClick={() => void remove(r)}>삭제</button>

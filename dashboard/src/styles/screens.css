@@ -97,3 +97,28 @@
   .ov-return-labels { margin-top: var(--space-2); padding-left: 0; }
   .ov-pair { grid-template-columns: 1fr; }
 }
+/* 스펙 패널 아래: 승인 → 시작 두 단계 */
+.intake-steps { list-style: none; margin: 0; padding: var(--space-3) 0 0; display: flex; flex-direction: column; gap: var(--space-2); border-top: 1px solid var(--line); }
+.intake-steps li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); color: var(--ink-subtle); }
+.intake-steps li.is-current { border-color: var(--accent); color: var(--ink); }
+.intake-step-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.intake-step-text strong { font-size: var(--fs-13); }
+.intake-step-text small { font-size: var(--fs-12); color: var(--ink-subtle); }
+.intake-steps .btn { flex-shrink: 0; min-width: 72px; text-align: center; }
+
+/* 채팅 입력: 버튼이 입력칸 안 오른쪽 아래 */
+.chat-compose { position: relative; margin-top: var(--space-1); background: var(--surface-1); border: 1px solid var(--line-strong); border-radius: var(--radius-md); }
+.chat-compose:focus-within { border-color: var(--accent); }
+.chat-compose textarea { display: block; width: 100%; min-height: 84px; padding: var(--space-3) var(--space-3) calc(var(--space-3) + 36px); font: inherit; font-size: var(--fs-14); color: var(--ink); background: transparent; border: 0; border-radius: var(--radius-md); resize: vertical; outline: none; }
+.chat-compose textarea::placeholder { color: var(--ink-faint); }
+.chat-send { position: absolute; right: var(--space-2); bottom: var(--space-2); min-width: 92px; text-align: center; }
+
+/* 오른쪽: 스펙 초안 ↔ 토큰 사용량 */
+.intake-tabs { display: flex; gap: var(--space-1); margin-bottom: var(--space-3); border-bottom: 1px solid var(--line); }
+.intake-tabs button { font: inherit; font-size: var(--fs-13); color: var(--ink-subtle); background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: var(--space-2) var(--space-3); cursor: pointer; }
+.intake-tabs button:hover { color: var(--ink); }
+.intake-tabs button[aria-selected='true'] { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+.intake-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.intake-spec-file { margin: 0 0 var(--space-2); font-size: var(--fs-12); color: var(--ink-faint); }
+.intake-spec-body .usage-panel, .panel-body .usage-panel { margin-top: 0; padding-top: 0; border-top: 0; }
+.intake-spec-body .usage-panel-title, .panel-body .usage-panel-title { display: none; }

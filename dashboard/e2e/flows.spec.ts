@@ -58,18 +58,18 @@ test('S1: 대화 → 초안 → 승인 → 관제 화면 전환', async ({ page 
 
   await page.goto('/#/run')
   await expect(page.getByText('만들고 싶은 것을 마스터에게 설명해 주세요')).toBeVisible()
-  await expect(page.getByRole('button', { name: '스펙 승인' })).toBeDisabled() // 빈 초안은 승인할 수 없다
+  await expect(page.getByRole('button', { name: '스펙 승인', exact: true })).toBeDisabled() // 빈 초안은 승인할 수 없다
 
   const input = page.getByRole('textbox', { name: '마스터에게 보내기' })
   await input.fill('할 일 앱 만들어 줘')
   await page.keyboard.press('Enter')
   await expect(page.getByText('저장은 브라우저에만 하면 될까요?')).toBeVisible()
-  await expect(page.getByRole('button', { name: '스펙 승인' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: '스펙 승인', exact: true })).toBeDisabled()
 
   await input.fill('네, 브라우저에만 저장해요')
   await page.keyboard.press('Enter')
   await expect(page.getByRole('heading', { name: '할 일 앱 스펙 초안' })).toBeVisible()
-  const approve = page.getByRole('button', { name: '스펙 승인' })
+  const approve = page.getByRole('button', { name: '스펙 승인', exact: true })
   await expect(approve).toBeEnabled()
   expect(mock.calls.filter((c) => c.path === '/api/chat')).toHaveLength(2)
 
@@ -85,7 +85,7 @@ test('S1 예외: 이미 승인된 스펙은 서버 사유를 화면에 보여 �
   mock.setHuman('spec.draft.md', DRAFT)
   mock.onPost('/api/spec/approve', () => ({ status: 409, json: { error: '이미 승인된 스펙입니다' } }))
   await page.goto('/#/run')
-  await page.getByRole('button', { name: '스펙 승인' }).click()
+  await page.getByRole('button', { name: '스펙 승인', exact: true }).click()
   await expect(page.getByRole('alert')).toHaveText('이미 승인된 스펙입니다')
 })
 
@@ -94,18 +94,18 @@ test('S2: 맡겨 두고 확인 — 주의 0은 강조 없음, 연결이 끊기�
   await page.goto('/#/run')
 
   // 2초 안에 세 가지 답: 진행 중인가(단계 레일), 막혔나(주의 0·배너 없음), 내 차례인가(주의 0)
-  await expect(page.getByRole('heading', { name: '에이전트 관제' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /todo-app/ })).toBeVisible()
   await expect(attentionBtn(page, 0)).toBeVisible()
   await expect(attentionBtn(page, 0)).not.toHaveClass(/is-alert/)
   await expect(page.locator('.paused-banner')).toHaveCount(0)
   await expect(page.getByText('텔레그램 @orch_todo_bot')).toBeVisible()
   await expect(page.getByText('연결 끊김')).toHaveCount(0)
 
-  // 보드: 검수 중 1, 반려 1(r2/5), 진행 중 1
+  // 보드: 검수 중 1, 반려 1(r2/3), 진행 중 1
   await expect(board(page).getByRole('heading', { name: '검수 중 1' })).toBeVisible()
   await expect(board(page).getByRole('heading', { name: '반려 1' })).toBeVisible()
   await expect(board(page).getByRole('heading', { name: '진행 중 1' })).toBeVisible()
-  await expect(board(page).getByText('r2/5')).toBeVisible()
+  await expect(board(page).getByText('r2/3')).toBeVisible()
 
   // 서버가 끊기면 상단에 칩, 그사이 쌓인 이벤트는 다시 붙을 때 받아온다
   mock.dropStream()
@@ -135,6 +135,19 @@ test('S3: 요약을 누르면 그 구간의 이벤트가 레인에서 옅게 강
   await page.locator('.since-text').click()
   await expect.poll(() => page.locator('.arrow.is-highlight').count()).toBeGreaterThan(0)
   await expect(page.locator('.since-bar')).toHaveCount(0) // 아무 데나 클릭하면 요약이 닫힌다
+})
+
+test('결정 큐: 맨 위에서 교착을 고르면 처리 카드로 간다', async ({ page }) => {
+  await mockApi(page, 'deadlock')
+  await page.goto('/#/run')
+  const queue = page.getByRole('region', { name: /결정 큐/ })
+  await expect(queue.getByRole('button')).toHaveCount(1)
+  await expect(queue).toContainText('t3')
+  await page.screenshot({ path: 'test-results/decision-queue.png' })
+  await page.keyboard.press('j')
+  await page.keyboard.press('Enter')
+  await expect(panel(page).getByRole('tab', { name: /주의/ })).toHaveAttribute('aria-selected', 'true')
+  await expect(panel(page).getByLabel('지침')).toBeFocused()
 })
 
 test.describe('S4: 교착을 푼다', () => {

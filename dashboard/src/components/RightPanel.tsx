@@ -4,10 +4,12 @@ import { attentionItems } from '../model/attention'
 import { AttentionTab } from './AttentionTab'
 import { DetailTab, type DetailSub, type Selection } from './DetailTab'
 import { MasterTab } from './MasterTab'
+import { UsagePanel } from './UsageGauges'
+import type { UsageView } from '../model/usage'
 
-export type PanelTab = 'attention' | 'master' | 'detail'
+export type PanelTab = 'attention' | 'master' | 'detail' | 'usage'
 const TABS: { id: PanelTab; label: string }[] = [
-  { id: 'attention', label: '주의' }, { id: 'master', label: '마스터' }, { id: 'detail', label: '상세' },
+  { id: 'attention', label: '주의' }, { id: 'master', label: '마스터' }, { id: 'detail', label: '상세' }, { id: 'usage', label: '토큰 사용량' },
 ]
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
@@ -26,9 +28,11 @@ interface Props {
   /** Drawer state at <=1024px; on wide screens the panel is always visible. */
   open?: boolean
   onClose?: () => void
+  usage?: UsageView
+  project?: string
 }
 
-export function RightPanel({ run, tab, onTab, selection, onSelectEvent, onSelectTask, onOpenSpec, hasSpecDraft = false, sub: subProp, onSub, open, onClose }: Props) {
+export function RightPanel({ run, tab, onTab, selection, onSelectEvent, onSelectTask, onOpenSpec, hasSpecDraft = false, sub: subProp, onSub, open, onClose, usage, project }: Props) {
   const [subLocal, setSubLocal] = useState<DetailSub>('human')
   const sub = subProp ?? subLocal
   const setSub = onSub ?? setSubLocal
@@ -65,6 +69,7 @@ export function RightPanel({ run, tab, onTab, selection, onSelectEvent, onSelect
         {tab === 'attention' && (
           <AttentionTab items={items} plan={run.plan} state={run.state} onEvidence={showEvidence} onOpenSpec={onOpenSpec} />
         )}
+        {tab === 'usage' && (usage ? <UsagePanel usage={usage} project={project} /> : <p className="panel-empty">사용량을 불러오는 중입니다</p>)}
         {tab === 'master' && <MasterTab events={run.events} stage={run.state.stage} />}
         {tab === 'detail' && (
           <DetailTab events={run.events} state={run.state} selection={selection} sub={sub} onSub={setSub} onRawLink={showRaw} />

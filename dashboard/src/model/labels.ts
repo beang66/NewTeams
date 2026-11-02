@@ -9,7 +9,7 @@ export const stageLabel: Record<Stage, string> = {
   INTEGRATE: '통합', FINAL_QA: '최종 QA', REPORT: '보고', DONE: '완료',
 }
 
-const EXTRA_REASONS: Record<string, string> = { workflow_error: '워크플로 오류', openai_cap: 'OpenAI 지출 상한' }
+const EXTRA_REASONS: Record<string, string> = { workflow_error: '워크플로 오류', openai_cap: 'OpenAI 지출 상한', merge_conflict: '병합 충돌', process_restart: '프로세스 재시작' }
 
 export const reasonLabel = (code: string): string => {
   const base = baseReasonLabel(code)

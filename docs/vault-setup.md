@@ -41,3 +41,7 @@ JSON에서는 역슬래시를 두 번 쓴다. 시작 로그의 `Obsidian: …`�
 - 카드를 누르면 `#/brand/<파일>` 같은 별도 페이지에서 전체 내용을 읽고 고친다. 삭제한 노트는 `Libraries/.trash/`에 남는다.
 - Vault 규칙(`Obsidian Vault/CLAUDE.md`)에 이 세 폴더만 대시보드가 쓸 수 있다고 적어 두었다.
 - GitHub 동기화(`beang66/Vault`)는 Obsidian Git이 맡는다. 이 PC의 Vault 폴더가 Git 저장소여야 한다.
+
+## 파이프라인 문서
+
+- `01 Projects/[진행] NEWTEAMs AI Agent Studio/파이프라인/`의 `00 파이프라인 설계`와 `01 요구사항·스펙` … `08 보고`를 에이전트가 단계마다 읽는다. 노트 이름을 바꾸면 에이전트가 찾지 못하니 이름은 유지하고 내용만 고친다.

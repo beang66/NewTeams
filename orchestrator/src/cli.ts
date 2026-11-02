@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander'
 import { promises as fs } from 'node:fs'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { execFile } from 'node:child_process'
@@ -18,7 +18,9 @@ import { CodexRunner } from './runners/codexRunner.js'
 import { OpenAIRunner } from './runners/openaiRunner.js'
 import { ReviewerRunner } from './runners/reviewerRunner.js'
 import { createWorkflowActions } from './server/actions.js'
-import { buildServer, listenLocal } from './server/http.js'
+import { usePipelineNotes } from './context/contextBuilder.js'
+import { loadGraph, traverse } from './context/expertGraph.js'
+import { buildServer, listenLocal, type ProjectHandle } from './server/http.js'
 import { Vault } from './vault/vault.js'
 import { ClaudeRunner } from './runners/claudeRunner.js'
 import { listSkills } from './skills/skills.js'
@@ -66,7 +68,8 @@ export function createProgram(onServe: (app: FastifyInstance) => void = installS
     const cfg = config()
     const wf = await openExisting(cfg, name)
     const dashboardDir = resolveDashboardDir(options.dashboard)
-    const { app } = assembleServe(cfg, wf, process.env, { dashboardDir })
+    const projects = await openOthers(cfg, name)
+    const { app } = assembleServe(cfg, wf, process.env, { dashboardDir, projects })
     onServe(app)
     try {
       const address = await listenLocal(app, cfg.port)
@@ -86,7 +89,7 @@ export function createProgram(onServe: (app: FastifyInstance) => void = installS
 }
 
 interface TelegramOptions { api?: BotApi; log?: (message: string) => void }
-interface ServeOptions extends TelegramOptions { clock?: Clock; dashboardDir?: string }
+interface ServeOptions extends TelegramOptions { clock?: Clock; dashboardDir?: string; projects?: ProjectHandle[] }
 
 /** HTTP와 Telegram이 동일한 직렬화 동작을 공유하고 서버 생명주기로 함께 종료된다. */
 export function assembleServe(cfg: Config, wf: Workflow, env: NodeJS.ProcessEnv, options: ServeOptions = {}) {
@@ -101,13 +104,19 @@ export function assembleServe(cfg: Config, wf: Workflow, env: NodeJS.ProcessEnv,
   const detachConsole = attachNotifier(wf.bus, consoleNotifier)
   const detachTelegram = bot ? attachNotifier(wf.bus, bot, [...NOTIFY_TYPES, 'RESUMED', 'APPROVE']) : undefined
   const vault = openVault(cfg, env, log)
+  // 에이전트는 실행할 때마다 Vault의 파이프라인 설계·완수 기준 노트를 읽는다(고정된 노트 이름만, 노트당 8천 자까지).
+  usePipelineNotes(vault && ((note) => {
+    const rel = `${cfg.vault.pipeline}/${note}.md`
+    try { return { path: rel, text: readFileSync(join(vault.root, rel), 'utf8').slice(0, 8000) } } catch { return undefined }
+  }), vault && ((key) => traverse(loadGraph(join(vault.root, cfg.vault.graph), vault.root), key)))
   // 스킬 실행 기록·고정 목록·루틴은 프로젝트 폴더의 skill-runs/에 둔다. 루틴은 서버가 켜져 있을 때만 돈다.
   const repoDir = fileURLToPath(new URL('../../', import.meta.url))
   const skillDir = join(wf.store.paths.raw, '..', 'skill-runs')
-  const runs = new SkillRuns(skillDir, new ClaudeRunner(cfg), () => listSkills(repoDir), cfg.timeoutsMs.master)
+  // 고정 목록은 프로젝트 폴더(git에서 빠짐·프로젝트마다 다름)가 아니라 사용자 홈에 하나만 둔다.
+  const runs = new SkillRuns(skillDir, new ClaudeRunner(cfg), () => listSkills(repoDir), cfg.timeoutsMs.master, undefined, join(homedir(), '.newteams', 'pinned-skills.json'))
   const routines = new Routines(join(skillDir, 'routines.json'), runs)
   const skills = { list: () => listSkills(repoDir), runs, routines }
-  const app = buildServer(wf, { resume: true, actions, dashboardDir: options.dashboardDir, telegramStatus: () => bot?.status() ?? { state: 'off' }, vault, skills })
+  const app = buildServer(wf, { resume: true, actions, projects: options.projects, dashboardDir: options.dashboardDir, telegramStatus: () => bot?.status() ?? { state: 'off' }, vault, skills })
   app.addHook('onListen', async () => { routines.start() })
   app.addHook('onListen', async () => {
     if (!bot) { log('텔레그램: 꺼짐 (환경 변수 없음)'); return }
@@ -221,6 +230,27 @@ function projectPath(cfg: Config, name: string): string {
     throw new Error(`잘못된 프로젝트 이름: ${name}`)
   }
   return join(resolve(cfg.projectsDir), name)
+}
+
+/**
+ * 같은 서버에서 함께 열 다른 프로젝트들. 프로젝트마다 대시보드에 자기 관제 페이지(#/run/<이름>)가 생긴다.
+ * 텔레그램은 serve로 지정한 주 프로젝트만 연결한다.
+ */
+async function openOthers(cfg: Config, primary: string): Promise<ProjectHandle[]> {
+  const root = resolve(cfg.projectsDir)
+  const names = (await fs.readdir(root, { withFileTypes: true }).catch(() => [])).filter((d) => d.isDirectory() && d.name !== primary).map((d) => d.name)
+  const out: ProjectHandle[] = []
+  for (const n of names) {
+    let wf: Workflow
+    try { wf = await openExisting(cfg, n) } catch { continue } // 프로젝트가 아닌 폴더·이름 규칙에 맞지 않는 폴더
+    const actions = createWorkflowActions(wf, async (error) => {
+      console.error(`[${n}] Workflow failed`, error)
+      await wf.bus.publish({ type: 'HUMAN_REQUIRED', from: 'controller', to: 'user', payload: { reason: 'workflow_error', detail: error instanceof Error ? error.message : String(error) } })
+    })
+    attachNotifier(wf.bus, consoleNotifier)
+    out.push({ name: n, wf, actions })
+  }
+  return out
 }
 
 async function openExisting(cfg: Config, name: string): Promise<Workflow> {

@@ -28,7 +28,6 @@ export interface WeekDay { label: string; planned: number; done: number; failed:
 export interface Channel { key: string; label: string; metric: string; value: number | null; delta: number | null; status: 'connected' | 'not_connected' | 'error'; updatedAt: string | null }
 export interface QuickStart { id: string; title: string; desc: string; pack: string }
 export interface Routine { id: string; name: string; schedule: string; nextRun: string; last: 'ok' | 'failed' | 'none' }
-export interface Output { id: string; title: string; kind: string; at: string; evidence: string }
 export interface BrainCluster { key: string; label: string; count: number }
 
 export const projects = ['NEWTEAMs 대시보드', 'WordPress 사이트', 'SQLD']
@@ -84,11 +83,6 @@ export const routines: Routine[] = [
   { id: 'rt3', name: '주간 콘텐츠 제안', schedule: '매주 월 07:00', nextRun: '11/3 07:00', last: 'failed' },
 ]
 
-export const outputs: Output[] = [
-  { id: 'o1', title: '소개 페이지 v2', kind: 'WordPress 페이지', at: '09:12', evidence: '검수 승인 · 캡처 2' },
-  { id: 'o2', title: '10월 마지막 주 회고', kind: 'Obsidian AI Inbox', at: '어제', evidence: '출처 노트 6' },
-  { id: 'o3', title: '롱폼 #2 대본 초안', kind: 'YouTube 대본', at: '10/30', evidence: '검수 대기' },
-]
 
 export const brain: BrainCluster[] = [
   { key: 'projects', label: '프로젝트', count: 184 },
@@ -124,9 +118,10 @@ export interface Skill { id: string; maker: string; name: string; desc: string; 
 /** icon은 SectionIcon 이름이다. */
 export interface Board { id: string; icon: string; title: string; count: number | null; desc: string; href: string | null }
 export const boards: Board[] = [
-  { id: 'brand', icon: 'brand', title: '브랜드 라이브러리', count: 12, desc: '로고 · 팔레트 · 글꼴 · 톤 가이드', href: '#/brand' },
-  { id: 'content', icon: 'library', title: '콘텐츠 라이브러리', count: 28, desc: '레퍼런스 · 영상 소스 · 효과음 · 게시물', href: '#/content' },
-  { id: 'ideas', icon: 'ideas', title: '아이디어 패드', count: 6, desc: '대본 · 기획 메모 · 글감', href: '#/ideas' },
+  // 라이브러리 세 곳의 count는 홈 화면이 Vault에서 실제 개수로 채운다(HomeScreen useLibraryCounts).
+  { id: 'brand', icon: 'brand', title: '브랜드 라이브러리', count: null, desc: '로고 · 팔레트 · 글꼴 · 톤 가이드', href: '#/brand' },
+  { id: 'content', icon: 'library', title: '콘텐츠 라이브러리', count: null, desc: '블로그 · YouTube · Instagram · Threads · X · 레퍼런스', href: '#/content' },
+  { id: 'ideas', icon: 'ideas', title: '아이디어 패드', count: null, desc: '글감 · 영상 · 기능 · 실험', href: '#/ideas' },
   { id: 'run', icon: 'runs', title: '실행 관제', count: null, desc: '요구사항 · 스펙 승인 · 관제 · 완료 보고', href: '#/run' },
   { id: 'calendar', icon: 'calendar', title: '콘텐츠·캘린더', count: null, desc: '기획→게시 상태와 일정', href: '#/calendar' },
   { id: 'settings', icon: 'settings', title: '작업 팩·루틴·설정', count: null, desc: '역할 · 모델 · Telegram', href: '#/settings' },

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { applyEvent, initialState, type RunState } from '@orch/store/state'
 import type { Envelope } from '@orch/protocol/messages'
 import type { Plan } from '@orch/protocol/plan'
-import { api, type AgentConfig } from './client'
+import { api, scopedPath, type AgentConfig } from './client'
 
 export interface RunView {
   state: RunState
@@ -68,7 +68,7 @@ export function useRun(opts: { eventSourceFactory?: (url: string) => EventSource
     let es: EventSource
     const connect = () => {
       const factory = factoryRef.current
-      es = factory ? factory('/api/stream') : new EventSource('/api/stream')
+      es = factory ? factory(scopedPath('/api/stream')) : new EventSource(scopedPath('/api/stream'))
       const mine = es
       es.onopen = () => patch({ connected: true })
       es.onerror = () => {

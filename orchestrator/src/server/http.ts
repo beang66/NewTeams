@@ -1,12 +1,13 @@
 import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify'
 import { promises as fs } from 'node:fs'
-import { extname, isAbsolute, relative, resolve, sep } from 'node:path'
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { ServerResponse } from 'node:http'
 import type { Workflow } from '../engine/workflow.js'
 import type { Envelope } from '../protocol/messages.js'
 import { PlanSchema } from '../protocol/plan.js'
 import fastifyStatic from '@fastify/static'
 import { Vault, VaultError } from '../vault/vault.js'
+import { dashboardUsage } from '../usage/dashboardUsage.js'
 import { LIBRARY_KINDS, Library, type LibraryInput, type LibraryKind } from '../vault/library.js'
 import { SKILL_EFFORTS, SKILL_MODELS, SkillNotFound, type SkillInfo } from '../skills/skills.js'
 import { RunConflict, RunNotFound, SkillBusy, type SkillRuns } from '../skills/runs.js'
@@ -38,7 +39,11 @@ export interface ServerOptions {
   telegramStatus?: () => TelegramStatus
   vault?: Vault
   skills?: SkillServices
+  /** 같은 서버에서 함께 여는 다른 프로젝트. 각자 `/p/<이름>/api/...`에 자기 관제 API를 갖는다. */
+  projects?: ProjectHandle[]
 }
+
+export interface ProjectHandle { name: string; wf: Workflow; actions: WorkflowActions }
 
 export function buildServer(wf: Workflow, options: ServerOptions = {}): FastifyInstance {
   const app = Fastify()
@@ -62,6 +67,24 @@ export function buildServer(wf: Workflow, options: ServerOptions = {}): FastifyI
   registerReadRoutes(app, wf, streams)
   app.get('/api/telegram', async () => options.telegramStatus?.() ?? { state: 'off' })
   registerActionRoutes(app, actions)
+  registerProjectMeta(app, wf)
+  // 프로젝트마다 자기 관제 API: /p/<이름>/api/... (주 프로젝트는 위의 /api/...로도 열린다)
+  const primaryDir = resolve(wf.store.paths.raw, '..')
+  const all: ProjectHandle[] = [{ name: basename(primaryDir), wf, actions }, ...(options.projects ?? [])]
+  for (const p of all) {
+    void app.register(async (sub) => {
+      registerReadRoutes(sub, p.wf, streams)
+      registerActionRoutes(sub, p.actions)
+      registerProjectMeta(sub, p.wf)
+    }, { prefix: `/p/${p.name}` })
+  }
+  // 다른 프로젝트도 사람이 시작해 둔(running) 실행이면 서버를 켤 때 이어서 돈다.
+  if (options.resume) for (const p of options.projects ?? []) app.addHook('onListen', async () => { p.actions.drive() })
+  app.get('/api/projects', async () => Promise.all(all.map(async (p) => ({
+    name: p.name, displayName: await displayNameOf(p.wf), stage: p.wf.state().stage, pipeline: p.wf.state().pipeline ?? null,
+  }))))
+  // 대시보드 전체(모든 프로젝트 + 스킬 실행) 사용량
+  app.get('/api/usage/all', async () => dashboardUsage(dirname(primaryDir)))
   registerVaultRoutes(app, options.vault)
   registerSkillRoutes(app, options.skills)
   if (options.dashboardDir) registerDashboard(app, options.dashboardDir)
@@ -112,6 +135,29 @@ function registerReadRoutes(app: FastifyInstance, wf: Workflow, streams: Set<Ser
   })
 }
 
+const projectFile = (wf: Workflow) => join(resolve(wf.store.paths.raw, '..'), 'project.json')
+/** 화면에 보이는 프로젝트 이름. 폴더 이름(주소에 쓰임)은 그대로 두고 project.json에만 저장한다. */
+async function displayNameOf(wf: Workflow): Promise<string> {
+  try {
+    const v = (JSON.parse(await fs.readFile(projectFile(wf), 'utf8')) as { displayName?: unknown }).displayName
+    if (typeof v === 'string' && v.trim()) return v
+  } catch { /* 없음 */ }
+  return basename(resolve(wf.store.paths.raw, '..'))
+}
+
+function registerProjectMeta(app: FastifyInstance, wf: Workflow): void {
+  const name = basename(resolve(wf.store.paths.raw, '..'))
+  app.get('/api/project', async () => ({ name, displayName: await displayNameOf(wf) }))
+  app.put<{ Body: { displayName: string } }>('/api/project', {
+    schema: { body: { type: 'object', required: ['displayName'], additionalProperties: false, properties: { displayName: { type: 'string', minLength: 1, maxLength: 80 } } } },
+  }, async (request) => {
+    const displayName = request.body.displayName.trim()
+    if (!displayName) return { name, displayName: await displayNameOf(wf) }
+    await fs.writeFile(projectFile(wf), JSON.stringify({ displayName }, null, 2))
+    return { name, displayName }
+  })
+}
+
 function registerDashboard(app: FastifyInstance, dashboardDir: string): void {
   void app.register(fastifyStatic, { root: resolve(dashboardDir), prefix: '/', wildcard: false, index: ['index.html'] })
   // SPA fallback: client-side routes get index.html; API misses keep the JSON 404.
@@ -145,6 +191,8 @@ function registerActionRoutes(app: FastifyInstance, actions: WorkflowActions): v
     },
   }, async (request, reply) => noContent(reply, () => actions.answer(request.params.eventId, request.body)))
   app.post('/api/resume', async (_request, reply) => noContent(reply, () => actions.resume()))
+  app.post('/api/pipeline/start', async (_request, reply) => noContent(reply, () => actions.startPipeline()))
+  app.post('/api/pipeline/stop', async (_request, reply) => noContent(reply, () => actions.stopPipeline()))
   app.post<{ Body: { question: string } }>('/api/ask', { schema: { body: textBody('question') } },
     async (request) => ({ answer: await actions.ask(request.body.question) }))
 }

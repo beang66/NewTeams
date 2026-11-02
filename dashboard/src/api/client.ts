@@ -36,8 +36,16 @@ async function failure(res: Response): Promise<ApiError> {
   return new ApiError(res.status, message)
 }
 
+// 프로젝트마다 관제 API가 /p/<이름>/api/... 에 따로 있다. 관제 화면(#/run/<이름>)이 열려 있는 동안만 그 프로젝트를 가리킨다.
+let currentProject: string | undefined
+export function setProject(name: string | undefined): void { currentProject = name }
+const SCOPED = /^\/api\/(state|agents|events|stream|plan|prompts|human|chat|spec|resume|pipeline|ask|project)(\/|\?|$)/
+export function scopedPath(path: string): string {
+  return currentProject && SCOPED.test(path) ? `/p/${encodeURIComponent(currentProject)}${path}` : path
+}
+
 async function request(path: string, init?: RequestInit, okStatuses: number[] = []): Promise<Response> {
-  const res = await fetch(path, init)
+  const res = await fetch(scopedPath(path), init)
   if (!res.ok && !okStatuses.includes(res.status)) throw await failure(res)
   return res
 }
@@ -54,6 +62,11 @@ const post = (path: string, body?: unknown) =>
 export type LibraryKind = 'brand' | 'content' | 'ideas'
 export interface LibraryInput { title: string; status: string; kind: string; tags: string[]; body: string }
 export interface LibraryItem extends LibraryInput { file: string; updated: string; mtimeMs: number }
+
+export interface ProjectInfo { name: string; displayName: string }
+export interface ProjectSummary extends ProjectInfo { stage: import('@orch/store/state').Stage; pipeline: 'running' | 'stopped' | null }
+export interface UsageTotal { tokens: number; costUsd: number; hasCost: boolean }
+export interface DashboardUsage { total: UsageTotal; projects: (UsageTotal & { name: string })[]; skills: UsageTotal }
 
 export const api = {
   state: () => getJson<RunState>('/api/state'),
@@ -107,6 +120,12 @@ export const api = {
     return (await post('/api/chat', { message })).json() as Promise<{ reply: string; specDraft?: string }>
   },
   async approveSpec(): Promise<void> { await post('/api/spec/approve') },
+  project: () => getJson<ProjectInfo>('/api/project'),
+  async renameProject(displayName: string): Promise<ProjectInfo> { return (await send('PUT', '/api/project', { displayName })).json() as Promise<ProjectInfo> },
+  projects: () => getJson<ProjectSummary[]>('/api/projects'),
+  usageAll: () => getJson<DashboardUsage>('/api/usage/all'),
+  async startPipeline(): Promise<void> { await post('/api/pipeline/start') },
+  async stopPipeline(): Promise<void> { await post('/api/pipeline/stop') },
   async answer(eventId: string, body: { action: 'guidance' | 'skip'; text: string; restartSession?: boolean }): Promise<void> {
     await post(`/api/human/${encodeURIComponent(eventId)}`, body)
   },

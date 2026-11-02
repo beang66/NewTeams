@@ -21,7 +21,8 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e))
  */
 export function SkillsCard() {
   const [skills, setSkills] = useState<Skill[] | null>(null)
-  const [pinned, setPinned] = useState<string[]>([])
+  // null = 아직 못 읽음. 이때 ☆을 누르면 빈 목록 위에 저장돼 실제 고정 목록이 지워지므로 누르지 못하게 한다.
+  const [pinned, setPinned] = useState<string[] | null>(null)
   const [all, setAll] = useState(false)
   const [runs, setRuns] = useState<SkillRun[]>([])
   const [selected, setSelected] = useState<string | null>(null)
@@ -32,9 +33,8 @@ export function SkillsCard() {
   const [err, setErr] = useState<string>()
 
   useEffect(() => {
-    Promise.all([api.skills(), api.pinnedSkills()])
-      .then(([list, pins]) => { setSkills(list.map(toSkill)); setPinned(pins) })
-      .catch((e: unknown) => { setSkills([]); setErr(errText(e)) })
+    api.skills().then((list) => setSkills(list.map(toSkill))).catch((e: unknown) => { setSkills([]); setErr(errText(e)) })
+    api.pinnedSkills().then(setPinned).catch((e: unknown) => setErr(`고정 목록을 읽지 못했습니다: ${errText(e)}`))
   }, [])
   useEffect(() => {
     // 루틴이 시작한 실행·승인 대기도 여기에 나타나도록 늘 다시 읽는다(로컬 서버라 가볍다).
@@ -52,19 +52,22 @@ export function SkillsCard() {
   }
   const start = (sk: Skill) => { const o = opt(sk.id); void act(() => api.runSkill({ name: sk.name, input: o.prompt, model: o.model, effort: o.effort })) }
   const togglePin = (name: string) => {
+    if (!pinned) return
+    const prev = pinned
     const next = pinned.includes(name) ? pinned.filter((p) => p !== name) : [...pinned, name]
     setPinned(next)
-    api.setPinnedSkills(next).catch((e: unknown) => setErr(errText(e)))
+    api.setPinnedSkills(next).catch((e: unknown) => { setPinned(prev); setErr(errText(e)) })
   }
+  const pins = pinned ?? []
 
   if (!skills) return <Section area="skills" title="스킬" meta="불러오는 중…"><Skeleton lines={3} label="스킬 불러오는 중…" /></Section>
-  const base = all ? skills : skills.filter((sk) => pinned.includes(sk.name))
+  const base = all ? skills : skills.filter((sk) => pins.includes(sk.name))
   const shown = base.filter((sk) => `${sk.name} ${sk.desc}`.toLowerCase().includes(q.trim().toLowerCase()))
   const pages = Math.max(1, Math.ceil(shown.length / PER_PAGE))
   const cur = Math.min(page, pages - 1)
   const slice = shown.slice(cur * PER_PAGE, cur * PER_PAGE + PER_PAGE)
   const target = skills.find((sk) => sk.id === editing?.id)
-  const pinnedCount = skills.filter((sk) => pinned.includes(sk.name)).length
+  const pinnedCount = skills.filter((sk) => pins.includes(sk.name)).length
   return (
     <Section area="skills" title="스킬" meta={`고정 ${pinnedCount} · 전체 ${skills.length}`}
       action={<input type="search" name="skill-q" autoComplete="off" className="hs-skill-search" value={q} onChange={(e) => { setQ(e.target.value); setPage(0) }} placeholder="스킬 검색…" aria-label="스킬 검색" />}>
@@ -74,12 +77,12 @@ export function SkillsCard() {
       </div>
       <ul className="hs-skills">
         {slice.map((sk) => {
-          const isPinned = pinned.includes(sk.name)
+          const isPinned = pins.includes(sk.name)
           return (
             <li key={sk.id} className="hs-skill">
               <span className="hs-skill-name">
                 <strong>{sk.name}</strong>
-                <button type="button" className="hs-pin" aria-pressed={isPinned} aria-label={`${sk.name} ${isPinned ? '고정 해제' : '고정'}`} onClick={() => togglePin(sk.name)}>{isPinned ? '★' : '☆'}</button>
+                <button type="button" className="hs-pin" aria-pressed={isPinned} disabled={!pinned} aria-label={`${sk.name} ${isPinned ? '고정 해제' : '고정'}`} onClick={() => togglePin(sk.name)}>{isPinned ? '★' : '☆'}</button>
               </span>
               <small title={sk.desc}>{sk.desc}</small>
               <span className="hs-skill-actions">

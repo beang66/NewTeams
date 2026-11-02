@@ -60,6 +60,8 @@ export function loadFixture(name: FixtureName): Fixture {
  *    behaviour: `id:`/`event: envelope`/`data:`, replay by `Last-Event-ID`, and reconnects — and `push()`
  *    reaches the open page immediately, with no polling or reconnect trick.
  */
+const REAL_PINS = ['content-research-writer', 'doc-coauthoring', 'emil-design-eng', 'graphify', 'ponytail', 'ponytail-review']
+
 export async function mockApi(page: Page, name: FixtureName): Promise<Mock> {
   const fixture = loadFixture(name)
   const events = fixture.events
@@ -69,7 +71,8 @@ export async function mockApi(page: Page, name: FixtureName): Promise<Mock> {
   const clients = new Set<ServerResponse>()
   let streamDown = false
 
-  const stateNow = (): RunState => ({ ...rebuildState(events), ...fixture.state })
+  // 녹화된 픽스처는 사람 시작 기능 이전 것이라, 따로 정하지 않으면 이미 시작된 실행으로 본다.
+  const stateNow = (): RunState => ({ pipeline: 'running', ...rebuildState(events), ...fixture.state })
   const frame = (e: Envelope): string => `id: ${e.id}\nevent: envelope\ndata: ${JSON.stringify(e)}\n\n`
 
   const server: Server = createServer((req: IncomingMessage, res: ServerResponse) => {
@@ -92,7 +95,8 @@ export async function mockApi(page: Page, name: FixtureName): Promise<Mock> {
     const Native = window.EventSource
     window.EventSource = class extends Native {
       constructor(url: string | URL, init?: EventSourceInit) {
-        super(String(url) === '/api/stream' ? `http://127.0.0.1:${streamPort}/api/stream` : url, init)
+        // 프로젝트별 관제(/p/<이름>/api/stream)도 같은 가짜 스트림으로
+        super(/^(\/p\/[^/]+)?\/api\/stream$/.test(String(url)) ?`http://127.0.0.1:${streamPort}/api/stream` : url, init)
       }
     }
   }, port)
@@ -104,7 +108,8 @@ export async function mockApi(page: Page, name: FixtureName): Promise<Mock> {
     const req = route.request()
     const url = new URL(req.url())
     if (url.port === String(port)) { await route.continue(); return }
-    const path = url.pathname
+    // 프로젝트별 관제 API(/p/<이름>/api/...)는 같은 픽스처로 응답한다.
+    const path = url.pathname.replace(/^\/p\/[^/]+(?=\/api\/)/, '')
     const method = req.method()
 
     if (method === 'GET') {
@@ -112,7 +117,13 @@ export async function mockApi(page: Page, name: FixtureName): Promise<Mock> {
       if (path === '/api/plan') return fixture.plan ? json(route, fixture.plan) : json(route, { error: 'plan 없음' }, 404)
       if (path === '/api/agents') return json(route, fixture.agents)
       if (path === '/api/telegram') return json(route, fixture.telegram)
-      if (path === '/api/skills') return json(route, [{ name: 'blog-draft', desc: '블로그 글 초안 작성', source: 'user' }])
+      // 홈 스킬 카드: 사용자의 실제 고정 스킬 이름(orchestrator DEFAULT_PINNED 앞 6개). 한 쪽 4개라 2쪽까지.
+      if (path === '/api/skills') return json(route, REAL_PINS.map((name) => ({ name, desc: `${name} 설명`, source: 'user' })))
+      if (path === '/api/skills/pinned') return json(route, REAL_PINS)
+      if (path === '/api/project') return json(route, { name: 'todo-app', displayName: 'todo-app' })
+      if (path === '/api/projects') { const st = stateNow(); return json(route, [{ name: 'todo-app', displayName: 'todo-app', stage: st.stage, pipeline: st.pipeline ?? null }]) }
+      if (path === '/api/usage/all') return json(route, { total: { tokens: 182400, costUsd: 3.42, hasCost: true }, projects: [{ name: 'todo-app', tokens: 45600, costUsd: 0.9, hasCost: true }, { name: 'home', tokens: 136800, costUsd: 2.52, hasCost: true }], skills: { tokens: 12000, costUsd: 0.2, hasCost: true } })
+      if (path === '/api/skills/runs' || path === '/api/routines' || path.startsWith('/api/library/')) return json(route, [])
       if (path === '/api/events') {
         const after = url.searchParams.get('after')
         return json(route, after ? events.filter((e) => idNum(e.id) > idNum(after)) : events)
