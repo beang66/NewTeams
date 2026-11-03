@@ -21,6 +21,8 @@ export type PlanTask = z.infer<typeof PlanTaskSchema>
 
 export const PlanSchema = z.object({
   tasks: z.array(PlanTaskSchema),
+  /** 테스트 전에 worktree에서 실행할 의존성 설치 명령. 이전 계획과 호환되도록 생략 가능. */
+  setupCommands: z.array(z.string()).optional(),
   testCommands: z.array(z.string()),
   devCommand: z.string(),
 })

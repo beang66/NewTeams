@@ -50,6 +50,12 @@ describe('contextBuilder', () => {
     const p = buildPrompt({ role: 'dev', task: T1, worktree: '/w/t1', findings: [F], guidance: 'G!', conflicts: ['a.ts'] })
     expect(p).toContain('빈 입력 통과'); expect(p).toContain('G!'); expect(p).toContain('a.ts')
   })
+  it('개발 프롬프트는 검사 명령이 있을 때만 자체 검사 루프를 담는다', () => {
+    expect(buildPrompt({ role: 'dev', task: T1, worktree: '/w/t1', testCommands: [] })).not.toContain('자체 검사')
+    const p = buildPrompt({ role: 'dev', task: T1, worktree: '/w/t1', setupCommands: ['npm ci'], testCommands: ['npm test'] })
+    expect(p).toContain('## 자체 검사'); expect(p).toContain('- npm ci'); expect(p).toContain('- npm test')
+    expect(p.indexOf('npm ci')).toBeLessThan(p.indexOf('npm test'))
+  })
   it('QA 템플릿은 실제 증거 manifest의 필드와 상대 캡처 경로를 명시한다', () => {
     const prompt = buildPrompt(ALL_SAMPLE_INPUTS.find((input) => input.role === 'qa')!)
     for (const key of ['scenarioId', 'step', 'action', 'screenshot', 'ts']) expect(prompt).toContain(`\"${key}\"`)

@@ -8,7 +8,9 @@
 - 수용 기준은 검증 가능한 문장으로 쓴다.
 
 ## 출력 계약
-`Plan` JSON 하나만 출력한다: `{"tasks": PlanTask[], "testCommands": string[], "devCommand": string}`
+`Plan` JSON 하나만 출력한다: `{"tasks": PlanTask[], "setupCommands": string[], "testCommands": string[], "devCommand": string}`
+
+`setupCommands`는 새 worktree에서 테스트 전에 필요한 의존성 설치 명령이다(예: `npm ci`). 필요 없으면 빈 배열로 둔다.
 
 태스크의 qaScenarios는 문자열 배열이 아니라 다음 객체 배열이다:
 `[{"id":"scenario-1","steps":["실행 동작","기대 결과 확인"]}]`.

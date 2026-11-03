@@ -8,7 +8,7 @@ export type PromptInput =
   | { role: 'master'; mode: 'report'; timeline: string; iterations: string[] }
   | { role: 'seed'; spec: string; repoMap: string; rules: string }
   | { role: 'planner' }
-  | { role: 'dev'; task: PlanTask; worktree: string; findings?: Finding[]; guidance?: string; conflicts?: string[] }
+  | { role: 'dev'; task: PlanTask; worktree: string; findings?: Finding[]; guidance?: string; conflicts?: string[]; setupCommands?: string[]; testCommands?: string[] }
   | { role: 'qa'; task: PlanTask | null; scenarios: QaScenario[]; devCommand: string; evidenceDir: string }
   | { role: 'reviewer'; acceptance: string[]; diff: string; evidenceManifest: string; previousFindings: Finding[] }
   | { role: 'reviewer-followup'; diff: string; evidenceManifest: string; previousFindings: Finding[] }
@@ -110,6 +110,14 @@ function buildBase(input: PromptInput): string {
         findingsSection: input.findings?.length ? section('수정할 지적 목록', json(input.findings)) : '',
         guidanceSection: input.guidance ? section('마스터 지침', input.guidance) : '',
         conflictsSection: input.conflicts?.length ? section('병합 충돌 파일', list(input.conflicts)) : '',
+        checksSection: input.testCommands?.length
+          ? section('자체 검사', [
+            '보고 전에 아래 명령을 순서대로 실행한다. 실패하면 원인을 고치고 통과할 때까지 다시 실행한다.',
+            '실제로 실행한 명령과 결과만 testsRun에 적는다. 끝내 통과하지 못하면 실패 사실을 claims에 적는다.',
+            ...(input.setupCommands?.length ? ['', '설치:', list(input.setupCommands)] : []),
+            '', '테스트:', list(input.testCommands),
+          ].join('\n'))
+          : '',
       })
     case 'qa':
       return render('qa', {

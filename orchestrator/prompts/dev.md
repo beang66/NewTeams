@@ -8,7 +8,7 @@
 
 ## 태스크
 {{task}}
-{{findingsSection}}{{guidanceSection}}{{conflictsSection}}
+{{findingsSection}}{{guidanceSection}}{{conflictsSection}}{{checksSection}}
 ## 출력 계약
 JSON 하나만 출력한다:
 `{"changedFiles": string[], "testsRun": string[], "claims": string[], "blocked"?: {"reason": "permission"|"repeat_error"|"other", "detail": string}}`

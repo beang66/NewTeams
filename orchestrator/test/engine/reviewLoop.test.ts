@@ -190,6 +190,23 @@ describe('runTaskLoop', () => {
     expect(issue).toContain('existsSync')
   })
 
+  it('설치 명령이 실패하면 테스트를 돌리지 않고 설치 실패로 반려', async () => {
+    const d = deps({
+      plan: {
+        ...PLAN,
+        setupCommands: [`node -e "process.exit(require('fs').existsSync('fixed')?0:1)"`],
+        testCommands: [`node -e "require('fs').writeFileSync('tested','')"`],
+      },
+      claude: [devOk(), devOk({ writes: ['fixed'] }), qaOk()], reviewer: [approveV()],
+    })
+    expect(await runTaskLoop(T1, d)).toEqual({ kind: 'approved' })
+    const rej = events().find((e) => e.type === 'REJECT')!
+    expect(rej.from).toBe('harness')
+    const issue = (rej.payload as { findings: { issue: string }[] }).findings[0]!.issue
+    expect(issue).toContain('설치 명령 실패')
+    expect(d.claude.calls[0]!.prompt).toContain('## 자체 검사')
+  })
+
   it('같은 지적 2회 → 마스터 지침 → 승인', async () => {
     const d = deps({ claude: [...round(3)], reviewer: [rejectV(['F-1']), rejectV(['F-1']), approveV()], master: [{ action: 'guidance', text: '입력 검증을 서버에서' }] })
     expect(await runTaskLoop(T1, d)).toEqual({ kind: 'approved' })

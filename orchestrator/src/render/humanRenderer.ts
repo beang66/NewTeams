@@ -147,7 +147,9 @@ export function renderPlan(plan: Plan): string {
     }
     out.push('')
   }
-  out.push('## 명령', '', `- 테스트: ${plan.testCommands.map((c) => `\`${c}\``).join(', ') || '없음'}`, `- 개발 서버: \`${plan.devCommand}\``)
+  out.push('## 명령', '')
+  if (plan.setupCommands?.length) out.push(`- 설치: ${plan.setupCommands.map((c) => `\`${c}\``).join(', ')}`)
+  out.push(`- 테스트: ${plan.testCommands.map((c) => `\`${c}\``).join(', ') || '없음'}`, `- 개발 서버: \`${plan.devCommand}\``)
   return out.join('\n') + '\n'
 }
 

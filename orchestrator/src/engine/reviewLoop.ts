@@ -196,7 +196,10 @@ export async function runTaskLoop(task: PlanTask, deps: LoopDeps, start: LoopSta
   for (;; round++) {
     // ---- dev ----
     const model = pickModel('dev', { difficulty: task.difficulty, escalated: upgraded }, config)
-    const devPrompt = buildPrompt({ role: 'dev', task, worktree, ...(findings.length ? { findings } : {}), ...(guidance ? { guidance } : {}) })
+    const devPrompt = buildPrompt({
+      role: 'dev', task, worktree, setupCommands: plan.setupCommands ?? [], testCommands: plan.testCommands,
+      ...(findings.length ? { findings } : {}), ...(guidance ? { guidance } : {}),
+    })
     const devPromptRef = await savePrompt(`${task.id}-r${round}-dev`, devPrompt)
     await publish({
       type: 'ASSIGN', from: 'controller', to: 'dev', round, promptRef: devPromptRef,
@@ -259,10 +262,13 @@ export async function runTaskLoop(task: PlanTask, deps: LoopDeps, start: LoopSta
       ...agentConfig.map((f) => ({ key: `cfg:${f}`, issue: `에이전트 설정 파일 수정 금지: ${f}` })),
       ...checkOwnership(changed, task.ownedFiles).map((f) => ({ key: `own:${f}`, issue: `소유 범위 밖 파일 수정: ${f}` })),
     ]
-    const checks = await runChecks(worktree, plan.testCommands, config.timeoutsMs.qa)
+    // 설치는 매 라운드 다시 돈다: dev가 의존성을 추가했을 수 있다. 설치가 실패하면 테스트는 의미가 없다.
+    const setup = await runChecks(worktree, plan.setupCommands ?? [], config.timeoutsMs.qa)
+    const checks = setup.ok ? await runChecks(worktree, plan.testCommands, config.timeoutsMs.qa) : setup
+    const [kind, label] = setup.ok ? ['test', '테스트 명령 실패'] : ['setup', '설치 명령 실패']
     for (const r of checks.results) {
       if (r.exitCode !== 0) {
-        problems.push({ key: `test:${r.cmd}`, issue: `테스트 명령 실패 (exit ${r.exitCode}): ${r.cmd}\n${r.output.slice(-TEST_OUTPUT_TAIL)}` })
+        problems.push({ key: `${kind}:${r.cmd}`, issue: `${label} (exit ${r.exitCode}): ${r.cmd}\n${r.output.slice(-TEST_OUTPUT_TAIL)}` })
       }
     }
     if (problems.length) verdict = harnessVerdict(task.id, problems)
