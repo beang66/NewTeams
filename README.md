@@ -1,29 +1,75 @@
-# NewTeams Studio
+<div align="center">
+  <h1 align="center">
+    NewTeams Studio
+    <br />
+    <br />
+    <img src="docs/screenshots/01-home.png" alt="NewTeams Studio 홈 화면" width="880">
+  </h1>
+</div>
 
-> 목표를 말하면 에이전트 팀이 계획하고, 사람이 확인한 뒤 실행하고, 스스로 검증해서 결과를 팀과 공유하는 협업형 AI 에이전트 플랫폼
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&logoColor=white" alt="FastAPI API">
+  <img src="https://img.shields.io/badge/LangGraph-agents-1C3C3C" alt="LangGraph agents">
+  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white" alt="React 19">
+  <img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" alt="TypeScript 5">
+  <img src="https://img.shields.io/badge/Docker-sandbox-2496ED?logo=docker&logoColor=white" alt="Docker sandbox">
+  <img src="https://img.shields.io/badge/backend_tests-69_passed-1c8a4b" alt="backend tests 69 passed">
+</p>
 
-![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
-![LangGraph](https://img.shields.io/badge/LangGraph-1C3C3C)
-![React](https://img.shields.io/badge/React_19-61DAFB?logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker_Sandbox-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/backend_tests-69_passed-1c8a4b)
+## Introduction
 
-![홈 화면](docs/screenshots/01-home.png)
+기획, 프로젝트 관리, 브랜딩, 시안 검수, 웹앱 제작 같은 일을 **역할을 나눈 AI 에이전트 팀**에게 맡기고, 에이전트가 무엇을 근거로 어떻게 일했는지 **팀 전체가 같은 프로젝트 공간에서 확인하도록** 만든 BX · 공간 마케팅팀용 업무 도구입니다.
 
-**기획·의사결정·검증** 안정빈 (AI 서비스 기획/PM) · **코드 구현** Claude Code
+**기획 · 의사결정 · 검증** 안정빈 (AI 서비스 기획/PM) · **코드 구현** Claude Code
 
 > **30초 요약**
 > - **무엇을:** 기획, 프로젝트 관리, 브랜딩, 시안 검수, 웹앱 제작을 에이전트 팀과 나눠 하고, 그 과정을 팀이 함께 보는 도구
 > - **핵심 기획 판단:** ① 되돌리기 어려운 세 지점에서만 사람이 승인 ② 만드는 담당과 검토하는 담당을 분리 ③ 프로젝트마다 하나의 공유 저장소로 결과를 다음 작업에 이어 붙임
 > - **현재 상태:** 기능 구현과 자동 테스트(69개) 완료, 지인 2명 사용 테스트 진행 중. 실제 모델로 만든 결과물의 품질은 아직 검증 전
 
-NewTeam Studio는 기획, 프로젝트 관리, 브랜딩, 시안 검수, 웹앱 제작 같은 일을 **역할을 나눈 AI 에이전트 팀**에게 맡기고, 에이전트가 무엇을 근거로 어떻게 일했는지 **팀 전체가 같은 프로젝트 공간에서 확인하도록** 만든 제품입니다.
+NewTeams Studio는 기획, 프로젝트 관리, 브랜딩, 시안 검수, 웹앱 제작 같은 일을 **역할을 나눈 AI 에이전트 팀**에게 맡기고, 에이전트가 무엇을 근거로 어떻게 일했는지 **팀 전체가 같은 프로젝트 공간에서 확인하도록** 만든 제품입니다.
+
+- **되돌리기 어려운 세 지점에서만 사람이 승인합니다**
+
+> 계획 승인, 명령 실행 전 승인, 최종 결과 승인에서 실행이 멈추고, 나머지는 에이전트 팀이 이어서 진행합니다.
+
+- **만드는 담당과 검토하는 담당을 나눴습니다**
+
+> 계획 담당이 일을 나누고, 검증 담당이 따로 검토해 기준에 못 미치면 다시 계획합니다.
+
+- **공간 광고 실무에 맞췄습니다**
+
+> 주간 보고서 · 캠페인 브리프 · 현장 점검 · 브랜드 시안 검수 · 제안서 구성 · 집행 증빙 템플릿 6종과 전문 팀 3개를 기본으로 제공합니다.
+
+## Installation
+
+필요한 것: Python 3.11 이상, Node.js 20 이상.
+
+```powershell
+# 1) 백엔드
+cd backend
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt     # macOS/Linux: .venv/bin/python
+
+# 2) 프런트엔드 빌드 (백엔드가 frontend/dist를 함께 제공)
+cd ..\frontend
+npm install
+npm run build
+
+# 3) 실행 → http://127.0.0.1:8000
+cd ..\backend
+.venv\Scripts\python -m newteam
+```
+
+처음 접속하면 **관리자 계정 만들기** 화면이 나옵니다. 기본 모델은 **데모(오프라인)**(`mock:demo`)라서 API 키 없이 전체 흐름(계획 → 승인 → 작업 공간에서 스크립트 실행 → 검증·재계획 → 결과)을 체험할 수 있습니다. 데모 모델은 정해진 규칙으로 응답하므로 결과물 내용은 예시 수준입니다.
+
+프런트엔드를 고치면서 개발할 때는 백엔드를 켠 상태에서 `cd frontend && npm run dev`로 http://localhost:5173 을 엽니다.
+
 
 ## 왜 만들었나
 
-저는 대홍기획 스페이스마케팅팀에서 1년 6개월 동안 공간 브랜딩을 기획했습니다. 포스코 브랜드 상설 홍보관 프로젝트에서는 메인 기획자로 기획부터 개관, 운영자 매뉴얼까지 맡았습니다.
+저는 대홍기획 스페이스마케팅팀에서 1년 5개월 동안 공간 브랜딩을 기획했습니다. 포스코 브랜드 상설 홍보관 프로젝트에서는 메인 기획자로 기획부터 개관, 운영자 매뉴얼까지 맡았습니다.
 
 기획, 프로젝트 관리, 브랜딩, 시안 검수처럼 프로젝트마다 되풀이되는 일을 에이전트와 나눠 하고 싶어서 이 프로젝트를 시작했습니다. 목표는 세 가지입니다.
 
@@ -161,7 +207,7 @@ NewTeam Studio는 기획, 프로젝트 관리, 브랜딩, 시안 검수, 웹앱 
 
 **안정빈** · AI 서비스 기획/PM
 
-- 대홍기획 스페이스마케팅팀 기획자 (1년 6개월)
+- 대홍기획 스페이스마케팅팀 기획자 (1년 5개월)
   - 포스코 브랜드 상설 홍보관 메인 기획: 기획부터 개관, 운영자 매뉴얼까지
 - Email: [beang66@gmail.com](mailto:beang66@gmail.com)
 - LinkedIn: [jeongbin-an](https://www.linkedin.com/in/jeongbin-an-b36782117/)
@@ -194,30 +240,6 @@ NewTeam Studio는 기획, 프로젝트 관리, 브랜딩, 시안 검수, 웹앱 
 - **모델** — 데모(오프라인), Anthropic Claude, **OpenAI**, OpenAI 호환(로컬·기타) 공급자 설정과 연결 테스트(관리자 전용).
 - **운영** — 최근 7일 실행 수, 성공률, 소요 시간, 토큰·도구 사용량, 승인 대기, 실패, 실행 로그, 사용자별 통계(관리자).
 - **사용자** (관리자) — 계정 만들기, 역할 변경, 비밀번호 재설정, 비활성화. **내 계정** — 이름·비밀번호 변경.
-
-## 빠르게 시작하기 (내 PC에서 개발)
-
-필요한 것: Python 3.11 이상, Node.js 20 이상.
-
-```powershell
-# 1) 백엔드
-cd backend
-python -m venv .venv
-.venv\Scripts\python -m pip install -r requirements.txt     # macOS/Linux: .venv/bin/python
-
-# 2) 프런트엔드 빌드 (백엔드가 frontend/dist를 함께 제공)
-cd ..\frontend
-npm install
-npm run build
-
-# 3) 실행 → http://127.0.0.1:8000
-cd ..\backend
-.venv\Scripts\python -m newteam
-```
-
-처음 접속하면 **관리자 계정 만들기** 화면이 나옵니다. 기본 모델은 **데모(오프라인)**(`mock:demo`)라서 API 키 없이 전체 흐름(계획 → 승인 → 작업 공간에서 스크립트 실행 → 검증·재계획 → 결과)을 체험할 수 있습니다. 데모 모델은 정해진 규칙으로 응답하므로 결과물 내용은 예시 수준입니다.
-
-프런트엔드를 고치면서 개발할 때는 백엔드를 켠 상태에서 `cd frontend && npm run dev`로 http://localhost:5173 을 엽니다.
 
 ## 계정과 권한
 
