@@ -66,6 +66,18 @@ NewTeams Studio는 기획, 프로젝트 관리, 브랜딩, 시안 검수, 웹앱
 
 ## 2. 핵심 사용 흐름·기능
 
+### 핵심 기능
+
+| 기능 | 설명 |
+|---|---|
+| 🎯 **목표 → 계획 → 실행 → 결과** | 계획 담당이 목표를 단계로 나눠 조사·웹 탐색·개발·작성 담당에게 맡깁니다. 검증 담당이 따로 검토하고, 부족하면 다시 계획합니다. |
+| ✋ **사람이 결정하는 지점** | 계획 승인, 명령 실행 전 승인, 최종 결과 승인에서 실행이 멈춥니다. 일시정지·재개·실패 단계 재시도를 지원하고, 서버를 재시작해도 이어서 실행합니다. |
+| 🧩 **시각적 팀 설계** | 워크플로 캔버스에서 노드를 눌러 담당 이름과 역할, 모델, 지침, 도구, 승인 정책, 반복 횟수를 바꿉니다. |
+| 🗂️ **프로젝트 공유 저장소** | 같은 프로젝트 멤버는 문서·팀·실행 기록·통계를 함께 씁니다. 완료된 결과물은 저장소에 쌓이고, 다음 작업 때 에이전트가 자동으로 검색해 근거로 씁니다. |
+| 📍 **공간 광고 실무 템플릿** | 주간 보고서, 캠페인 브리프, 현장 점검, 브랜드 시안 검수, 제안서 구성, 집행 증빙 템플릿과 전문 팀 3개를 기본으로 제공합니다. |
+| 🛡️ **격리된 코드 실행** | 에이전트가 만든 코드는 강화된 Docker 컨테이너에서만 실행됩니다. 인터넷은 막혀 있고, 필요하면 허용한 주소만 프록시로 엽니다. |
+| 🔑 **여러 모델, 여러 사용자** | Claude, OpenAI, Gemini, OpenAI 호환 모델(Ollama 등)을 역할마다 다르게 고를 수 있습니다. 계정·권한·공유를 지원하고, API 키 없이 쓰는 데모 모델도 있습니다. |
+
 ### 사용 흐름
 
 1. 사이드바에서 **프로젝트**를 고릅니다. 이후 모든 화면이 그 프로젝트 기준으로 바뀝니다.
@@ -98,6 +110,17 @@ NewTeams Studio는 기획, 프로젝트 관리, 브랜딩, 시안 검수, 웹앱
 - **사용자** (관리자) — 계정 만들기, 역할 변경, 비밀번호 재설정, 비활성화. **내 계정** — 이름·비밀번호 변경.
 
 ## 3. 시스템 구조·데이터·기술
+
+### 모델 연결
+
+**모델** 화면(관리자)에서 공급자를 설정한 뒤, **앱 스튜디오**에서 앱의 기본 모델이나 역할별 모델을 고릅니다.
+
+- **OpenAI** — API 키를 붙여 넣고 **모델 불러오기**를 누르면 그 키로 쓸 수 있는 채팅 모델 목록이 나옵니다. 쓸 모델을 체크하고 저장하세요. 키를 비워 두면 `OPENAI_API_KEY` 환경 변수를 씁니다. 계획·검증처럼 형식이 정해진 응답은 OpenAI의 엄격한 JSON 스키마 모드(structured outputs)로 받습니다.
+- **Google Gemini** — [aistudio.google.com/apikey](https://aistudio.google.com/apikey)에서 받은 키를 넣고 **모델 불러오기**로 쓸 모델을 고릅니다. 키를 비워 두면 `GEMINI_API_KEY`를 씁니다. Gemini의 OpenAI 호환 엔드포인트를 쓰며, 계획·검증 응답은 JSON 스키마 모드로 받습니다.
+- **Anthropic Claude** — API 키를 입력하거나 `ANTHROPIC_API_KEY`를 설정합니다. 기본 모델: `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`. 앱의 ‘추론 강도’(effort)가 전달되고, Opus/Sonnet은 안전 분류기 거절 시 서버 측 대체 모델을 사용합니다.
+- **OpenAI 호환 (로컬·기타)** — Ollama·vLLM·LM Studio 같은 서버. Base URL(예: `http://localhost:11434/v1`)을 넣고 모델을 불러오거나 직접 입력합니다.
+
+> API 키는 서버의 로컬 SQLite 파일(`backend/data/newteam.db`)에 평문으로 저장됩니다. 키를 환경 변수로만 주입하면 파일에 남지 않습니다.
 
 ### 기술 구성
 
@@ -209,6 +232,34 @@ API 목록은 서버 실행 후 http://127.0.0.1:8000/docs 에서 볼 수 있습
 
 ## 5. 설치·실행·배포
 
+### 선택 통합
+
+| 통합 | 설치 | 동작 |
+|---|---|---|
+| browser-use | `pip install browser-use` 후 `playwright install chromium` | 실제 모델을 쓰는 앱에서 웹 탐색 담당이 브라우저를 직접 조작합니다. 미설치·데모 모델이면 HTTP 읽기 전용 모드. |
+| OpenHands SDK | `pip install openhands-sdk openhands-tools` | 개발 담당의 실행 엔진을 ‘OpenHands SDK’로 바꾸면 OpenHands 에이전트가 작업 공간에서 직접 개발합니다. 로컬에서 실행되므로 서버 모드에서는 막힙니다. |
+| PDF 문서 | `pip install pypdf` | 지식 베이스에 PDF를 올릴 수 있습니다. |
+
+browser-use와 OpenHands 연결은 각 프로젝트의 공개 예제 API를 기준으로 작성했으며, 두 라이브러리를 설치한 상태의 동작은 테스트에 포함되어 있지 않습니다.
+
+### 다른 PC에서 함께 쓰기 (소규모 공유)
+
+소수(2~3명)에게 잠깐 써 보게 할 때의 가장 간단한 방법입니다. 내 PC가 켜져 있는 동안만 접속됩니다.
+
+1. **Docker Desktop을 켭니다.**
+2. **서버 모드로 실행합니다.**
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\start-server.ps1
+   ```
+   Docker 확인, 프런트엔드 빌드, 샌드박스 이미지 준비 후 `NEWTEAM_MODE=server`, `NEWTEAM_SANDBOX=docker`로 서버를 켭니다.
+3. 브라우저에서 http://127.0.0.1:8000 → **관리자 계정 생성** → **모델** 화면에서 OpenAI 키 입력 → **사용자** 화면에서 지인 계정 2개 생성.
+4. **외부에서 접속할 수 있게 연결합니다.** 둘 중 하나를 고르세요.
+   - **Tailscale (권장, 비공개)** — 나와 지인이 Tailscale을 설치하고 내 PC를 공유(Share)합니다. 지인은 `http://<내PC의 Tailscale 이름>:8000`으로 접속합니다. 인터넷에 공개되지 않습니다. 이 경우 `.\start-server.ps1 -BindHost 0.0.0.0`으로 실행하세요(Windows 방화벽 허용 창이 뜨면 ‘개인 네트워크’만 허용).
+   - **Cloudflare 임시 터널 (설치 간단, 공개 주소)** — `cloudflared tunnel --url http://localhost:8000` 을 실행하면 `https://….trycloudflare.com` 주소가 나옵니다. 누구나 로그인 화면까지는 볼 수 있으니 비밀번호를 길게 정하고, 이때는 `.\start-server.ps1 -Https`로 실행해 쿠키에 Secure 속성을 붙이세요.
+5. 지인에게 주소와 이메일·임시 비밀번호를 전달합니다. 지인은 **내 계정**에서 비밀번호를 바꿀 수 있습니다.
+
+테스트가 끝나면 서버와 터널을 끄고, 필요하면 **사용자** 화면에서 계정을 비활성화하세요. 모든 사용량은 내 API 키로 청구되므로 OpenAI 대시보드에서 월 사용 한도를 걸어 두는 것을 권합니다.
+
 ### Installation
 
 필요한 것: Python 3.11 이상, Node.js 20 이상.
@@ -288,66 +339,6 @@ npm run typecheck
 
 ## 8. 한계·보안·라이선스
 
-> **확인 필요:** 운영 한계, 보안·개인정보·데이터·이미지·소스 라이선스 확인.
-
-## 9. 다음 단계·참고 문서
-
-### 핵심 기능
-
-| 기능 | 설명 |
-|---|---|
-| 🎯 **목표 → 계획 → 실행 → 결과** | 계획 담당이 목표를 단계로 나눠 조사·웹 탐색·개발·작성 담당에게 맡깁니다. 검증 담당이 따로 검토하고, 부족하면 다시 계획합니다. |
-| ✋ **사람이 결정하는 지점** | 계획 승인, 명령 실행 전 승인, 최종 결과 승인에서 실행이 멈춥니다. 일시정지·재개·실패 단계 재시도를 지원하고, 서버를 재시작해도 이어서 실행합니다. |
-| 🧩 **시각적 팀 설계** | 워크플로 캔버스에서 노드를 눌러 담당 이름과 역할, 모델, 지침, 도구, 승인 정책, 반복 횟수를 바꿉니다. |
-| 🗂️ **프로젝트 공유 저장소** | 같은 프로젝트 멤버는 문서·팀·실행 기록·통계를 함께 씁니다. 완료된 결과물은 저장소에 쌓이고, 다음 작업 때 에이전트가 자동으로 검색해 근거로 씁니다. |
-| 📍 **공간 광고 실무 템플릿** | 주간 보고서, 캠페인 브리프, 현장 점검, 브랜드 시안 검수, 제안서 구성, 집행 증빙 템플릿과 전문 팀 3개를 기본으로 제공합니다. |
-| 🛡️ **격리된 코드 실행** | 에이전트가 만든 코드는 강화된 Docker 컨테이너에서만 실행됩니다. 인터넷은 막혀 있고, 필요하면 허용한 주소만 프록시로 엽니다. |
-| 🔑 **여러 모델, 여러 사용자** | Claude, OpenAI, Gemini, OpenAI 호환 모델(Ollama 등)을 역할마다 다르게 고를 수 있습니다. 계정·권한·공유를 지원하고, API 키 없이 쓰는 데모 모델도 있습니다. |
-
-### 참고 자료
-
-1. Anthropic. (2024. 12. 19.). *Building effective AI agents*. https://www.anthropic.com/engineering/building-effective-agents
-
----
-
-아래부터는 설치와 운영 문서입니다.
-
-### 참고 프로젝트별 구현 위치
-
-| 참고 프로젝트 | 가져온 강점 | 이 프로젝트에서 구현한 곳 |
-|---|---|---|
-| **AutoGPT** | 자연어 목표, 반복 실행, 실행 현황 관리 | **작업** 화면: 목표 입력창, 작업 템플릿 5종, 상태별 실행 목록과 진행률. 검증 실패 시 자동 재계획(최대 반복 횟수 설정) — [TasksPage.tsx](frontend/src/pages/TasksPage.tsx), [templates.py](backend/newteam/templates.py) |
-| **Dify** | 시각적 워크플로, 문서 검색, 모델 관리, 운영 화면 | **앱 스튜디오**: 노드를 눌러 설정하는 워크플로 캔버스. **지식**: 문서 업로드·분할·검색 테스트. **모델**: 공급자 키 관리와 연결 테스트. **운영**: 통계·승인 대기·실패·로그 — [StudioPage.tsx](frontend/src/pages/StudioPage.tsx), [knowledge.py](backend/newteam/knowledge.py), [llm/registry.py](backend/newteam/llm/registry.py) |
-| **browser-use** | API 없는 웹사이트 탐색·조작 | **웹 탐색 담당**의 브라우저 도구. browser-use가 설치되어 있으면 실제 브라우저를 조작하고, 없으면 HTTP로 본문만 읽는 모드로 동작 — [tools/browser.py](backend/newteam/tools/browser.py) |
-| **OpenHands SDK** | 코드 수정, 명령 실행, 작업 공간 관리 | 실행마다 따로 쓰는 **작업 공간**, 강화된 Docker 샌드박스, OpenHands 에이전트 위임 모드. 실행 화면의 파일·터미널 탭 — [tools/workspace.py](backend/newteam/tools/workspace.py), [RunPage.tsx](frontend/src/pages/RunPage.tsx) |
-| **CrewAI** | 역할별 협업과 작업 위임 | 계획·조사·웹 탐색·개발·작성·검증 6개 역할(역할/목표/배경). 계획 담당이 단계를 담당자에게 위임하고 검증 담당이 독립적으로 검토 — [crew.py](backend/newteam/crew.py) |
-| **LangGraph** | 상태 관리, 중단·재개, 사람의 개입 | 전체 실행 흐름을 `StateGraph`로 구성. `interrupt()`로 계획·도구·최종 승인 지점에서 멈추고, SQLite 체크포인트로 일시정지·재개·실패 단계 재시도·서버 재시작 복구 — [engine/graph.py](backend/newteam/engine/graph.py), [engine/runner.py](backend/newteam/engine/runner.py) |
-
-### 계정과 권한
-
-| | 멤버 | 관리자 |
-|---|---|---|
-| 실행 기록 | 내 것만 | 내 것 + ‘전체’ 보기 |
-| 앱·지식 베이스 | 내가 만든 것 수정, 공유된 것 읽기·실행 | 모두 수정 |
-| 모델 키 | 볼 수 없음(모델 이름만 선택) | 설정·연결 테스트 |
-| 사용자 관리 | – | 계정 생성·역할·비활성화 |
-
-- 처음 만든 계정이 관리자가 되고, 계정 기능 이전의 실행·앱·지식은 이 계정으로 넘어갑니다.
-- 기본은 **관리자가 계정을 만들어 주는 방식**입니다. 셀프 가입을 열려면 `NEWTEAM_ALLOW_SIGNUP=1`.
-- 비밀번호는 scrypt로 해시해 저장하고, 세션은 HttpOnly·SameSite=Lax 쿠키입니다. 같은 IP·이메일로 10분에 5번 로그인에 실패하면 잠시 막힙니다.
-- 공유 앱에 비공개 지식 베이스가 연결되어 있으면, 다른 사용자가 실행할 때는 그 지식 베이스를 검색하지 않습니다.
-
-### 모델 연결
-
-**모델** 화면(관리자)에서 공급자를 설정한 뒤, **앱 스튜디오**에서 앱의 기본 모델이나 역할별 모델을 고릅니다.
-
-- **OpenAI** — API 키를 붙여 넣고 **모델 불러오기**를 누르면 그 키로 쓸 수 있는 채팅 모델 목록이 나옵니다. 쓸 모델을 체크하고 저장하세요. 키를 비워 두면 `OPENAI_API_KEY` 환경 변수를 씁니다. 계획·검증처럼 형식이 정해진 응답은 OpenAI의 엄격한 JSON 스키마 모드(structured outputs)로 받습니다.
-- **Google Gemini** — [aistudio.google.com/apikey](https://aistudio.google.com/apikey)에서 받은 키를 넣고 **모델 불러오기**로 쓸 모델을 고릅니다. 키를 비워 두면 `GEMINI_API_KEY`를 씁니다. Gemini의 OpenAI 호환 엔드포인트를 쓰며, 계획·검증 응답은 JSON 스키마 모드로 받습니다.
-- **Anthropic Claude** — API 키를 입력하거나 `ANTHROPIC_API_KEY`를 설정합니다. 기본 모델: `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`. 앱의 ‘추론 강도’(effort)가 전달되고, Opus/Sonnet은 안전 분류기 거절 시 서버 측 대체 모델을 사용합니다.
-- **OpenAI 호환 (로컬·기타)** — Ollama·vLLM·LM Studio 같은 서버. Base URL(예: `http://localhost:11434/v1`)을 넣고 모델을 불러오거나 직접 입력합니다.
-
-> API 키는 서버의 로컬 SQLite 파일(`backend/data/newteam.db`)에 평문으로 저장됩니다. 키를 환경 변수로만 주입하면 파일에 남지 않습니다.
-
 ### 작업 공간 보안 (샌드박스)
 
 에이전트(개발 담당)는 작업 공간에서 실제로 명령을 실행합니다. 실행 위치는 두 가지입니다.
@@ -372,33 +363,40 @@ npm run typecheck
 | 네트워크는 허용 목록으로 | 위 프록시 방식. 기본은 완전 차단입니다. |
 | Windows는 Docker Desktop, Linux는 gVisor | `start-server.ps1`은 Docker Desktop을 전제로 합니다. Linux 서버에서는 `NEWTEAM_DOCKER_RUNTIME=runsc`. |
 
-### 다른 PC에서 함께 쓰기 (소규모 공유)
+### 계정과 권한
 
-소수(2~3명)에게 잠깐 써 보게 할 때의 가장 간단한 방법입니다. 내 PC가 켜져 있는 동안만 접속됩니다.
-
-1. **Docker Desktop을 켭니다.**
-2. **서버 모드로 실행합니다.**
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\start-server.ps1
-   ```
-   Docker 확인, 프런트엔드 빌드, 샌드박스 이미지 준비 후 `NEWTEAM_MODE=server`, `NEWTEAM_SANDBOX=docker`로 서버를 켭니다.
-3. 브라우저에서 http://127.0.0.1:8000 → **관리자 계정 생성** → **모델** 화면에서 OpenAI 키 입력 → **사용자** 화면에서 지인 계정 2개 생성.
-4. **외부에서 접속할 수 있게 연결합니다.** 둘 중 하나를 고르세요.
-   - **Tailscale (권장, 비공개)** — 나와 지인이 Tailscale을 설치하고 내 PC를 공유(Share)합니다. 지인은 `http://<내PC의 Tailscale 이름>:8000`으로 접속합니다. 인터넷에 공개되지 않습니다. 이 경우 `.\start-server.ps1 -BindHost 0.0.0.0`으로 실행하세요(Windows 방화벽 허용 창이 뜨면 ‘개인 네트워크’만 허용).
-   - **Cloudflare 임시 터널 (설치 간단, 공개 주소)** — `cloudflared tunnel --url http://localhost:8000` 을 실행하면 `https://….trycloudflare.com` 주소가 나옵니다. 누구나 로그인 화면까지는 볼 수 있으니 비밀번호를 길게 정하고, 이때는 `.\start-server.ps1 -Https`로 실행해 쿠키에 Secure 속성을 붙이세요.
-5. 지인에게 주소와 이메일·임시 비밀번호를 전달합니다. 지인은 **내 계정**에서 비밀번호를 바꿀 수 있습니다.
-
-테스트가 끝나면 서버와 터널을 끄고, 필요하면 **사용자** 화면에서 계정을 비활성화하세요. 모든 사용량은 내 API 키로 청구되므로 OpenAI 대시보드에서 월 사용 한도를 걸어 두는 것을 권합니다.
-
-### 선택 통합
-
-| 통합 | 설치 | 동작 |
+| | 멤버 | 관리자 |
 |---|---|---|
-| browser-use | `pip install browser-use` 후 `playwright install chromium` | 실제 모델을 쓰는 앱에서 웹 탐색 담당이 브라우저를 직접 조작합니다. 미설치·데모 모델이면 HTTP 읽기 전용 모드. |
-| OpenHands SDK | `pip install openhands-sdk openhands-tools` | 개발 담당의 실행 엔진을 ‘OpenHands SDK’로 바꾸면 OpenHands 에이전트가 작업 공간에서 직접 개발합니다. 로컬에서 실행되므로 서버 모드에서는 막힙니다. |
-| PDF 문서 | `pip install pypdf` | 지식 베이스에 PDF를 올릴 수 있습니다. |
+| 실행 기록 | 내 것만 | 내 것 + ‘전체’ 보기 |
+| 앱·지식 베이스 | 내가 만든 것 수정, 공유된 것 읽기·실행 | 모두 수정 |
+| 모델 키 | 볼 수 없음(모델 이름만 선택) | 설정·연결 테스트 |
+| 사용자 관리 | – | 계정 생성·역할·비활성화 |
 
-browser-use와 OpenHands 연결은 각 프로젝트의 공개 예제 API를 기준으로 작성했으며, 두 라이브러리를 설치한 상태의 동작은 테스트에 포함되어 있지 않습니다.
+- 처음 만든 계정이 관리자가 되고, 계정 기능 이전의 실행·앱·지식은 이 계정으로 넘어갑니다.
+- 기본은 **관리자가 계정을 만들어 주는 방식**입니다. 셀프 가입을 열려면 `NEWTEAM_ALLOW_SIGNUP=1`.
+- 비밀번호는 scrypt로 해시해 저장하고, 세션은 HttpOnly·SameSite=Lax 쿠키입니다. 같은 IP·이메일로 10분에 5번 로그인에 실패하면 잠시 막힙니다.
+- 공유 앱에 비공개 지식 베이스가 연결되어 있으면, 다른 사용자가 실행할 때는 그 지식 베이스를 검색하지 않습니다.
+
+## 9. 다음 단계·참고 문서
+
+### 참고 자료
+
+1. Anthropic. (2024. 12. 19.). *Building effective AI agents*. https://www.anthropic.com/engineering/building-effective-agents
+
+---
+
+아래부터는 설치와 운영 문서입니다.
+
+### 참고 프로젝트별 구현 위치
+
+| 참고 프로젝트 | 가져온 강점 | 이 프로젝트에서 구현한 곳 |
+|---|---|---|
+| **AutoGPT** | 자연어 목표, 반복 실행, 실행 현황 관리 | **작업** 화면: 목표 입력창, 작업 템플릿 5종, 상태별 실행 목록과 진행률. 검증 실패 시 자동 재계획(최대 반복 횟수 설정) — [TasksPage.tsx](frontend/src/pages/TasksPage.tsx), [templates.py](backend/newteam/templates.py) |
+| **Dify** | 시각적 워크플로, 문서 검색, 모델 관리, 운영 화면 | **앱 스튜디오**: 노드를 눌러 설정하는 워크플로 캔버스. **지식**: 문서 업로드·분할·검색 테스트. **모델**: 공급자 키 관리와 연결 테스트. **운영**: 통계·승인 대기·실패·로그 — [StudioPage.tsx](frontend/src/pages/StudioPage.tsx), [knowledge.py](backend/newteam/knowledge.py), [llm/registry.py](backend/newteam/llm/registry.py) |
+| **browser-use** | API 없는 웹사이트 탐색·조작 | **웹 탐색 담당**의 브라우저 도구. browser-use가 설치되어 있으면 실제 브라우저를 조작하고, 없으면 HTTP로 본문만 읽는 모드로 동작 — [tools/browser.py](backend/newteam/tools/browser.py) |
+| **OpenHands SDK** | 코드 수정, 명령 실행, 작업 공간 관리 | 실행마다 따로 쓰는 **작업 공간**, 강화된 Docker 샌드박스, OpenHands 에이전트 위임 모드. 실행 화면의 파일·터미널 탭 — [tools/workspace.py](backend/newteam/tools/workspace.py), [RunPage.tsx](frontend/src/pages/RunPage.tsx) |
+| **CrewAI** | 역할별 협업과 작업 위임 | 계획·조사·웹 탐색·개발·작성·검증 6개 역할(역할/목표/배경). 계획 담당이 단계를 담당자에게 위임하고 검증 담당이 독립적으로 검토 — [crew.py](backend/newteam/crew.py) |
+| **LangGraph** | 상태 관리, 중단·재개, 사람의 개입 | 전체 실행 흐름을 `StateGraph`로 구성. `interrupt()`로 계획·도구·최종 승인 지점에서 멈추고, SQLite 체크포인트로 일시정지·재개·실패 단계 재시도·서버 재시작 복구 — [engine/graph.py](backend/newteam/engine/graph.py), [engine/runner.py](backend/newteam/engine/runner.py) |
 
 ---
 
