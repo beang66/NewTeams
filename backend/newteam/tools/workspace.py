@@ -144,7 +144,7 @@ LOCAL_REFUSED = (
 
 # ---- 허용 목록 네트워크 ----
 # 샌드박스는 외부와 끊긴 내부 네트워크에만 붙고, 같은 네트워크의 squid 프록시만 바깥(bridge)에 나갈 수 있다.
-# 프록시는 허용 목록 도메인만 통과시키므로 pip install은 되지만 다른 곳으로는 나갈 수 없다.
+# 프록시는 설정된 허용 도메인으로의 요청만 통과시킨다. pip install은 패키지 인덱스·파일 호스트가 목록에 있을 때만 가능하다.
 EGRESS_NETWORK = "newteam-sandbox"
 EGRESS_PROXY = "newteam-egress"
 EGRESS_IMAGE = "ubuntu/squid:latest"
