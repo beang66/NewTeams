@@ -70,6 +70,7 @@ export default function RunPage({ runId }: { runId: string }) {
   };
 
   const active = run.status === "running" || run.status === "queued";
+  const canControl = user.role === "admin" || run.owner_id === user.id;
 
   return (
     <RoleNamesContext.Provider value={run.role_names ?? {}}>
@@ -88,7 +89,7 @@ export default function RunPage({ runId }: { runId: string }) {
           </span>
         </div>
         <StatusBadge status={run.status} />
-        <div className="actions">
+        {canControl && <div className="actions">
           {active && (
             <button className="btn" disabled={busy} onClick={() => control(() => api.pause(run.id))}>
               ⏸ 일시정지
@@ -114,13 +115,13 @@ export default function RunPage({ runId }: { runId: string }) {
               삭제
             </button>
           )}
-        </div>
+        </div>}
       </header>
 
       <div className="run-body">
         <section className="timeline-pane">
           <Timeline events={events} />
-          <ControlPanel run={run} busy={busy} onRespond={(body) => control(() => api.respond(run.id, body), "결정을 전달했습니다.")} />
+          {canControl && <ControlPanel run={run} busy={busy} onRespond={(body) => control(() => api.respond(run.id, body), "결정을 전달했습니다.")} />}
         </section>
 
         <section className="workspace-pane">

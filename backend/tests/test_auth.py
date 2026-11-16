@@ -111,6 +111,36 @@ def test_runs_are_private_per_user(team):
     assert team.get(f"/api/runs/{run['id']}").status_code == 200
 
 
+def test_project_member_can_view_but_cannot_control_another_members_run(team):
+    login_as(team, ADMIN)
+    members = {u["email"]: u["id"] for u in team.get("/api/users").json()}
+    project = team.post("/api/projects", json={
+        "name": "프로젝트 실행 권한 테스트",
+        "member_ids": [members[ALICE["email"]], members[BOB["email"]]],
+    }).json()
+    assert project["id"]
+
+    login_as(team, ALICE)
+    app_id = next(a["id"] for a in team.get("/api/apps").json() if a["name"].startswith("데이터"))
+    run = team.post("/api/runs", json={
+        "app_id": app_id, "project_id": project["id"], "goal": "앨리스 실행",
+    }).json()
+    wait_status(team, run["id"])
+
+    login_as(team, BOB)
+    assert team.get(f"/api/runs/{run['id']}").status_code == 200  # 협업: 열람은 허용
+    assert team.delete(f"/api/runs/{run['id']}").status_code == 403
+    for action in ("respond", "pause", "resume", "cancel", "rerun"):
+        assert team.post(f"/api/runs/{run['id']}/{action}", json={}).status_code == 403, action
+    assert team.get(f"/api/runs/{run['id']}/files").status_code == 200
+
+    login_as(team, ADMIN)
+    assert team.post(f"/api/runs/{run['id']}/cancel").status_code == 200  # 관리자는 제어 가능
+
+    login_as(team, ALICE)
+    assert team.delete(f"/api/runs/{run['id']}").status_code == 200  # 소유자는 계속 제어 가능
+
+
 def test_shared_apps_are_read_only_for_others(team):
     login_as(team, ALICE)
     shared = team.get("/api/apps").json()[0]

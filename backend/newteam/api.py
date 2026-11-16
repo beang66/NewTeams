@@ -178,7 +178,7 @@ def create_app() -> FastAPI:
             raise HTTPException(403, "관리자만 할 수 있습니다.")
         return user
 
-    def run_for(request: Request, user: User, run_id: str) -> dict[str, Any]:
+    def run_for(request: Request, user: User, run_id: str, *, control: bool = False) -> dict[str, Any]:
         run = store_of(request).get("runs", run_id)
         if run is None:
             raise HTTPException(404, "실행을 찾을 수 없습니다.")
@@ -188,6 +188,8 @@ def create_app() -> FastAPI:
             allowed = bool(project and projects.can_view(user, project))
         if not allowed:
             raise HTTPException(404, "실행을 찾을 수 없습니다.")
+        if control and not (auth.is_admin(user) or run.get("owner_id") == user["id"]):
+            raise HTTPException(403, "실행 소유자 또는 관리자만 실행을 제어할 수 있습니다.")
         return run
 
     def project_for(
@@ -584,7 +586,7 @@ def create_app() -> FastAPI:
         return {"ok": True}
 
     def control(request: Request, user: User, run_id: str, fn: str, *args: Any) -> dict[str, Any]:
-        run_for(request, user, run_id)
+        run_for(request, user, run_id, control=True)
         try:
             return getattr(runner_of(request), fn)(run_id, *args)
         except RunError as e:
@@ -608,7 +610,7 @@ def create_app() -> FastAPI:
 
     @api.post("/api/runs/{run_id}/rerun")
     def rerun(request: Request, run_id: str, user: User = Depends(current_user)) -> dict[str, Any]:
-        run = run_for(request, user, run_id)
+        run = run_for(request, user, run_id, control=True)
         app_ = shared_for(request, user, "apps", run["app_id"], "앱")
         project = project_for(request, user, run["project_id"], contribute=True) if run.get("project_id") else None
         return start_run(request, user, app_, run["goal"], run.get("template_id"), project)
