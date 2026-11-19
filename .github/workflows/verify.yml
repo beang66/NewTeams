@@ -2,7 +2,9 @@ name: Verify
 
 on:
   push:
+    branches: [feature/home-dashboard]
   pull_request:
+    branches: [feature/home-dashboard]
 
 permissions:
   contents: read
@@ -18,12 +20,10 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: |
-            package-lock.json
             orchestrator/package-lock.json
             dashboard/package-lock.json
       - name: Install locked dependencies
         run: |
-          npm ci
           npm --prefix orchestrator ci
           npm --prefix dashboard ci
       - name: Typecheck orchestrator (including tests)
