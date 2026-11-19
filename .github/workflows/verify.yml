@@ -1,0 +1,35 @@
+name: Verify
+
+on:
+  push:
+    branches: [feature/home-dashboard]
+  pull_request:
+    branches: [feature/home-dashboard]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            orchestrator/package-lock.json
+            dashboard/package-lock.json
+      - name: Install locked dependencies
+        run: |
+          npm --prefix orchestrator ci
+          npm --prefix dashboard ci
+      - name: Typecheck orchestrator (including tests)
+        working-directory: orchestrator
+        run: npx tsc --noEmit
+      - name: Unit and integration tests
+        run: npm test
+      - name: Production builds and dashboard typecheck
+        run: npm run build
